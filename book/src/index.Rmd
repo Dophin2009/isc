@@ -1,0 +1,7 @@
+---
+geometry: margin=3cm
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
