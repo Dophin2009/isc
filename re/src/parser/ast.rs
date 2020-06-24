@@ -1,22 +1,21 @@
-use std::error;
-use std::fmt;
+use super::ParseError;
 
 #[derive(Debug, PartialEq)]
-enum Node<T, U> {
+pub enum Node<T, U> {
     Leaf(T),
     Branch(U, Box<Node<T, U>>, Box<Node<T, U>>),
     None,
 }
 
 #[derive(Debug, PartialEq)]
-enum LeafType {
+pub enum LeafType {
     Char(char),
     Newline,
     Whitespace,
 }
 
 #[derive(Debug, PartialEq)]
-enum Operator {
+pub enum Operator {
     Kleene,
     Concat,
     Alter,
@@ -30,16 +29,9 @@ enum OperatorFlag {
     LeftParen,
 }
 
-type SyntaxTree = Node<LeafType, Operator>;
+pub type SyntaxTree = Node<LeafType, Operator>;
 
-/// This function attempts to implement **Algorithm 3.36**, the conversion of a regular expression
-/// string directly to a DFA, from *Compilers: Principles, Techniques, and Tool*, Second Edition.
-pub fn regex_to_dfa(expr: &str) -> Result<(), ParseError> {
-    let _ast = syntax_tree(expr)?;
-    Ok(())
-}
-
-fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
+pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
     let mut op_stack = Vec::new();
     let mut node_stack = Vec::new();
     let mut paren_count_stack = Vec::new();
@@ -232,25 +224,4 @@ fn collapse_stack(
     nodes.push(new);
 
     Ok(())
-}
-
-#[derive(Debug)]
-pub enum ParseError {
-    Malformed,
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ParseError::Malformed => write!(f, "malformed expression"),
-        }
-    }
-}
-
-impl error::Error for ParseError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match *self {
-            ParseError::Malformed => None,
-        }
-    }
 }
