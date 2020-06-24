@@ -22,7 +22,7 @@ mod tests {
 
     #[test]
     fn test_blank() {
-        let exprs = ["", "()", "(())"];
+        let exprs = ["", "()", "(())", "((()))"];
         run_tests(&exprs);
     }
 
@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn test_kleene() {
-        let exprs = ["a*", "ab*", "(ab)", "(ab)*", "(ab*)*"];
+        let exprs = ["a*", "ab*", "(a*b)", "(ab)*", "(ab*)*"];
         run_tests(&exprs);
     }
 
@@ -43,15 +43,26 @@ mod tests {
         let exprs = ["a|b", "(a|b)", "a|b|c"];
         run_tests(&exprs);
     }
+
     #[test]
     fn test_concat() {
-        let exprs = ["ab", "abc", "abb", "abcb"];
+        let exprs = [
+            "ab", "abc", "abb", "abcb", "a()", "a( )", "a()b", "()a", "  ", " ()", " ( ) ",
+        ];
         run_tests(&exprs);
     }
 
     #[test]
     fn test_composite() {
-        let exprs = ["(a|b)*abb", "ab(a|b)*abb"];
+        let exprs = [
+            "(a|b)*",
+            "(a|bc)*",
+            "a|b*",
+            "a*b",
+            "a*|b",
+            "(a|b)*abb",
+            "ab(a|b)*abb",
+        ];
         run_tests(&exprs);
     }
 
