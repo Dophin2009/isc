@@ -10,8 +10,7 @@ other extended features are not supported.
 
 Regular expressions are compiled by conversion to a syntax tree, then
 direct conversion to a DFA, as outlined in Algorithm 3.36 from
-*Compilers: Principles, Techniques, and Tool*, Second Edition. See
-[below](#Method) for details.
+*Compilers: Principles, Techniques, and Tool*, Second Edition.
 
 ### Expression to Syntax Tree
 
