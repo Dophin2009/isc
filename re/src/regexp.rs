@@ -1,4 +1,5 @@
-use crate::parser::{self, dfa::DFA, error::*};
+use crate::dfa::DFA;
+use crate::parser::{self, error::*};
 
 #[derive(Debug)]
 pub struct RegExp {

@@ -1,5 +1,5 @@
-use super::convert::CharType;
 use super::ParseError;
+use crate::convert::CharType;
 
 #[derive(Debug, PartialEq)]
 pub enum Node<T, U> {
