@@ -213,20 +213,19 @@ fn augment_tree<'a>(
     let augmented = match &tree {
         SyntaxTree::Branch(ref op, ref c1, ref c2) => {
             // Calculate first child
-            let aug_c1_ret = match augment_tree(c1, lookup, mark)? {
-                Some(ret) => ret,
-                None => {
-                    return Ok(None);
-                }
-            };
-
-            // Remove first child from lookup if is leaf, insert back at the end
-            let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+            let aug_c1_ret = augment_tree(c1, lookup, mark)?;
 
             let aug_node = match op {
                 // For kleene star node, compute functions for one child to compute `firstpos`,
                 // `lastpos`, and `followpos` for this node. Star node is nullable.
                 Operator::Kleene => {
+                    let aug_c1_ret = match aug_c1_ret {
+                        Some(ret) => ret,
+                        None => return Ok(None),
+                    };
+                    // Remove first child from lookup if is leaf, insert back at the end
+                    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+
                     let firstpos = aug_c1.firstpos.clone();
                     let lastpos = aug_c1.lastpos.clone();
 
@@ -260,11 +259,20 @@ fn augment_tree<'a>(
                         followpos: HashSet::new(),
                     };
 
+                    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+
                     AugmentTreeRet::Branch(aug_node)
                 }
                 // For alternation node, compute functions for two children to compute `nullable`,
                 // `firstpos`, `lastpos`, and `followpos` for this node.
                 Operator::Alter => {
+                    let aug_c1_ret = match aug_c1_ret {
+                        Some(ret) => ret,
+                        None => return Ok(None),
+                    };
+                    // Remove first child from lookup if is leaf, insert back at the end
+                    let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup)?;
+
                     // Calculate second child
                     let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
                         Some(ret) => ret,
@@ -290,7 +298,8 @@ fn augment_tree<'a>(
                         followpos: HashSet::new(),
                     };
 
-                    // Insert second child back into lookup if leaf
+                    // Insert children back into lookup if leaf
+                    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
                     reinsert_leaf(lookup, aug_c2_mark, aug_c2);
 
                     AugmentTreeRet::Branch(aug_node)
@@ -298,6 +307,14 @@ fn augment_tree<'a>(
                 // For concat node, compute functions for two children to compute `nullable`,
                 // `firstpos`, `lastpos`, and `followpos` for this node.
                 Operator::Concat => {
+                    if aug_c1_ret.is_none() {
+                        return Ok(augment_tree(c2, lookup, mark)?);
+                    }
+
+                    let aug_c1_ret = aug_c1_ret.unwrap();
+                    // Remove first child from lookup if is leaf, insert back at the end
+                    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+
                     // Calculate second child
                     let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
                         Some(ret) => ret,
@@ -362,13 +379,12 @@ fn augment_tree<'a>(
                     };
 
                     // Reinsert second child
+                    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
                     reinsert_leaf(lookup, aug_c2_mark, aug_c2);
 
                     AugmentTreeRet::Branch(aug_node)
                 }
             };
-
-            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
 
             aug_node
         }
