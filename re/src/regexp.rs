@@ -9,7 +9,7 @@ impl RegExp {
     }
 
     pub fn new(expr: &str) -> Result<Self, ParseError> {
-        parser::regex_to_dfa(expr)?;
+        parser::regex_to_dfa(&expr)?;
         Ok(Self)
     }
 }
