@@ -1,4 +1,5 @@
-use super::ast::{LeafType, Operator, SyntaxTree};
+use super::ast::{Operator, SyntaxTree};
+use super::convert::CharType;
 use super::error::ParseError;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hash;
@@ -10,7 +11,13 @@ pub struct DFA {
     pub accepting: HashSet<u32>,
 }
 
-pub type DTran = Table<u32, LeafType, u32>;
+impl DFA {
+    pub fn matches(&self, s: &str) -> bool {
+        return false;
+    }
+}
+
+pub type DTran = Table<u32, CharType, u32>;
 
 #[derive(Debug)]
 pub struct Table<T, U, V> {
@@ -114,7 +121,7 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
 
         // Split the positions in current state by associated character.
         // Store the union of followpos of that position.
-        let mut followpos_split: HashMap<LeafType, HashSet<u32>> = HashMap::new();
+        let mut followpos_split: HashMap<CharType, HashSet<u32>> = HashMap::new();
         s.positions
             .iter()
             .map(|i| -> Result<(), ParseError> {
@@ -168,7 +175,7 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
                 };
 
                 // Update the transition table entry.
-                if c == LeafType::EndMarker {
+                if c == CharType::EndMarker {
                     dfa.accepting.insert(s.label);
                 } else {
                     dfa.trans.set(s.label, c, new_state.label);
@@ -188,14 +195,12 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
         s_op = unmarked_states.pop_front();
     }
 
-    println!("{:#?}", dfa);
-
     Ok(dfa)
 }
 
 #[derive(Clone, Debug)]
 struct AugmentedNode {
-    character: Option<LeafType>,
+    character: Option<CharType>,
     accepting: bool,
 
     nullable: bool,

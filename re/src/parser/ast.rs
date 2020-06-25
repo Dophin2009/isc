@@ -1,19 +1,11 @@
+use super::convert::CharType;
 use super::ParseError;
-use std::hash::Hash;
 
 #[derive(Debug, PartialEq)]
 pub enum Node<T, U> {
     Leaf(T),
     Branch(U, Box<Node<T, U>>, Box<Node<T, U>>),
     None,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum LeafType {
-    Char(char),
-    Newline,
-    Whitespace,
-    EndMarker,
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,7 +23,7 @@ enum OperatorFlag {
     LeftParen,
 }
 
-pub type SyntaxTree = Node<LeafType, Operator>;
+pub type SyntaxTree = Node<CharType, Operator>;
 
 pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
     let mut op_stack = Vec::new();
@@ -129,9 +121,9 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
                 }
 
                 let leaf_type = match c {
-                    ' ' => LeafType::Whitespace,
-                    '\n' => LeafType::Newline,
-                    _ => LeafType::Char(c),
+                    ' ' => CharType::Whitespace,
+                    '\n' => CharType::Newline,
+                    _ => CharType::Char(c),
                 };
                 node_stack.push(Node::Leaf(leaf_type));
                 insert_concat = true;
@@ -150,7 +142,7 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
     let root = Node::Branch(
         Operator::Concat,
         Box::new(head),
-        Box::new(Node::Leaf(LeafType::EndMarker)),
+        Box::new(Node::Leaf(CharType::EndMarker)),
     );
 
     Ok(root)
@@ -159,7 +151,7 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
 /// Collapses the stack if the current operator `new_op` has equal or lower precedence than the last operator.
 fn precedence_collapse_stack(
     new_op: &OperatorFlag,
-    nodes: &mut Vec<Node<LeafType, Operator>>,
+    nodes: &mut Vec<Node<CharType, Operator>>,
     ops: &mut Vec<OperatorFlag>,
 ) -> Result<bool, ParseError> {
     let collapse = match ops.last() {
@@ -198,7 +190,7 @@ fn precedence_collapse_stack(
 
 /// Take the top operator and construct a new node with children from the node stack.
 fn collapse_stack(
-    nodes: &mut Vec<Node<LeafType, Operator>>,
+    nodes: &mut Vec<Node<CharType, Operator>>,
     ops: &mut Vec<OperatorFlag>,
 ) -> Result<(), ParseError> {
     let op = ops.pop().ok_or(ParseError::Malformed)?;
