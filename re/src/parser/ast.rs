@@ -1,4 +1,5 @@
 use super::ParseError;
+use std::hash::Hash;
 
 #[derive(Debug, PartialEq)]
 pub enum Node<T, U> {
@@ -7,11 +8,12 @@ pub enum Node<T, U> {
     None,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum LeafType {
     Char(char),
     Newline,
     Whitespace,
+    EndMarker,
 }
 
 #[derive(Debug, PartialEq)]
@@ -145,7 +147,13 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
     }
 
     let head: Node<_, _> = node_stack.into_iter().last().unwrap_or(Node::None);
-    Ok(head)
+    let root = Node::Branch(
+        Operator::Concat,
+        Box::new(head),
+        Box::new(Node::Leaf(LeafType::EndMarker)),
+    );
+
+    Ok(root)
 }
 
 /// Collapses the stack if the current operator `new_op` has equal or lower precedence than the last operator.

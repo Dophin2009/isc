@@ -7,7 +7,10 @@ use std::hash::Hash;
 pub struct DFA {
     pub start: u32,
     pub trans: DTran,
+    pub accepting: HashSet<u32>,
 }
+
+pub type DTran = Table<u32, LeafType, u32>;
 
 #[derive(Debug)]
 pub struct Table<T, U, V> {
@@ -52,8 +55,6 @@ where
     }
 }
 
-pub type DTran = Table<u32, char, u32>;
-
 #[derive(Debug)]
 struct DState {
     label: u32,
@@ -87,7 +88,7 @@ macro_rules! hash_set {
 
 /// Implements steps 2 and 3 of **Algorithm 3.36** in *Compilers: Principles,
 /// Techniques, and Tool*, Second Edition.
-pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DTran, ParseError> {
+pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
     let base = calculate_functions(tree)?;
 
     let mut label = 0;
@@ -101,7 +102,11 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DTran, ParseError> {
     });
 
     let mut s_op = unmarked_states.pop_front();
-    let mut tran = Table::new();
+    let mut dfa = DFA {
+        start: 0,
+        trans: Table::new(),
+        accepting: HashSet::new(),
+    };
 
     // Loop until there are no more unmarked states.
     while s_op.is_some() {
@@ -109,18 +114,19 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DTran, ParseError> {
 
         // Split the positions in current state by associated character.
         // Store the union of followpos of that position.
-        let mut followpos_split: HashMap<char, HashSet<u32>> = HashMap::new();
+        let mut followpos_split: HashMap<LeafType, HashSet<u32>> = HashMap::new();
         s.positions
             .iter()
             .map(|i| -> Result<(), ParseError> {
                 let leaf = base.leaves.get(&i).ok_or(ParseError::Malformed)?;
-                let c = leaf.character.ok_or(ParseError::Malformed)?;
+                let leaf_char = &leaf.character;
+                let c = (*leaf_char).as_ref().ok_or(ParseError::Malformed)?;
 
                 let followpos = leaf.followpos.clone();
                 match followpos_split.get_mut(&c) {
                     Some(u) => *u = hash_set_union(u, &followpos),
                     None => {
-                        followpos_split.insert(c, followpos);
+                        followpos_split.insert(c.clone(), followpos);
                     }
                 };
 
@@ -133,36 +139,44 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DTran, ParseError> {
             .into_iter()
             .map(|(c, fp_union)| -> Result<(), ParseError> {
                 label += 1;
-                let mut new_label = label;
                 let mut new_state = DState {
-                    label: new_label,
+                    label,
                     positions: fp_union,
                 };
 
                 // If state does not exist yet, push to end of unmarked states.
+                let push_unmarked;
                 let in_marked = marked_states
                     .iter()
                     .find(|ms: &&DState| ms.positions == new_state.positions);
                 if in_marked.is_some() {
                     new_state.label = in_marked.unwrap().label;
-                    new_label = new_state.label;
+                    push_unmarked = false;
                 } else {
                     let in_unmarked = unmarked_states
                         .iter()
                         .find(|ums: &&DState| ums.positions == new_state.positions);
                     if in_unmarked.is_some() {
                         new_state.label = in_unmarked.unwrap().label;
-                        new_label = new_state.label;
+                        push_unmarked = false;
                     } else if s.positions == new_state.positions {
                         new_state.label = s.label;
-                        new_label = new_state.label;
+                        push_unmarked = false;
                     } else {
-                        unmarked_states.push_back(new_state);
+                        push_unmarked = true;
                     }
-                }
+                };
 
                 // Update the transition table entry.
-                tran.set(s.label, c, new_label);
+                if c == LeafType::EndMarker {
+                    dfa.accepting.insert(s.label);
+                } else {
+                    dfa.trans.set(s.label, c, new_state.label);
+                }
+
+                if push_unmarked {
+                    unmarked_states.push_back(new_state);
+                }
 
                 Ok(())
             })
@@ -174,14 +188,15 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DTran, ParseError> {
         s_op = unmarked_states.pop_front();
     }
 
-    println!("{:#?}", tran);
+    println!("{:#?}", dfa);
 
-    Ok(tran)
+    Ok(dfa)
 }
 
 #[derive(Clone, Debug)]
 struct AugmentedNode {
-    character: Option<char>,
+    character: Option<LeafType>,
+    accepting: bool,
 
     nullable: bool,
     firstpos: HashSet<u32>,
@@ -264,6 +279,7 @@ fn augment_tree<'a>(
 
                     let aug_node = AugmentedNode {
                         character: None,
+                        accepting: false,
 
                         nullable: true,
                         firstpos,
@@ -285,6 +301,7 @@ fn augment_tree<'a>(
 
                     let aug_node = AugmentedNode {
                         character: None,
+                        accepting: false,
 
                         // Nullable if one child is nullable.
                         nullable: aug_c1.nullable || aug_c2.nullable,
@@ -340,6 +357,7 @@ fn augment_tree<'a>(
 
                     let aug_node = AugmentedNode {
                         character: None,
+                        accepting: false,
 
                         nullable: aug_c1.nullable && aug_c2.nullable,
                         firstpos,
@@ -362,7 +380,15 @@ fn augment_tree<'a>(
         SyntaxTree::Leaf(ty) => {
             *mark += 1;
 
-            let aug_leaf = augment_leaf(ty, mark);
+            let aug_leaf = AugmentedNode {
+                character: Some(ty.clone()),
+                accepting: false,
+
+                nullable: false,
+                firstpos: hash_set![*mark],
+                lastpos: hash_set![*mark],
+                followpos: HashSet::new(),
+            };
             match lookup.insert(*mark, aug_leaf) {
                 Some(_) => return Err(ParseError::Malformed),
                 None => {}
@@ -373,28 +399,6 @@ fn augment_tree<'a>(
     };
 
     Ok(Some(augmented))
-}
-
-fn augment_leaf(ty: &LeafType, mark: &mut u32) -> AugmentedNode {
-    let c = match ty {
-        // Non-epsilon leaf is:
-        //  -  nullable: false
-        //  -  firstpos: { mark },
-        //  -  lastpos: { mark },
-        //  -  followpos:
-        LeafType::Char(ch) => *ch,
-        LeafType::Whitespace => ' ',
-        LeafType::Newline => '\n',
-    };
-
-    AugmentedNode {
-        character: Some(c),
-
-        nullable: false,
-        firstpos: hash_set![*mark],
-        lastpos: hash_set![*mark],
-        followpos: HashSet::new(),
-    }
 }
 
 fn reinsert_leaf(lookup: &mut HashMap<u32, AugmentedNode>, mark: Option<u32>, node: AugmentedNode) {
