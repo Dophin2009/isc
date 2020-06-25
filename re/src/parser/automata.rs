@@ -221,7 +221,7 @@ fn augment_tree<'a>(
             };
 
             // Remove first child from lookup if is leaf, insert back at the end
-            let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup)?;
+            let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
 
             let aug_node = match op {
                 // For kleene star node, compute functions for one child to compute `firstpos`,
@@ -234,11 +234,16 @@ fn augment_tree<'a>(
                     let _ = lastpos
                         .iter()
                         .map(|i| -> Result<(), ParseError> {
-                            match lookup.get_mut(i) {
-                                Some(i_pos) => {
-                                    i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
+                            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
+                                aug_c1.followpos = hash_set_union(&aug_c1.followpos, &firstpos);
+                            } else {
+                                match lookup.get_mut(i) {
+                                    Some(i_pos) => {
+                                        i_pos.followpos =
+                                            hash_set_union(&i_pos.followpos, &firstpos);
+                                    }
+                                    None => {}
                                 }
-                                None => {}
                             }
                             Ok(())
                         })
@@ -325,14 +330,20 @@ fn augment_tree<'a>(
                     // i in lastpos of first child
                     let _ = aug_c1
                         .lastpos
+                        .clone()
                         .iter()
                         .map(|i| -> Result<(), ParseError> {
-                            match lookup.get_mut(i) {
-                                Some(i_pos) => {
-                                    i_pos.followpos =
-                                        hash_set_union(&i_pos.followpos, &aug_c2.lastpos);
+                            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
+                                aug_c1.followpos =
+                                    hash_set_union(&aug_c1.followpos, &aug_c2.firstpos)
+                            } else {
+                                match lookup.get_mut(i) {
+                                    Some(i_pos) => {
+                                        i_pos.followpos =
+                                            hash_set_union(&i_pos.followpos, &aug_c2.firstpos);
+                                    }
+                                    None => {}
                                 }
-                                None => {}
                             }
 
                             Ok(())
