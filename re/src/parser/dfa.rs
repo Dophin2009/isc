@@ -1,29 +1,78 @@
 use super::ast::{LeafType, Operator, SyntaxTree};
 use super::error::ParseError;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::hash::Hash;
 
 #[derive(Debug)]
 pub struct DFA {
     pub start: u32,
-    pub trans: HashMap<u32, HashMap<char, u32>>,
+    pub trans: DTran,
 }
 
-/// Implements steps 2 and 3 of **Algorithm 3.36** in *Compilers: Principles,
-/// Techniques, and Tool*, Second Edition.
-pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<(), ParseError> {
-    let _augmented = calculate_functions(tree)?;
-    Ok(())
+#[derive(Debug)]
+pub struct Table<T, U, V> {
+    map: HashMap<T, HashMap<U, V>>,
 }
 
-#[derive(Clone, Debug)]
-struct AugmentedNode {
-    character: Option<char>,
+impl<T, U, V> Table<T, U, V>
+where
+    T: Eq + Hash,
+    U: Eq + Hash,
+{
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+        }
+    }
 
-    nullable: bool,
-    firstpos: HashSet<u32>,
-    lastpos: HashSet<u32>,
-    followpos: HashSet<u32>,
+    pub fn set(&mut self, row: T, col: U, val: V) -> Option<V> {
+        match self.map.get_mut(&row) {
+            Some(c) => c.insert(col, val),
+            None => {
+                let mut map = HashMap::new();
+                map.insert(col, val);
+                self.map.insert(row, map);
+                None
+            }
+        }
+    }
+
+    pub fn get(&self, row: &T, col: &U) -> Option<&V> {
+        match self.map.get(row) {
+            Some(c) => c.get(col),
+            None => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, row: &T, col: &U) -> Option<&mut V> {
+        match self.map.get_mut(row) {
+            Some(c) => c.get_mut(col),
+            None => None,
+        }
+    }
 }
+
+pub type DTran = Table<u32, char, u32>;
+
+#[derive(Debug)]
+struct DState {
+    label: u32,
+    positions: HashSet<u32>,
+}
+
+impl PartialEq<HashSet<u32>> for DState {
+    fn eq(&self, other: &HashSet<u32>) -> bool {
+        self.positions == *other
+    }
+}
+
+#[derive(Debug)]
+struct DFABase {
+    root_firstpos: HashSet<u32>,
+    leaves: LeafLookup,
+}
+
+type LeafLookup = HashMap<u32, AugmentedNode>;
 
 macro_rules! hash_set {
     () => {
@@ -36,10 +85,108 @@ macro_rules! hash_set {
     }};
 }
 
-#[derive(Debug)]
-struct DFABase {
-    root_firstpos: HashSet<u32>,
-    followpos: HashMap<u32, AugmentedNode>,
+/// Implements steps 2 and 3 of **Algorithm 3.36** in *Compilers: Principles,
+/// Techniques, and Tool*, Second Edition.
+pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DTran, ParseError> {
+    let base = calculate_functions(tree)?;
+
+    let mut label = 0;
+
+    // Initially only one state present, unmarked: firstpos of the root node.
+    let mut marked_states = Vec::new();
+    let mut unmarked_states = VecDeque::new();
+    unmarked_states.push_back(DState {
+        label,
+        positions: base.root_firstpos.clone(),
+    });
+
+    let mut s_op = unmarked_states.pop_front();
+    let mut tran = Table::new();
+
+    // Loop until there are no more unmarked states.
+    while s_op.is_some() {
+        let s = s_op.unwrap();
+
+        // Split the positions in current state by associated character.
+        // Store the union of followpos of that position.
+        let mut followpos_split: HashMap<char, HashSet<u32>> = HashMap::new();
+        s.positions
+            .iter()
+            .map(|i| -> Result<(), ParseError> {
+                let leaf = base.leaves.get(&i).ok_or(ParseError::Malformed)?;
+                let c = leaf.character.ok_or(ParseError::Malformed)?;
+
+                let followpos = leaf.followpos.clone();
+                match followpos_split.get_mut(&c) {
+                    Some(u) => *u = hash_set_union(u, &followpos),
+                    None => {
+                        followpos_split.insert(c, followpos);
+                    }
+                };
+
+                Ok(())
+            })
+            .collect::<Result<_, _>>()?;
+
+        // Create new states based on created unions and update the transition table.
+        followpos_split
+            .into_iter()
+            .map(|(c, fp_union)| -> Result<(), ParseError> {
+                label += 1;
+                let mut new_label = label;
+                let mut new_state = DState {
+                    label: new_label,
+                    positions: fp_union,
+                };
+
+                // If state does not exist yet, push to end of unmarked states.
+                let in_marked = marked_states
+                    .iter()
+                    .find(|ms: &&DState| ms.positions == new_state.positions);
+                if in_marked.is_some() {
+                    new_state.label = in_marked.unwrap().label;
+                    new_label = new_state.label;
+                } else {
+                    let in_unmarked = unmarked_states
+                        .iter()
+                        .find(|ums: &&DState| ums.positions == new_state.positions);
+                    if in_unmarked.is_some() {
+                        new_state.label = in_unmarked.unwrap().label;
+                        new_label = new_state.label;
+                    } else if s.positions == new_state.positions {
+                        new_state.label = s.label;
+                        new_label = new_state.label;
+                    } else {
+                        unmarked_states.push_back(new_state);
+                    }
+                }
+
+                // Update the transition table entry.
+                tran.set(s.label, c, new_label);
+
+                Ok(())
+            })
+            .collect::<Result<_, _>>()?;
+
+        // Push current state to handled states.
+        marked_states.push(s);
+        // Handle the next unmarked state.
+        s_op = unmarked_states.pop_front();
+    }
+
+    println!("{:#?}", tran);
+
+    Ok(tran)
+}
+
+#[derive(Clone, Debug)]
+struct AugmentedNode {
+    character: Option<char>,
+
+    nullable: bool,
+    firstpos: HashSet<u32>,
+    lastpos: HashSet<u32>,
+    followpos: HashSet<u32>,
 }
 
 fn calculate_functions(tree: &SyntaxTree) -> Result<DFABase, ParseError> {
@@ -56,7 +203,7 @@ fn calculate_functions(tree: &SyntaxTree) -> Result<DFABase, ParseError> {
 
     Ok(DFABase {
         root_firstpos,
-        followpos: node_lookup,
+        leaves: node_lookup,
     })
 }
 
@@ -88,7 +235,7 @@ impl AugmentTreeRet {
 
 fn augment_tree<'a>(
     tree: &SyntaxTree,
-    lookup: &mut HashMap<u32, AugmentedNode>,
+    lookup: &mut LeafLookup,
     mark: &mut u32,
 ) -> Result<Option<AugmentTreeRet>, ParseError> {
     let augmented = match &tree {
