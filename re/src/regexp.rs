@@ -6,8 +6,8 @@ pub struct RegExp {
 }
 
 impl RegExp {
-    pub fn matches(&self, s: &str) -> bool {
-        self.dfa.matches(s)
+    pub fn is_match(&self, s: &str) -> bool {
+        self.dfa.is_match(s)
     }
 
     pub fn new(expr: &str) -> Result<Self, ParseError> {

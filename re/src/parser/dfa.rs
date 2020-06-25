@@ -14,7 +14,7 @@ pub struct DFA {
 impl DFA {
     // Determines if the given string is accepted by this DFA by stepping through the DFA
     // character-by-character.
-    pub fn matches(&self, s: &str) -> bool {
+    pub fn is_match(&self, s: &str) -> bool {
         let mut pos = self.start;
         for c in s.chars() {
             let char_type = c.into();
@@ -61,13 +61,6 @@ where
     pub fn get(&self, row: &T, col: &U) -> Option<&V> {
         match self.map.get(row) {
             Some(c) => c.get(col),
-            None => None,
-        }
-    }
-
-    pub fn get_mut(&mut self, row: &T, col: &U) -> Option<&mut V> {
-        match self.map.get_mut(row) {
-            Some(c) => c.get_mut(col),
             None => None,
         }
     }
