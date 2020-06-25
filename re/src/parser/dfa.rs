@@ -12,8 +12,19 @@ pub struct DFA {
 }
 
 impl DFA {
+    // Determines if the given string is accepted by this DFA by stepping through the DFA
+    // character-by-character.
     pub fn matches(&self, s: &str) -> bool {
-        return false;
+        let mut pos = self.start;
+        for c in s.chars() {
+            let char_type = c.into();
+            pos = match self.trans.get(&pos, &char_type) {
+                Some(next) => *next,
+                None => return false,
+            };
+        }
+
+        return self.accepting.contains(&pos);
     }
 }
 

@@ -5,7 +5,7 @@ pub mod error;
 
 pub use dfa::DFA;
 
-use error::ParseError;
+pub use error::ParseError;
 
 /// This function attempts to implement **Algorithm 3.36**, the conversion of a regular expression
 /// string directly to a DFA, from *Compilers: Principles, Techniques, and Tool*, Second Edition.

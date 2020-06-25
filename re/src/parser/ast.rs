@@ -120,11 +120,7 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
                     op_stack.push(OperatorFlag::Concat);
                 }
 
-                let leaf_type = match c {
-                    ' ' => CharType::Whitespace,
-                    '\n' => CharType::Newline,
-                    _ => CharType::Char(c),
-                };
+                let leaf_type = c.into();
                 node_stack.push(Node::Leaf(leaf_type));
                 insert_concat = true;
             }
