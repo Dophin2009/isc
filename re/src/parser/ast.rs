@@ -88,10 +88,10 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
             // left parenthesis.
             ')' => {
                 // If parenthesis was empty (), insert a None node;
-                let last_op = op_stack.last().ok_or(ParseError::Malformed)?;
-                let prev_node_count = paren_count_stack.last().ok_or(ParseError::Malformed)?;
+                let last_op = op_stack.last().ok_or(ParseError::Ast)?;
+                let prev_node_count = paren_count_stack.last().ok_or(ParseError::Ast)?;
                 if *last_op == OperatorFlag::LeftParen && *prev_node_count == node_stack.len() {
-                    op_stack.pop().ok_or(ParseError::Malformed)?;
+                    op_stack.pop().ok_or(ParseError::Ast)?;
                     node_stack.push(Node::None);
                 } else {
                     while !op_stack.is_empty()
@@ -100,7 +100,7 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
                         collapse_stack(&mut node_stack, &mut op_stack)?;
                     }
                     // Pop the left parenthesis off the op stack.
-                    op_stack.pop().ok_or(ParseError::Malformed)?;
+                    op_stack.pop().ok_or(ParseError::Ast)?;
                 }
                 insert_concat = true;
             }
@@ -125,8 +125,6 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
                 insert_concat = true;
             }
         }
-        // println!("{:?}", node_stack);
-        // println!("{:?}\n", op_stack);
     }
 
     // Collapse the stack until no more operators remain
@@ -134,12 +132,19 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
         collapse_stack(&mut node_stack, &mut op_stack)?;
     }
 
-    let head: Node<_, _> = node_stack.into_iter().last().unwrap_or(Node::None);
-    let root = Node::Branch(
-        Operator::Concat,
-        Box::new(head),
-        Box::new(Node::Leaf(CharType::EndMarker)),
-    );
+    let head = node_stack.into_iter().last();
+
+    let root = match head {
+        Some(h) => match h {
+            Node::None => Node::None,
+            _ => Node::Branch(
+                Operator::Concat,
+                Box::new(h),
+                Box::new(Node::Leaf(CharType::EndMarker)),
+            ),
+        },
+        None => Node::None,
+    };
 
     Ok(root)
 }
@@ -189,7 +194,7 @@ fn collapse_stack(
     nodes: &mut Vec<Node<CharType, Operator>>,
     ops: &mut Vec<OperatorFlag>,
 ) -> Result<(), ParseError> {
-    let op = ops.pop().ok_or(ParseError::Malformed)?;
+    let op = ops.pop().ok_or(ParseError::Ast)?;
 
     let n_op: Operator;
     let c1: Node<_, _>;
@@ -198,22 +203,22 @@ fn collapse_stack(
         // Kleene star op constructs a branch with one child.
         OperatorFlag::Kleene => {
             n_op = Operator::Kleene;
-            c1 = nodes.pop().ok_or(ParseError::Malformed)?;
+            c1 = nodes.pop().ok_or(ParseError::Ast)?;
             c2 = Node::None;
         }
         // Alternation op constructs two child branch.
         OperatorFlag::Alter => {
             n_op = Operator::Alter;
-            c2 = nodes.pop().ok_or(ParseError::Malformed)?;
-            c1 = nodes.pop().ok_or(ParseError::Malformed)?;
+            c2 = nodes.pop().ok_or(ParseError::Ast)?;
+            c1 = nodes.pop().ok_or(ParseError::Ast)?;
         }
         // Concatenation op constructs two child branch.
         OperatorFlag::Concat => {
             n_op = Operator::Concat;
-            c2 = nodes.pop().ok_or(ParseError::Malformed)?;
-            c1 = nodes.pop().ok_or(ParseError::Malformed)?;
+            c2 = nodes.pop().ok_or(ParseError::Ast)?;
+            c1 = nodes.pop().ok_or(ParseError::Ast)?;
         }
-        _ => return Err(ParseError::Malformed),
+        _ => return Err(ParseError::Ast),
     }
 
     let new = Node::Branch(n_op, Box::new(c1), Box::new(c2));

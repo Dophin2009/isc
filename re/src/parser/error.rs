@@ -3,13 +3,15 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum ParseError {
-    Malformed,
+    Ast,
+    Dfa,
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ParseError::Malformed => write!(f, "malformed expression"),
+            ParseError::Ast => write!(f, "malformed expression"),
+            ParseError::Dfa => write!(f, "failed to construct DFA"),
         }
     }
 }
@@ -17,7 +19,8 @@ impl fmt::Display for ParseError {
 impl error::Error for ParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            ParseError::Malformed => None,
+            ParseError::Ast => None,
+            ParseError::Dfa => None,
         }
     }
 }

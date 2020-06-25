@@ -38,7 +38,16 @@ macro_rules! hash_set {
 /// Implements steps 2 and 3 of **Algorithm 3.36** in *Compilers: Principles,
 /// Techniques, and Tool*, Second Edition.
 pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
-    let base = calculate_functions(tree)?;
+    let base = match calculate_functions(tree)? {
+        Some(b) => b,
+        None => {
+            return Ok(DFA {
+                start: 0,
+                trans: Table::new(),
+                accepting: hash_set![0],
+            });
+        }
+    };
 
     let mut label = 0;
 
@@ -67,9 +76,9 @@ pub fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
         s.positions
             .iter()
             .map(|i| -> Result<(), ParseError> {
-                let leaf = base.leaves.get(&i).ok_or(ParseError::Malformed)?;
+                let leaf = base.leaves.get(&i).ok_or(ParseError::Dfa)?;
                 let leaf_char = &leaf.character;
-                let c = (*leaf_char).as_ref().ok_or(ParseError::Malformed)?;
+                let c = (*leaf_char).as_ref().ok_or(ParseError::Dfa)?;
 
                 let followpos = leaf.followpos.clone();
                 match followpos_split.get_mut(&c) {
@@ -151,24 +160,25 @@ struct AugmentedNode {
     followpos: HashSet<u32>,
 }
 
-fn calculate_functions(tree: &SyntaxTree) -> Result<DFABase, ParseError> {
+fn calculate_functions(tree: &SyntaxTree) -> Result<Option<DFABase>, ParseError> {
     let mut node_lookup = HashMap::new();
-    let augmented_ret = augment_tree(tree, &mut node_lookup, &mut 0)?.unwrap(); // Fix error handling
+    let augmented_ret = match augment_tree(tree, &mut node_lookup, &mut 0)? {
+        Some(aug) => aug,
+        None => return Ok(None),
+    };
+
     let root_firstpos = match augmented_ret {
-        AugmentTreeRet::Leaf(m) => node_lookup
-            .get(&m)
-            .ok_or(ParseError::Malformed)?
-            .firstpos
-            .clone(),
+        AugmentTreeRet::Leaf(m) => node_lookup.get(&m).ok_or(ParseError::Dfa)?.firstpos.clone(),
         AugmentTreeRet::Branch(n) => n.firstpos,
     };
 
-    Ok(DFABase {
+    Ok(Some(DFABase {
         root_firstpos,
         leaves: node_lookup,
-    })
+    }))
 }
 
+#[derive(Debug)]
 enum AugmentTreeRet {
     Leaf(u32),
     Branch(AugmentedNode),
@@ -188,7 +198,7 @@ impl AugmentTreeRet {
         };
 
         let val = match self {
-            AugmentTreeRet::Leaf(m) => lookup.remove(&m).ok_or(ParseError::Malformed)?,
+            AugmentTreeRet::Leaf(m) => lookup.remove(&m).unwrap(),
             AugmentTreeRet::Branch(aug_n) => aug_n,
         };
         Ok((mark, val))
@@ -203,7 +213,13 @@ fn augment_tree<'a>(
     let augmented = match &tree {
         SyntaxTree::Branch(ref op, ref c1, ref c2) => {
             // Calculate first child
-            let aug_c1_ret = augment_tree(c1, lookup, mark)?.ok_or(ParseError::Malformed)?;
+            let aug_c1_ret = match augment_tree(c1, lookup, mark)? {
+                Some(ret) => ret,
+                None => {
+                    return Ok(None);
+                }
+            };
+
             // Remove first child from lookup if is leaf, insert back at the end
             let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup)?;
 
@@ -218,8 +234,12 @@ fn augment_tree<'a>(
                     let _ = lastpos
                         .iter()
                         .map(|i| -> Result<(), ParseError> {
-                            let i_pos = lookup.get_mut(i).ok_or(ParseError::Malformed)?;
-                            i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
+                            match lookup.get_mut(i) {
+                                Some(i_pos) => {
+                                    i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
+                                }
+                                None => {}
+                            }
                             Ok(())
                         })
                         .collect::<Result<(), _>>()?;
@@ -241,8 +261,13 @@ fn augment_tree<'a>(
                 // `firstpos`, `lastpos`, and `followpos` for this node.
                 Operator::Alter => {
                     // Calculate second child
-                    let aug_c2_ret =
-                        augment_tree(c2, lookup, mark)?.ok_or(ParseError::Malformed)?;
+                    let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
+                        Some(ret) => ret,
+                        None => {
+                            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+                            return Ok(None);
+                        }
+                    };
                     // Remove second child from lookup if is leaf, insert back at the end
                     let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
 
@@ -269,8 +294,14 @@ fn augment_tree<'a>(
                 // `firstpos`, `lastpos`, and `followpos` for this node.
                 Operator::Concat => {
                     // Calculate second child
-                    let aug_c2_ret =
-                        augment_tree(c2, lookup, mark)?.ok_or(ParseError::Malformed)?;
+                    let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
+                        Some(ret) => ret,
+                        None => {
+                            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+                            return Ok(None);
+                        }
+                    };
+
                     // Remove second child from lookup if is leaf, insert back at the end
                     let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
 
@@ -296,8 +327,14 @@ fn augment_tree<'a>(
                         .lastpos
                         .iter()
                         .map(|i| -> Result<(), ParseError> {
-                            let i_pos = lookup.get_mut(i).ok_or(ParseError::Malformed)?;
-                            i_pos.followpos = hash_set_union(&i_pos.followpos, &aug_c2.lastpos);
+                            match lookup.get_mut(i) {
+                                Some(i_pos) => {
+                                    i_pos.followpos =
+                                        hash_set_union(&i_pos.followpos, &aug_c2.lastpos);
+                                }
+                                None => {}
+                            }
+
                             Ok(())
                         })
                         .collect::<Result<Vec<_>, _>>()?;
@@ -337,7 +374,7 @@ fn augment_tree<'a>(
                 followpos: HashSet::new(),
             };
             match lookup.insert(*mark, aug_leaf) {
-                Some(_) => return Err(ParseError::Malformed),
+                Some(_) => return Err(ParseError::Dfa),
                 None => {}
             };
             AugmentTreeRet::Leaf(*mark)
