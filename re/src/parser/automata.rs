@@ -212,204 +212,226 @@ fn augment_tree<'a>(
 ) -> Result<Option<AugmentTreeRet>, ParseError> {
     let augmented = match &tree {
         SyntaxTree::Branch(ref op, ref c1, ref c2) => {
-            // Calculate first child
-            let aug_c1_ret = augment_tree(c1, lookup, mark)?;
-
             let aug_node = match op {
-                // For kleene star node, compute functions for one child to compute `firstpos`,
-                // `lastpos`, and `followpos` for this node. Star node is nullable.
-                Operator::Kleene => {
-                    let aug_c1_ret = match aug_c1_ret {
-                        Some(ret) => ret,
-                        None => return Ok(None),
-                    };
-                    // Remove first child from lookup if is leaf, insert back at the end
-                    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
-
-                    let firstpos = aug_c1.firstpos.clone();
-                    let lastpos = aug_c1.lastpos.clone();
-
-                    // All positions in firstpos are in followpos of each position i in lastpos.
-                    let _ = lastpos
-                        .iter()
-                        .map(|i| -> Result<(), ParseError> {
-                            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
-                                aug_c1.followpos = hash_set_union(&aug_c1.followpos, &firstpos);
-                            } else {
-                                match lookup.get_mut(i) {
-                                    Some(i_pos) => {
-                                        i_pos.followpos =
-                                            hash_set_union(&i_pos.followpos, &firstpos);
-                                    }
-                                    None => {}
-                                }
-                            }
-                            Ok(())
-                        })
-                        .collect::<Result<(), _>>()?;
-
-                    let aug_node = AugmentedNode {
-                        character: None,
-                        accepting: false,
-
-                        nullable: true,
-                        firstpos,
-                        lastpos,
-                        // followpos is calculated by parent, based on operation type.
-                        followpos: HashSet::new(),
-                    };
-
-                    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
-
-                    AugmentTreeRet::Branch(aug_node)
-                }
+                Operator::Kleene => augment_kleene(c1, lookup, mark)?,
                 // For alternation node, compute functions for two children to compute `nullable`,
                 // `firstpos`, `lastpos`, and `followpos` for this node.
-                Operator::Alter => {
-                    let aug_c1_ret = match aug_c1_ret {
-                        Some(ret) => ret,
-                        None => return Ok(None),
-                    };
-                    // Remove first child from lookup if is leaf, insert back at the end
-                    let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup)?;
-
-                    // Calculate second child
-                    let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
-                        Some(ret) => ret,
-                        None => {
-                            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
-                            return Ok(None);
-                        }
-                    };
-                    // Remove second child from lookup if is leaf, insert back at the end
-                    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
-
-                    let aug_node = AugmentedNode {
-                        character: None,
-                        accepting: false,
-
-                        // Nullable if one child is nullable.
-                        nullable: aug_c1.nullable || aug_c2.nullable,
-                        // firstpos is union of firstpos of children.
-                        firstpos: hash_set_union(&aug_c1.firstpos, &aug_c2.firstpos),
-                        // lastpos is union of lastpos of children.
-                        lastpos: hash_set_union(&aug_c1.lastpos, &aug_c2.lastpos),
-                        // followpos is calculated by parent, based on operation type.
-                        followpos: HashSet::new(),
-                    };
-
-                    // Insert children back into lookup if leaf
-                    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
-                    reinsert_leaf(lookup, aug_c2_mark, aug_c2);
-
-                    AugmentTreeRet::Branch(aug_node)
-                }
+                Operator::Alter => augment_alter(c1, c2, lookup, mark)?,
                 // For concat node, compute functions for two children to compute `nullable`,
                 // `firstpos`, `lastpos`, and `followpos` for this node.
-                Operator::Concat => {
-                    if aug_c1_ret.is_none() {
-                        return Ok(augment_tree(c2, lookup, mark)?);
-                    }
-
-                    let aug_c1_ret = aug_c1_ret.unwrap();
-                    // Remove first child from lookup if is leaf, insert back at the end
-                    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
-
-                    // Calculate second child
-                    let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
-                        Some(ret) => ret,
-                        None => {
-                            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
-                            return Ok(None);
-                        }
-                    };
-
-                    // Remove second child from lookup if is leaf, insert back at the end
-                    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
-
-                    // If first child is nullable, firstpos must also contain firstpos of second
-                    // child.
-                    let firstpos = if aug_c1.nullable {
-                        hash_set_union(&aug_c1.firstpos, &aug_c2.firstpos)
-                    } else {
-                        aug_c1.firstpos.clone()
-                    };
-
-                    // If second child is nullable, lastpos must also contain lastpos of first
-                    // child.
-                    let lastpos = if aug_c2.nullable {
-                        hash_set_union(&aug_c1.lastpos, &aug_c2.lastpos)
-                    } else {
-                        aug_c2.lastpos.clone()
-                    };
-
-                    // All positions in firstpos of second child are in followpos of every position
-                    // i in lastpos of first child
-                    let _ = aug_c1
-                        .lastpos
-                        .clone()
-                        .iter()
-                        .map(|i| -> Result<(), ParseError> {
-                            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
-                                aug_c1.followpos =
-                                    hash_set_union(&aug_c1.followpos, &aug_c2.firstpos)
-                            } else {
-                                match lookup.get_mut(i) {
-                                    Some(i_pos) => {
-                                        i_pos.followpos =
-                                            hash_set_union(&i_pos.followpos, &aug_c2.firstpos);
-                                    }
-                                    None => {}
-                                }
-                            }
-
-                            Ok(())
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    let aug_node = AugmentedNode {
-                        character: None,
-                        accepting: false,
-
-                        nullable: aug_c1.nullable && aug_c2.nullable,
-                        firstpos,
-                        lastpos,
-                        // followpos is calculated by parent, based on operation type.
-                        followpos: HashSet::new(),
-                    };
-
-                    // Reinsert second child
-                    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
-                    reinsert_leaf(lookup, aug_c2_mark, aug_c2);
-
-                    AugmentTreeRet::Branch(aug_node)
-                }
+                Operator::Concat => augment_concat(c1, c2, lookup, mark)?,
             };
 
             aug_node
         }
-        SyntaxTree::Leaf(ty) => {
-            *mark += 1;
-
-            let aug_leaf = AugmentedNode {
-                character: Some(ty.clone()),
-                accepting: false,
-
-                nullable: false,
-                firstpos: hash_set![*mark],
-                lastpos: hash_set![*mark],
-                followpos: HashSet::new(),
-            };
-            match lookup.insert(*mark, aug_leaf) {
-                Some(_) => return Err(ParseError::Dfa),
-                None => {}
-            };
-            AugmentTreeRet::Leaf(*mark)
-        }
-        SyntaxTree::None => return Ok(None),
+        SyntaxTree::Leaf(ty) => augment_leaf(ty, lookup, mark)?,
+        SyntaxTree::None => None,
     };
 
-    Ok(Some(augmented))
+    Ok(augmented)
+}
+
+fn augment_kleene(
+    c1: &SyntaxTree,
+    lookup: &mut LeafLookup,
+    mark: &mut u32,
+) -> Result<Option<AugmentTreeRet>, ParseError> {
+    // For kleene star node, compute functions for one child to compute `firstpos`,
+    // `lastpos`, and `followpos` for this node. Star node is nullable.
+    let aug_c1_ret = match augment_tree(c1, lookup, mark)? {
+        Some(ret) => ret,
+        None => return Ok(None),
+    };
+    // Remove first child from lookup if is leaf, insert back at the end
+    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+
+    let firstpos = aug_c1.firstpos.clone();
+    let lastpos = aug_c1.lastpos.clone();
+
+    // All positions in firstpos are in followpos of each position i in lastpos.
+    let _ = lastpos
+        .iter()
+        .map(|i| -> Result<(), ParseError> {
+            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
+                aug_c1.followpos = hash_set_union(&aug_c1.followpos, &firstpos);
+            } else {
+                match lookup.get_mut(i) {
+                    Some(i_pos) => {
+                        i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
+                    }
+                    None => {}
+                }
+            }
+            Ok(())
+        })
+        .collect::<Result<(), _>>()?;
+
+    let aug_node = AugmentedNode {
+        character: None,
+        accepting: false,
+
+        nullable: true,
+        firstpos,
+        lastpos,
+        // followpos is calculated by parent, based on operation type.
+        followpos: HashSet::new(),
+    };
+
+    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+
+    Ok(Some(AugmentTreeRet::Branch(aug_node)))
+}
+
+fn augment_alter(
+    c1: &SyntaxTree,
+    c2: &SyntaxTree,
+    lookup: &mut LeafLookup,
+    mark: &mut u32,
+) -> Result<Option<AugmentTreeRet>, ParseError> {
+    let aug_c1_ret = match augment_tree(c1, lookup, mark)? {
+        Some(ret) => ret,
+        None => return Ok(None),
+    };
+    // Remove first child from lookup if is leaf, insert back at the end
+    let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup)?;
+
+    // Calculate second child
+    let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
+        Some(ret) => ret,
+        None => {
+            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+            return Ok(None);
+        }
+    };
+    // Remove second child from lookup if is leaf, insert back at the end
+    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
+
+    let aug_node = AugmentedNode {
+        character: None,
+        accepting: false,
+
+        // Nullable if one child is nullable.
+        nullable: aug_c1.nullable || aug_c2.nullable,
+        // firstpos is union of firstpos of children.
+        firstpos: hash_set_union(&aug_c1.firstpos, &aug_c2.firstpos),
+        // lastpos is union of lastpos of children.
+        lastpos: hash_set_union(&aug_c1.lastpos, &aug_c2.lastpos),
+        // followpos is calculated by parent, based on operation type.
+        followpos: HashSet::new(),
+    };
+
+    // Insert children back into lookup if leaf
+    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+    reinsert_leaf(lookup, aug_c2_mark, aug_c2);
+
+    Ok(Some(AugmentTreeRet::Branch(aug_node)))
+}
+
+fn augment_concat(
+    c1: &SyntaxTree,
+    c2: &SyntaxTree,
+    lookup: &mut LeafLookup,
+    mark: &mut u32,
+) -> Result<Option<AugmentTreeRet>, ParseError> {
+    let aug_c1_ret = augment_tree(c1, lookup, mark)?;
+    if aug_c1_ret.is_none() {
+        return Ok(augment_tree(c2, lookup, mark)?);
+    }
+
+    let aug_c1_ret = aug_c1_ret.unwrap();
+    // Remove first child from lookup if is leaf, insert back at the end
+    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+
+    // Calculate second child
+    let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
+        Some(ret) => ret,
+        None => {
+            reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+            return Ok(None);
+        }
+    };
+
+    // Remove second child from lookup if is leaf, insert back at the end
+    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
+
+    // If first child is nullable, firstpos must also contain firstpos of second
+    // child.
+    let firstpos = if aug_c1.nullable {
+        hash_set_union(&aug_c1.firstpos, &aug_c2.firstpos)
+    } else {
+        aug_c1.firstpos.clone()
+    };
+
+    // If second child is nullable, lastpos must also contain lastpos of first
+    // child.
+    let lastpos = if aug_c2.nullable {
+        hash_set_union(&aug_c1.lastpos, &aug_c2.lastpos)
+    } else {
+        aug_c2.lastpos.clone()
+    };
+
+    // All positions in firstpos of second child are in followpos of every position
+    // i in lastpos of first child
+    let _ = aug_c1
+        .lastpos
+        .clone()
+        .iter()
+        .map(|i| -> Result<(), ParseError> {
+            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
+                aug_c1.followpos = hash_set_union(&aug_c1.followpos, &aug_c2.firstpos)
+            } else {
+                match lookup.get_mut(i) {
+                    Some(i_pos) => {
+                        i_pos.followpos = hash_set_union(&i_pos.followpos, &aug_c2.firstpos);
+                    }
+                    None => {}
+                }
+            }
+
+            Ok(())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let aug_node = AugmentedNode {
+        character: None,
+        accepting: false,
+
+        nullable: aug_c1.nullable && aug_c2.nullable,
+        firstpos,
+        lastpos,
+        // followpos is calculated by parent, based on operation type.
+        followpos: HashSet::new(),
+    };
+
+    // Reinsert second child
+    reinsert_leaf(lookup, aug_c1_mark, aug_c1);
+    reinsert_leaf(lookup, aug_c2_mark, aug_c2);
+    Ok(Some(AugmentTreeRet::Branch(aug_node)))
+}
+
+fn augment_leaf(
+    ty: &CharType,
+    lookup: &mut LeafLookup,
+    mark: &mut u32,
+) -> Result<Option<AugmentTreeRet>, ParseError> {
+    *mark += 1;
+
+    let aug_leaf = AugmentedNode {
+        character: Some(ty.clone()),
+        accepting: false,
+
+        nullable: false,
+        firstpos: hash_set![*mark],
+        lastpos: hash_set![*mark],
+        followpos: HashSet::new(),
+    };
+
+    match lookup.insert(*mark, aug_leaf) {
+        Some(_) => return Err(ParseError::Dfa),
+        None => {}
+    };
+
+    Ok(Some(AugmentTreeRet::Leaf(*mark)))
 }
 
 fn reinsert_leaf(lookup: &mut HashMap<u32, AugmentedNode>, mark: Option<u32>, node: AugmentedNode) {
