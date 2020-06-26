@@ -6,10 +6,11 @@ pub enum CharType {
     Newline,
     Whitespace,
     EndMarker,
+    Any,
 }
 
-impl From<char> for CharType {
-    fn from(c: char) -> Self {
+impl CharType {
+    pub fn from_plain(c: char) -> Self {
         match c {
             ' ' => CharType::Whitespace,
             '\n' => CharType::Newline,

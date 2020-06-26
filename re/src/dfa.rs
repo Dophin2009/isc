@@ -15,10 +15,13 @@ impl DFA {
     pub fn is_match(&self, s: &str) -> bool {
         let mut pos = self.start;
         for c in s.chars() {
-            let char_type = c.into();
+            let char_type = CharType::from_plain(c);
             pos = match self.trans.get(&pos, &char_type) {
                 Some(next) => *next,
-                None => return false,
+                None => match self.trans.get(&pos, &CharType::Any) {
+                    Some(next) => *next,
+                    None => return false,
+                },
             };
         }
 

@@ -64,6 +64,14 @@ fn test_single() {
 }
 
 #[test]
+fn test_wildcard() {
+    let exprs = [".", "(.)", "().", ".()"];
+    let valids = ["a", "b", "y", "z", "#", "*", "(", "$", "亀", "2", "0", " "];
+    let invalids = ["", "ab", "a ", "20"];
+    run_tests!(&exprs, &valids, &invalids);
+}
+
+#[test]
 fn test_concat() {
     let exprs = ["ab", "(ab)", "(a)b", "a(b)", "()ab", "a()b"];
     let valids = ["ab"];

@@ -37,14 +37,25 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
         // escaping.
         if escaped {
             escaped = false;
-            handle_char(c, &mut node_stack, &mut op_stack, &mut insert_concat)?;
+            handle_char(
+                CharType::from_plain(c),
+                &mut node_stack,
+                &mut op_stack,
+                &mut insert_concat,
+            )?;
         } else {
             match c {
                 // Escape operator; toggle reading meta-characters as meta or normal.
                 '\\' => {
                     escaped = true;
-                    println!("ESCAPING!");
                 }
+                // Meta-char representing any character.
+                '.' => handle_char(
+                    CharType::Any,
+                    &mut node_stack,
+                    &mut op_stack,
+                    &mut insert_concat,
+                )?,
                 // Kleene star; push kleene operator to the op stack.
                 // Highest precedence operator; does not collapse operators to the left unless another
                 // kleene star is encountered; next step will collapse this operator and top-most node
@@ -120,7 +131,12 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
                 // Kleene star and concat operators before this should be collapsed.
                 // If after a kleene star, right parenthesis, or other non-meta-char, a concat operator
                 // should be inserted.
-                _ => handle_char(c, &mut node_stack, &mut op_stack, &mut insert_concat)?,
+                _ => handle_char(
+                    CharType::from_plain(c),
+                    &mut node_stack,
+                    &mut op_stack,
+                    &mut insert_concat,
+                )?,
             }
         }
     }
@@ -148,7 +164,7 @@ pub fn syntax_tree(expr: &str) -> Result<SyntaxTree, ParseError> {
 }
 
 fn handle_char(
-    c: char,
+    c: CharType,
     node_stack: &mut Vec<Node<CharType, Operator>>,
     op_stack: &mut Vec<OperatorFlag>,
     insert_concat: &mut bool,
@@ -160,8 +176,7 @@ fn handle_char(
         op_stack.push(OperatorFlag::Concat);
     }
 
-    let leaf_type = c.into();
-    node_stack.push(Node::Leaf(leaf_type));
+    node_stack.push(Node::Leaf(c));
     *insert_concat = true;
 
     Ok(())
