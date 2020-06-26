@@ -3,8 +3,9 @@
 This is an attempt at a simple regular expression parser and matcher.
 Valid operators in this regular expression library are, in order of
 decreasing precedence, grouping (`()`), the Kleene star (`*`),
-concatenation, and alternation (`|`). Character classes, lookaheads, and
-other extended features are not supported.
+concatenation, and alternation (`|`). The wildcard symbol (`.`) is
+supported. Character classes, lookaheads, and other extended features
+are not supported.
 
 ## Method
 
