@@ -51,6 +51,16 @@ fn test_single() {
     let valids = ["\""];
     let invalids = ["", "a", "\" ", " \"", "\"\""];
     run_tests!(&exprs, &valids, &invalids);
+
+    let exprs = [r"\*", r"(\*)"];
+    let valids = ["*"];
+    let invalids = ["", " ", "a", "**"];
+    run_tests!(&exprs, &valids, &invalids);
+
+    let exprs = [r"\(", r"(\()", r"()\("];
+    let valids = ["("];
+    let invalids = ["", " ", ")", "()"];
+    run_tests!(&exprs, &valids, &invalids);
 }
 
 #[test]
@@ -92,6 +102,11 @@ fn test_kleene() {
     let valids = ["", "a", "ab", "abb", "abab", "ababa", "abbabb"];
     let invalids = [" ", "b", "ba", "babb"];
     run_tests!(&exprs, &valids, &invalids);
+
+    let exprs = [r"\**", r"(\*)*", r"()\**"];
+    let valids = ["", "*", "**", "***"];
+    let invalids = [" ", "* ", " *", r"\*", r"\"];
+    run_tests!(&exprs, &valids, &invalids);
 }
 
 #[test]
@@ -104,6 +119,11 @@ fn test_alternate() {
     let exprs = ["a|b|c", "(a|b)|c", "(a)|b|(c)", "a|(b)|c", "a|(b|c)"];
     let valids = ["a", "b", "c"];
     let invalids = ["", " ", "d", "a ", " a", "ab", "bc"];
+    run_tests!(&exprs, &valids, &invalids);
+
+    let exprs = [r"\*|a", r"\*|(a)"];
+    let valids = ["*", "a"];
+    let invalids = ["", " ", "*a", r"\*"];
     run_tests!(&exprs, &valids, &invalids);
 }
 
