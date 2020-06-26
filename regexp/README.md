@@ -1,4 +1,4 @@
-# RE
+# RegExp
 
 This is an attempt at a simple regular expression parser and matcher.
 Valid operators in this regular expression library are, in order of
