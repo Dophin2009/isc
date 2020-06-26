@@ -178,7 +178,7 @@ fn calculate_functions(tree: &SyntaxTree) -> Result<Option<DFABase>, ParseError>
     }))
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum AugmentTreeRet {
     Leaf(u32),
     Branch(AugmentedNode),
@@ -339,6 +339,8 @@ fn augment_concat(
     }
 
     let aug_c1_ret = aug_c1_ret.unwrap();
+    // Copy to save and return if second child is None; awful hack, but oh well.
+    let aug_c1_ret_dup = aug_c1_ret.clone();
     // Remove first child from lookup if is leaf, insert back at the end
     let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
 
@@ -347,7 +349,7 @@ fn augment_concat(
         Some(ret) => ret,
         None => {
             reinsert_leaf(lookup, aug_c1_mark, aug_c1);
-            return Ok(None);
+            return Ok(Some(aug_c1_ret_dup));
         }
     };
 
