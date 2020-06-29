@@ -10,7 +10,7 @@ are not supported.
 ## Method
 
 Regular expressions are compiled by conversion to a syntax tree, then
-direct conversion to a determinate finite automaton, as outlined in
+direct conversion to a deterministic finite automaton, as outlined in
 Algorithm 3.36 from *Compilers: Principles, Techniques, and Tool*,
 Second Edition.
 
@@ -32,7 +32,7 @@ When reading of the expression string is complete, the nodes are
 collapsed together until a single node remains in `nodes`. This node
 formed the completed syntax tree.
 
-### Syntax Tree to Determinate Finite Automaton
+### Syntax Tree to Deterministic Finite Automaton
 
 A depth-first traversal of the syntax tree is used to compute the
 function `followpos`, the set of leaves that can immediately follow the
