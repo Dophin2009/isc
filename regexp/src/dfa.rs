@@ -32,7 +32,11 @@ impl DFA {
 pub type DTran = Table<u32, CharType, u32>;
 
 #[derive(Debug)]
-pub struct Table<T, U, V> {
+pub struct Table<T, U, V>
+where
+    T: Eq + Hash,
+    U: Eq + Hash,
+{
     map: HashMap<T, HashMap<U, V>>,
 }
 
