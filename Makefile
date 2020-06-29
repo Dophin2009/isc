@@ -6,22 +6,32 @@ CARGO_BUILD = $(CARGO) build
 R ?= R
 RSCRIPT ?= Rscript
 
-# Target to build book
-BOOK = book
-BOOK_TARGET = $(TARGET)/$(BOOK)
+# Target to build Yacc examples
+yacc-ex = yacc-ex
 
-define BOOK_BUILD_BODY
-	source("renv/activate.R");																\
-	rmarkdown::render("src/index.Rmd", "pdf_document",				\
-										output_file = "$(KNIT_DIR)/index.pdf",	\
-										output_dir = "$(KNIT_DIR)",							\
-										intermediates_dir = "$(KNIT_DIR)",			\
-										knit_root_dir = "$(KNIT_DIR)")
+yacc-ex-% : src_dir = $(yacc-ex)/$*
+yacc-ex-% : local_target = $(TARGET)/$(yacc-ex)/$*
+yacc-ex-% : CFLAGS = -Wimplicit-function-declaration
+yacc-ex-% : $(yacc-ex)/%/lexer.l $(yacc-ex)/%/parser.y
+	$(LEX) -o $(local_target)/lex.yy.c $(src_dir)/lexer.l
+	$(YACC) -o $(local_target)/y.tab.c $(src_dir)/parser.y
+	$(CC) $(local_target)/y.tab.c -ly -lfl -o $(local_target)/calculator $(CFLAGS)
+
+# Target to build book
+book = book
+
+define book_build_body
+	source("renv/activate.R");                                \
+	rmarkdown::render("src/index.Rmd", "pdf_document",        \
+										output_file = "$(knit_dir)/index.pdf",  \
+										output_dir = "$(knit_dir)",             \
+										intermediates_dir = "$(knit_dir)",      \
+										knit_root_dir = "$(knit_dir)")
 endef
 
-$(BOOK) : KNIT_DIR = $(realpath .)/$(BOOK_TARGET)
-$(BOOK) :
+$(book) : local_target = $(TARGET)/$(BOOK)
+$(book) : knit_dir = $(realpath .)/$(local_target)
+$(book) :
 	@echo "Building $@..."
-	mkdir -p $(BOOK_TARGET)
-	cd $(BOOK) && \
-		$(RSCRIPT) -e '$(BOOK_BUILD_BODY)'
+	mkdir -p $(local_target)
+	cd $(book) && $(RSCRIPT) -e '$(book_build_body)'
