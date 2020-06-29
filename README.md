@@ -12,7 +12,13 @@ project:
 -   `rust`
 -   `cargo`
 
-These dependencies are required to build the "book":
+Building the Yacc examples (these are included in POSIX systems):
+
+-   `yacc`
+-   `lex`
+-   `cc`
+
+Building the "book":
 
 -   `R` and `Rscript`
 -   `rmarkdown` R package
