@@ -13,9 +13,10 @@ yacc-ex-% : src_dir = $(yacc-ex)/$*
 yacc-ex-% : local_target = $(TARGET)/$(yacc-ex)/$*
 yacc-ex-% : CFLAGS = -Wimplicit-function-declaration
 yacc-ex-% : $(yacc-ex)/%/lexer.l $(yacc-ex)/%/parser.y
+	mkdir -p $(local_target)
 	$(LEX) -o $(local_target)/lex.yy.c $(src_dir)/lexer.l
 	$(YACC) -o $(local_target)/y.tab.c $(src_dir)/parser.y
-	$(CC) $(local_target)/y.tab.c -ly -lfl -o $(local_target)/calculator $(CFLAGS)
+	$(CC) $(local_target)/y.tab.c -ly -lfl -o $(local_target)/a.out $(CFLAGS)
 
 # Target to build book
 book = book
