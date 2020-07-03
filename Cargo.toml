@@ -1,2 +1,4 @@
 [workspace]
-members = ["regexp"]
+members = [
+  "regexp"
+]

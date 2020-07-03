@@ -1,4 +1,4 @@
-use crate::dfa::DFA;
+use crate::parser::DFA;
 use crate::parser::{self, error::*};
 
 #[derive(Debug)]
