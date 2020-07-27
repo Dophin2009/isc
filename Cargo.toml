@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "automata",
+  "lexgen",
   "regexp",
   "regexp2"
 ]
