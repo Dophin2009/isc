@@ -16,3 +16,6 @@ syn = { version = "1.0", features = ["full"] }
 
 automata = { path = "../automata" }
 regexp2 = { path = "../regexp2" }
+
+[dev-dependencies]
+anyhow = "1.0.32"
