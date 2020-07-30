@@ -46,18 +46,17 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
     let action_fns: Vec<_> = dfa_actions.iter().map(|(dfa_state, action)| {
         let fn_name = format_ident!("action_{}", dfa_state);
         quote! {
-            fn #fn_name(&self, #span_id: std::string::String) -> Result<Option<#return_type>, #error_type> {
+            fn #fn_name(#span_id: std::string::String) -> Result<Option<#return_type>, #error_type> {
                 #action
             }
         }
-    }
-        ).collect();
+    }).collect();
 
     let action_match: Vec<_> = dfa_actions
         .iter()
         .map(|(dfa_state, _)| {
             let fn_call = format_ident!("action_{}", dfa_state);
-            quote!(#dfa_state => self.#fn_call(#span_id))
+            quote!(#dfa_state => #fn_call(#span_id))
         })
         .collect();
 
@@ -74,6 +73,10 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
             }
 
             pub fn advance(&self, input: &str) -> (std::result::Result<Option<#return_type>, #error_type>, std::string::String) {
+                #(
+                    #action_fns
+                )*
+
                 // Step through DFA to the find the longest match.
                 let (m, final_state) = match self.dfa.find(&input.chars()) {
                     std::option::Option::Some(m) => m,
@@ -88,11 +91,11 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                     _ => std::panic!(),
                 };
 
+                let remaining = input.chars().skip(m.end()).collect();
                 match token_res {
                     std::result::Result::Ok(token_op) => match token_op {
                         // If a token was returned, return the token and the remaining input.
                         std::option::Option::Some(t) => {
-                            let remaining = input.chars().skip(m.end()).collect();
                             (std::result::Result::Ok(Some(t)), remaining)
                         }
                         // If no token was returned, one input symbol should be consumed and the process
@@ -106,14 +109,11 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                             }
                         }
                     }
-                    // If action expression returned an error, return the error and original input?
-                    std::result::Result::Err(err) => (std::result::Result::Err(err), std::string::String::from(input)),
+                    // If action expression returned an error, return the error and remaining
+                    // input?
+                    std::result::Result::Err(err) => (std::result::Result::Err(err), remaining),
                 }
             }
-
-            #(
-                #action_fns
-            )*
         }
     })
     .into()
@@ -193,9 +193,9 @@ impl Parse for Lexer {
     }
 }
 
-pub struct Rule {
-    pub regexp: LitStr,
-    pub action: Expr,
+struct Rule {
+    regexp: LitStr,
+    action: Expr,
 }
 
 impl Rule {
