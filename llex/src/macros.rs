@@ -77,14 +77,15 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 // Step through DFA to the find the longest match.
                 let (m, final_state) = match self.dfa.find(&input.chars()) {
                     std::option::Option::Some(m) => m,
-                    std::option::Option::None => return (std::result::Result::Err(#no_match_error), String::from(input))
+                    std::option::Option::None => return (std::result::Result::Err(#no_match_error), std::string::String::from(input))
                 };
 
                 // Execute the action expression corresponding to the final state.
                 let #span_id: std::string::String = input.chars().take(m.end()).collect();
                 let token_res = match final_state {
                     #( #action_match ),*,
-                    _ => std::result::Result::Ok(std::option::Option::None),
+                    // Catch-all branch should never execute?
+                    _ => std::panic!(),
                 };
 
                 match token_res {
@@ -99,14 +100,14 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                         std::option::Option::None => {
                             let remaining: std::string::String = input.chars().skip(1).collect();
                             if remaining.len() == 0 {
-                                (std::result::Result::Ok(None), String::new())
+                                (std::result::Result::Ok(None), std::string::String::new())
                             } else {
                                 self.advance(&remaining)
                             }
                         }
                     }
                     // If action expression returned an error, return the error and original input?
-                    std::result::Result::Err(err) => (std::result::Result::Err(err), String::from(input)),
+                    std::result::Result::Err(err) => (std::result::Result::Err(err), std::string::String::from(input)),
                 }
             }
 

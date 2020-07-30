@@ -90,7 +90,7 @@ fn main() {
                     print!("{:?}  ", token);
                 }
                 None => {
-                    println!("\nFinished tokenization input.");
+                    println!("\nFinished tokenization.");
                     break;
                 }
             },
