@@ -39,7 +39,23 @@ impl Parse for Lexer {
         let rules = {
             let mut rules = Vec::new();
             while !input.is_empty() {
-                let rule = input.parse()?;
+                let regexp = input.parse()?;
+                input.parse::<Token![=>]>()?;
+
+                let optional_comma = input.peek(token::Brace);
+
+                let action = input.parse()?;
+                let rule = Rule::new(regexp, action);
+
+                match input.parse::<Token![,]>() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        if !input.is_empty() && !optional_comma {
+                            return Err(e);
+                        }
+                    }
+                }
+
                 rules.push(rule);
             }
             rules
@@ -63,17 +79,5 @@ pub struct Rule {
 impl Rule {
     fn new(regexp: LitStr, action: Expr) -> Self {
         Self { regexp, action }
-    }
-}
-
-impl Parse for Rule {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let regexp = input.parse()?;
-        input.parse::<Token![=>]>()?;
-
-        let action = input.parse()?;
-
-        let rule = Rule::new(regexp, action);
-        Ok(rule)
     }
 }

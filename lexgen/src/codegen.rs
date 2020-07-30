@@ -30,7 +30,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
             action_mapping
                 .iter()
                 .filter(|(nfa_state, _)| nfa_states.contains(nfa_state))
-                .max_by_key(|(_, (_, precedence))| precedence)
+                .min_by_key(|(_, (_, precedence))| precedence)
                 .and_then(|(_, (action, _))| Some(quote!(#dfa_state => #action)))
         })
         .collect();
@@ -44,11 +44,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 std::option::Option::None => return std::option::Option::None,
             };
 
-            // If match does not start at beginning of input, should initiate error handling
-            if m.start() != 0 {
-                return std::option::Option::None;
-            }
-
+            // No match, should initiate error handling
             if m.end() == m.start() {
                 return std::option::Option::None;
             }
@@ -59,10 +55,16 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 _ => std::option::Option::None,
             };
 
-            token.and_then(|t| {
-                let remaining = input.chars().skip(m.end()).collect();
-                std::option::Option::Some((t, remaining))
-            })
+            match token {
+                std::option::Option::Some(t) => {
+                    let remaining = input.chars().skip(m.end()).collect();
+                    std::option::Option::Some((t, remaining))
+                }
+                std::option::Option::None => {
+                    let remaining: std::string::String = input.chars().skip(1).collect();
+                    #name(&remaining)
+                }
+            }
         }
 
     })
@@ -103,16 +105,17 @@ fn parse_combined_nfa(rules: &Vec<Rule>) -> (NFA<CharClass>, HashMap<u32, (&Expr
     // Combine NFAs into a single NFA.
     let mut action_mapping = HashMap::new();
     let mut nfa = NFA::new();
-    nfa.total_states = 0;
+    let mut offset = nfa.total_states;
     for (precedence, (sub, action)) in nfa_sub.iter().enumerate() {
-        let offset = nfa.total_states;
-
         NFA::copy_into(&mut nfa, sub);
+        nfa.add_epsilon_transition(nfa.initial_state, sub.initial_state + offset);
         // Map new, offsetted final states to their original action.
         for sub_final in sub.final_states.iter() {
             nfa.final_states.insert(*sub_final + offset);
             action_mapping.insert(*sub_final + offset, (*action, precedence));
         }
+
+        offset += sub.total_states;
     }
 
     (nfa, action_mapping)
