@@ -1,6 +1,7 @@
 use anyhow::Result;
 use llex::lexer;
 
+// The type returned from the generated lexer function.
 #[derive(Debug)]
 pub enum Token {
     Ident(String),
@@ -20,8 +21,20 @@ pub enum Token {
 }
 
 lexer! {
+    // Define the name and visibility of the lexer function, as well as the type of the token and
+    // name of the token span. The actual function returns an `Option` of a tuple of the token
+    // type and the remaining input string.
+    //
+    // Format:
+    // #visibility fn #function_name(#span_identifier) -> #token_type;
+    //
+    // Actual function signature:
+    // #visibility fn #function_name(#span_identifier: &str) -> std::option::Option<#token_type, std::string::String>
     pub fn next_token(text) -> Token;
 
+    // Define the regular expression and their corresponding actions, highest precedence first.
+    // See `regexp2` crate for supported regular expression syntax. The action expressions must
+    // return Option<#token_type>.
     r"\s" => None,
     r"pub" => Some(Token::KeywordPub),
     r"fn" => Some(Token::KeywordFn),
@@ -33,6 +46,7 @@ lexer! {
     r";" => Some(Token::Semicolon),
     r"," => Some(Token::Comma),
     r"[A-Za-z_][A-Za-z0-9_]*" => Some(Token::Ident(text)),
+    // Pair that matches integers, parses them into i64, and returns Token::Integer.
     r"[0-9]+" => {
         let i = text.parse().unwrap();
         Some(Token::Integer(i))
@@ -43,6 +57,7 @@ lexer! {
     }
 }
 
+// The input string to pass into the lexer function.
 const INPUT_STR: &str = "
 pub enum Token {
     Ident(String),
@@ -53,6 +68,7 @@ pub enum Token {
 
 fn main() -> Result<()> {
     let mut input = String::from(INPUT_STR);
+    // Consume the input and return tokens until no pattern can be matched to the remaining string.
     while let Some(token_t) = next_token(&input) {
         input = token_t.1;
         let token = token_t.0;
