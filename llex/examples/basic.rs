@@ -1,5 +1,5 @@
 use anyhow::Result;
-use lexgen::lexer;
+use llex::lexer;
 
 #[derive(Debug)]
 pub enum Token {
