@@ -161,7 +161,7 @@ impl Rule {
 const INVALID_REGEXP_ERROR: &str = "invalid regular expression";
 
 // Parse the rules into a single NFA and a map of final states to action expressions.
-fn parse_combined_nfa(rules: &Vec<Rule>) -> (NFA<CharClass>, HashMap<u32, (&Expr, usize)>) {
+fn parse_combined_nfa(rules: &Vec<Rule>) -> (NFA<CharClass>, HashMap<usize, (&Expr, usize)>) {
     let nfa_parser = NFAParser::new();
     // Parse regular expression strings into NFAs.
     let nfa_sub: Vec<_> = rules
