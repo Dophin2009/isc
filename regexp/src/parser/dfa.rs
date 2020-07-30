@@ -1,6 +1,7 @@
 use super::ast::{Operator, SyntaxTree};
 use super::common::CharType;
 use super::error::ParseError;
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 
