@@ -28,7 +28,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
     let (nfa, action_mapping) = parse_combined_nfa(&rules);
     let DFAFromNFA { dfa, nfa_mapping }: DFAFromNFA<_> = nfa.into();
 
-    let dfa_static = lazy_static_dfa(&dfa);
+    let dfa_rebuilt = dfa_rebuilt(&dfa);
 
     let action_match: Vec<_> = nfa_mapping
         .iter()
@@ -42,37 +42,46 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         .collect();
 
     (quote! {
-        #dfa_static
+        #vis struct #name {
+            dfa: automata::DFA<regexp2::class::CharClass>,
+        }
 
-        #vis fn #name(input: &str) -> std::option::Option<(#return_type, std::string::String)> {
-            let (m, final_state) = match LEXER_DFA.find(&input.chars()) {
-                std::option::Option::Some(m) => m,
-                std::option::Option::None => return std::option::Option::None,
-            };
-
-            // No match, should initiate error handling
-            if m.end() == m.start() {
-                return std::option::Option::None;
+        impl #name {
+            pub fn new() -> Self {
+                Self {
+                    dfa: #dfa_rebuilt,
+                }
             }
 
-            let #str_ident: std::string::String = input.chars().take(m.end()).collect();
-            let token = match final_state {
-                #( #action_match ),*,
-                _ => std::option::Option::None,
-            };
+            pub fn advance(&self, input: &str) -> std::option::Option<(#return_type, std::string::String)> {
+                let (m, final_state) = match self.dfa.find(&input.chars()) {
+                    std::option::Option::Some(m) => m,
+                    std::option::Option::None => return std::option::Option::None,
+                };
 
-            match token {
-                std::option::Option::Some(t) => {
-                    let remaining = input.chars().skip(m.end()).collect();
-                    std::option::Option::Some((t, remaining))
+                // No match, should initiate error handling
+                if m.end() == m.start() {
+                    return std::option::Option::None;
                 }
-                std::option::Option::None => {
-                    let remaining: std::string::String = input.chars().skip(1).collect();
-                    #name(&remaining)
+
+                let #str_ident: std::string::String = input.chars().take(m.end()).collect();
+                let token = match final_state {
+                    #( #action_match ),*,
+                    _ => std::option::Option::None,
+                };
+
+                match token {
+                    std::option::Option::Some(t) => {
+                        let remaining = input.chars().skip(m.end()).collect();
+                        std::option::Option::Some((t, remaining))
+                    }
+                    std::option::Option::None => {
+                        let remaining: std::string::String = input.chars().skip(1).collect();
+                        self.advance(&remaining)
+                    }
                 }
             }
         }
-
     })
     .into()
 }
@@ -90,10 +99,7 @@ pub struct Lexer {
 impl Parse for Lexer {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let vis = input.parse()?;
-        let name = {
-            input.parse::<Token![fn]>()?;
-            input.parse()?
-        };
+        let name = input.parse()?;
 
         let str_ident = {
             let inner;
@@ -208,7 +214,7 @@ fn parse_combined_nfa(rules: &Vec<Rule>) -> (NFA<CharClass>, HashMap<usize, (&Ex
     (nfa, action_mapping)
 }
 
-fn lazy_static_dfa(dfa: &DFA<CharClass>) -> TokenStream2 {
+fn dfa_rebuilt(dfa: &DFA<CharClass>) -> TokenStream2 {
     let initial_state = dfa.initial_state;
     let total_states = dfa.total_states;
     let final_states: Vec<_> = dfa.final_states.iter().collect();
@@ -227,19 +233,17 @@ fn lazy_static_dfa(dfa: &DFA<CharClass>) -> TokenStream2 {
         .collect();
 
     quote! {
-        lazy_static::lazy_static! {
-            static ref LEXER_DFA: automata::DFA<regexp2::class::CharClass> = {
-                let mut dfa = automata::DFA::new();
-                dfa.initial_state = #initial_state;
-                dfa.total_states = #total_states;
-                dfa.final_states = std::collections::HashSet::new();
-                dfa.final_states.extend(&[ #( #final_states ),* ]);
+        {
+            let mut dfa = automata::DFA::new();
+            dfa.initial_state = #initial_state;
+            dfa.total_states = #total_states;
+            dfa.final_states = std::collections::HashSet::new();
+            dfa.final_states.extend(&[ #( #final_states ),* ]);
 
-                dfa.transition = automata::table::Table::new();
-                #( #transition_sets )*
+            dfa.transition = automata::table::Table::new();
+            #( #transition_sets )*
 
-                dfa
-            };
+            dfa
         }
     }
 }

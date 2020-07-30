@@ -1,3 +1,6 @@
+#![feature(trace_macros)]
+trace_macros!(true);
+
 use anyhow::Result;
 use llex::lexer;
 
@@ -30,7 +33,7 @@ lexer! {
     //
     // Actual function signature:
     // #visibility fn #function_name(#span_identifier: &str) -> std::option::Option<#token_type, std::string::String>
-    pub fn next_token(text) -> Token;
+    pub Lexerr(text) -> Token;
 
     // Define the regular expression and their corresponding actions, highest precedence first.
     // See `regexp2` crate for supported regular expression syntax. The action expressions must
@@ -68,8 +71,9 @@ pub enum Token {
 
 fn main() -> Result<()> {
     let mut input = String::from(INPUT_STR);
+    let lexer = Lexerr::new();
     // Consume the input and return tokens until no pattern can be matched to the remaining string.
-    while let Some(token_t) = next_token(&input) {
+    while let Some(token_t) = lexer.advance(&input) {
         input = token_t.1;
         let token = token_t.0;
         print!("{:?}  ", token);
