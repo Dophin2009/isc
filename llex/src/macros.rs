@@ -1,15 +1,21 @@
-use crate::lexer::{Lexer, Rule};
-
 use std::collections::HashMap;
 
-use automata::dfa::{DFAFromNFA, Transition};
-use automata::{DFA, NFA};
+use automata::{
+    dfa::{DFAFromNFA, Transition},
+    DFA, NFA,
+};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use regexp2::class::{CharClass, CharRange};
-use regexp2::parser::{NFAParser, Parser};
-use syn::{parse_macro_input, Expr};
+use regexp2::{
+    class::{CharClass, CharRange},
+    parser::{NFAParser, Parser},
+};
+use syn::{
+    parenthesized,
+    parse::{Parse, ParseStream},
+    parse_macro_input, token, Expr, Ident, LitStr, Token, Type, Visibility,
+};
 
 pub fn lexer(tok: TokenStream) -> TokenStream {
     let Lexer {
@@ -69,6 +75,87 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
 
     })
     .into()
+}
+
+pub struct Lexer {
+    pub vis: Visibility,
+    pub name: Ident,
+
+    pub str_ident: Ident,
+    pub return_type: Type,
+
+    pub rules: Vec<Rule>,
+}
+
+impl Parse for Lexer {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let vis = input.parse()?;
+        let name = {
+            input.parse::<Token![fn]>()?;
+            input.parse()?
+        };
+
+        let str_ident = {
+            let inner;
+            parenthesized!(inner in input);
+            let str_ident = inner.parse()?;
+            if !inner.is_empty() {
+                return Err(inner.error("unexpected token after token string identifier"));
+            }
+            str_ident
+        };
+
+        let return_type = {
+            input.parse::<Token![->]>()?;
+            let ty = input.parse()?;
+            input.parse::<Token![;]>()?;
+            ty
+        };
+
+        let rules = {
+            let mut rules = Vec::new();
+            while !input.is_empty() {
+                let regexp = input.parse()?;
+                input.parse::<Token![=>]>()?;
+
+                let optional_comma = input.peek(token::Brace);
+
+                let action = input.parse()?;
+                let rule = Rule::new(regexp, action);
+
+                match input.parse::<Token![,]>() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        if !input.is_empty() && !optional_comma {
+                            return Err(e);
+                        }
+                    }
+                }
+
+                rules.push(rule);
+            }
+            rules
+        };
+
+        Ok(Lexer {
+            vis,
+            name,
+            str_ident,
+            return_type,
+            rules,
+        })
+    }
+}
+
+pub struct Rule {
+    pub regexp: LitStr,
+    pub action: Expr,
+}
+
+impl Rule {
+    fn new(regexp: LitStr, action: Expr) -> Self {
+        Self { regexp, action }
+    }
 }
 
 const INVALID_REGEXP_ERROR: &str = "invalid regular expression";

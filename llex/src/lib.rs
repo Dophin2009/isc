@@ -1,12 +1,11 @@
 #![feature(iterator_fold_self)]
 #![feature(proc_macro_diagnostic)]
 
-mod codegen;
-mod lexer;
+mod macros;
 
 use proc_macro::TokenStream;
 
 #[proc_macro]
 pub fn lexer(tok: TokenStream) -> TokenStream {
-    codegen::lexer(tok)
+    macros::lexer(tok)
 }
