@@ -6,9 +6,18 @@ CARGO_BUILD = $(CARGO) build
 R ?= R
 RSCRIPT ?= Rscript
 
+NASM = nasm
+
+# Target to build asm examples
+asm-ex = asm-ex
+asm-ex/% : $(asm-ex)/%.o
+	$(LD) -o $(TARGET)/$(asm-ex)/$* $(TARGET)/$<
+asm-ex/%.o : $(asm-ex)/%.s
+	mkdir -p $(TARGET)/$(asm-ex)
+	$(NASM) -f elf64 -o $(TARGET)/$(asm-ex)/$*.o $<
+
 # Target to build Yacc examples
 yacc-ex = yacc-ex
-
 yacc-ex-% : src_dir = $(yacc-ex)/$*
 yacc-ex-% : local_target = $(TARGET)/$(yacc-ex)/$*
 yacc-ex-% : CFLAGS = -Wimplicit-function-declaration
