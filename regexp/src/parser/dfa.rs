@@ -32,7 +32,7 @@ impl DFA {
             };
         }
 
-        return self.accepting.contains(&pos);
+        self.accepting.contains(&pos)
     }
 }
 
@@ -181,21 +181,30 @@ fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
                 let in_marked = marked_states
                     .iter()
                     .find(|ms: &&DState| ms.positions == new_state.positions);
-                if in_marked.is_some() {
-                    new_state.label = in_marked.unwrap().label;
-                    push_unmarked = false;
-                } else {
-                    let in_unmarked = unmarked_states
-                        .iter()
-                        .find(|ums: &&DState| ums.positions == new_state.positions);
-                    if in_unmarked.is_some() {
-                        new_state.label = in_unmarked.unwrap().label;
-                        push_unmarked = false;
-                    } else if s.positions == new_state.positions {
+                match in_marked {
+                    Some(s) => {
                         new_state.label = s.label;
                         push_unmarked = false;
-                    } else {
-                        push_unmarked = true;
+                    }
+                    None => {
+                        let in_unmarked = unmarked_states
+                            .iter()
+                            .find(|ums: &&DState| ums.positions == new_state.positions);
+
+                        match in_unmarked {
+                            Some(us) => {
+                                new_state.label = us.label;
+                                push_unmarked = false;
+                            }
+                            None => {
+                                if s.positions == new_state.positions {
+                                    new_state.label = s.label;
+                                    push_unmarked = false;
+                                } else {
+                                    push_unmarked = true;
+                                }
+                            }
+                        }
                     }
                 };
 
@@ -279,14 +288,14 @@ impl AugmentTreeRet {
     }
 }
 
-fn augment_tree<'a>(
+fn augment_tree(
     tree: &SyntaxTree,
     lookup: &mut LeafLookup,
     mark: &mut u32,
 ) -> Result<Option<AugmentTreeRet>, ParseError> {
     let augmented = match &tree {
         SyntaxTree::Branch(ref op, ref c1, ref c2) => {
-            let aug_node = match op {
+            match op {
                 Operator::Kleene => augment_kleene(c1, lookup, mark)?,
                 // For alternation node, compute functions for two children to compute `nullable`,
                 // `firstpos`, `lastpos`, and `followpos` for this node.
@@ -294,9 +303,7 @@ fn augment_tree<'a>(
                 // For concat node, compute functions for two children to compute `nullable`,
                 // `firstpos`, `lastpos`, and `followpos` for this node.
                 Operator::Concat => augment_concat(c1, c2, lookup, mark)?,
-            };
-
-            aug_node
+            }
         }
         SyntaxTree::Leaf(ty) => augment_leaf(ty, lookup, mark)?,
         SyntaxTree::None => None,
@@ -328,13 +335,8 @@ fn augment_kleene(
         .map(|i| -> Result<(), ParseError> {
             if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
                 aug_c1.followpos = hash_set_union(&aug_c1.followpos, &firstpos);
-            } else {
-                match lookup.get_mut(i) {
-                    Some(i_pos) => {
-                        i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
-                    }
-                    None => {}
-                }
+            } else if let Some(i_pos) = lookup.get_mut(i) {
+                i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
             }
             Ok(())
         })
@@ -455,13 +457,8 @@ fn augment_concat(
         .map(|i| -> Result<(), ParseError> {
             if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
                 aug_c1.followpos = hash_set_union(&aug_c1.followpos, &aug_c2.firstpos)
-            } else {
-                match lookup.get_mut(i) {
-                    Some(i_pos) => {
-                        i_pos.followpos = hash_set_union(&i_pos.followpos, &aug_c2.firstpos);
-                    }
-                    None => {}
-                }
+            } else if let Some(i_pos) = lookup.get_mut(i) {
+                i_pos.followpos = hash_set_union(&i_pos.followpos, &aug_c2.firstpos);
             }
 
             Ok(())
@@ -502,23 +499,19 @@ fn augment_leaf(
         followpos: HashSet::new(),
     };
 
-    match lookup.insert(*mark, aug_leaf) {
-        Some(_) => return Err(ParseError::Dfa),
-        None => {}
-    };
+    if lookup.insert(*mark, aug_leaf).is_some() {
+        return Err(ParseError::Dfa);
+    }
 
     Ok(Some(AugmentTreeRet::Leaf(*mark)))
 }
 
 fn reinsert_leaf(lookup: &mut HashMap<u32, AugmentedNode>, mark: Option<u32>, node: AugmentedNode) {
-    match mark {
-        Some(m) => {
-            lookup.insert(m, node);
-        }
-        None => {}
+    if let Some(m) = mark {
+        lookup.insert(m, node);
     }
 }
 
 fn hash_set_union<T: Clone + Eq + std::hash::Hash>(s1: &HashSet<T>, s2: &HashSet<T>) -> HashSet<T> {
-    s1.union(s2).map(|u| u.clone()).collect()
+    s1.union(s2).cloned().collect()
 }
