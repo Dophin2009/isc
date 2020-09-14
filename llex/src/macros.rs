@@ -39,7 +39,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 .iter()
                 .filter(|(nfa_state, _)| nfa_states.contains(nfa_state))
                 .min_by_key(|(_, (_, precedence))| precedence)
-                .and_then(|(_, (action, _))| Some((dfa_state, action)))
+                .map(|(_, (action, _))| (dfa_state, action))
         })
         .collect();
 
@@ -207,11 +207,11 @@ impl Rule {
 const INVALID_REGEXP_ERROR: &str = "invalid regular expression";
 
 // Parse the rules into a single NFA and a map of final states to action expressions.
-fn parse_combined_nfa(rules: &Vec<Rule>) -> (NFA<CharClass>, HashMap<usize, (&Expr, usize)>) {
+fn parse_combined_nfa(rules: &[Rule]) -> (NFA<CharClass>, HashMap<usize, (&Expr, usize)>) {
     let nfa_parser = NFAParser::new();
     // Parse regular expression strings into NFAs.
     let nfa_sub: Vec<_> = rules
-        .into_iter()
+        .iter()
         .filter_map(
             |Rule { regexp, action }| match nfa_parser.parse(&regexp.value()) {
                 // Throw errors if failed to parse.
