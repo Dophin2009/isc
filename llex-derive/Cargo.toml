@@ -1,11 +1,11 @@
 [package]
-name = "llex"
+name = "llex-derive"
 version = "0.1.0"
 authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
 [lib]
-name = "llex"
+name = "llex_derive"
 proc-macro = true
 
 [dependencies]

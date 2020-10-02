@@ -88,9 +88,9 @@ checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
 name = "llex"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "automata",
  "lazy_static",
+ "llex-derive",
  "proc-macro2",
  "quote",
  "regexp2",
@@ -100,6 +100,15 @@ dependencies = [
 [[package]]
 name = "llex-derive"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "automata",
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "regexp2",
+ "syn",
+]
 
 [[package]]
 name = "log"

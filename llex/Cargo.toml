@@ -1,9 +1,16 @@
 [package]
-name = "llex-derive"
+name = "llex"
 version = "0.1.0"
 authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+llex-derive = { path = "../llex-derive" }
+
+lazy_static = "1.4.0"
+proc-macro2 = "1.0.18"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+
+automata = { path = "../automata" }
+regexp2 = { path = "../regexp2" }
