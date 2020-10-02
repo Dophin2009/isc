@@ -1,3 +1,6 @@
+#![feature(iterator_fold_self)]
+#![feature(proc_macro_diagnostic)]
+
 use std::collections::HashMap;
 
 use automata::{
@@ -17,6 +20,7 @@ use syn::{
     parse_macro_input, token, Expr, Ident, LitStr, Token, Type, Visibility,
 };
 
+#[proc_macro]
 pub fn lexer(tok: TokenStream) -> TokenStream {
     let Lexer {
         vis,
