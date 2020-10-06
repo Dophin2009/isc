@@ -23,14 +23,16 @@ use syn::{
 #[proc_macro]
 pub fn lexer(tok: TokenStream) -> TokenStream {
     let Lexer {
-        vis,
-        name,
+        struct_vis,
+        struct_name,
+        fn_vis,
+        fn_name,
         span_id,
         return_type,
-        error_type,
-        no_match_error,
+        error_variant,
         rules,
     } = parse_macro_input!(tok as Lexer);
+
     let (nfa, action_mapping) = parse_combined_nfa(&rules);
     let DFAFromNFA { dfa, nfa_mapping }: DFAFromNFA<_> = nfa.into();
 
@@ -47,76 +49,59 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         })
         .collect();
 
-    let action_fns: Vec<_> = dfa_actions.iter().map(|(dfa_state, action)| {
-        let fn_name = format_ident!("action_{}", dfa_state);
-        quote! {
-            fn #fn_name(#span_id: std::string::String) -> Result<Option<#return_type>, #error_type> {
-                #action
+    let action_fns: Vec<_> = dfa_actions
+        .iter()
+        .map(|(dfa_state, action)| {
+            let fn_name = format_ident!("action_{}", dfa_state);
+            quote! {
+                fn #fn_name(#span_id: &str) -> std::option::Option<#return_type> {
+                    #action
+                }
             }
-        }
-    }).collect();
+        })
+        .collect();
 
     let action_match: Vec<_> = dfa_actions
         .iter()
         .map(|(dfa_state, _)| {
             let fn_call = format_ident!("action_{}", dfa_state);
-            quote!(#dfa_state => #fn_call(#span_id))
+            quote!(#dfa_state => #fn_call(span))
         })
         .collect();
 
     (quote! {
-        #vis struct #name {
-            dfa: automata::DFA<regexp2::class::CharClass>,
+        #struct_vis struct #struct_name {
+            dfa: ::llex::stream::LexerDFA,
         }
 
-        impl #name {
-            pub fn new() -> Self {
+        impl #struct_name {
+            #struct_vis fn new() -> Self {
                 Self {
                     dfa: #dfa_rebuilt,
                 }
             }
 
-            pub fn advance(&self, input: &str) -> (std::result::Result<Option<#return_type>, #error_type>, std::string::String) {
-                #(
-                    #action_fns
-                )*
+            #fn_vis fn #fn_name<F, G>(&self, input: &str) -> ::llex::LexerStream<#return_type, F, G>
+            where
+                F: Fn(usize, &str) -> std::option::Option<#return_type>,
+                G: Fn() -> #return_type,
+            {
 
-                // Step through DFA to the find the longest match.
-                let (m, final_state) = match self.dfa.find(&input.chars()) {
-                    std::option::Option::Some(m) => m,
-                    std::option::Option::None => return (std::result::Result::Err(#no_match_error), std::string::String::from(input))
-                };
+                let matcher = ::llex::stream::LexerDFAMatcher::new(self.dfa.clone(),
+                    |dfa_state: usize, span: &str| {
+                        #(
+                            #action_fns
+                        )*
 
-                // Execute the action expression corresponding to the final state.
-                let #span_id: std::string::String = input.chars().take(m.end()).collect();
-                let token_res = match final_state {
-                    #( #action_match ),*,
-                    // Catch-all branch should never execute?
-                    _ => std::panic!(),
-                };
-
-                let remaining = input.chars().skip(m.end()).collect();
-                match token_res {
-                    std::result::Result::Ok(token_op) => match token_op {
-                        // If a token was returned, return the token and the remaining input.
-                        std::option::Option::Some(t) => {
-                            (std::result::Result::Ok(Some(t)), remaining)
+                        match dfa_state {
+                            #( #action_match ),*,
+                            // Catch-all branch should never execute?
+                            _ => std::panic!(),
                         }
-                        // If no token was returned, one input symbol should be consumed and the process
-                        // restarted.
-                        std::option::Option::None => {
-                            let remaining: std::string::String = input.chars().skip(1).collect();
-                            if remaining.len() == 0 {
-                                (std::result::Result::Ok(None), std::string::String::new())
-                            } else {
-                                self.advance(&remaining)
-                            }
-                        }
-                    }
-                    // If action expression returned an error, return the error and remaining
-                    // input?
-                    std::result::Result::Err(err) => (std::result::Result::Err(err), remaining),
-                }
+                    },
+                    || #error_variant,
+                );
+                ::llex::LexerStream::new(matcher, input)
             }
         }
     })
@@ -124,41 +109,52 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
 }
 
 struct Lexer {
-    vis: Visibility,
-    name: Ident,
+    struct_vis: Option<Visibility>,
+    struct_name: Ident,
+    fn_vis: Option<Visibility>,
+    fn_name: Ident,
 
     span_id: Ident,
     return_type: Type,
-
-    error_type: Type,
-    no_match_error: Expr,
+    error_variant: Expr,
 
     rules: Vec<Rule>,
 }
 
 impl Parse for Lexer {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let vis = input.parse()?;
-        let name = input.parse()?;
+        macro_rules! token {
+            ($x:tt) => {
+                input.parse::<Token![$x]>()?
+            };
+        }
+
+        let struct_vis = input.parse().ok();
+        token!(struct);
+        let struct_name = input.parse()?;
+        token!(;);
+
+        let fn_vis = input.parse().ok();
+        token!(fn);
+        let fn_name = input.parse()?;
+        token!(;);
 
         let span_id = {
             let inner;
             parenthesized!(inner in input);
             let span_id = inner.parse()?;
             if !inner.is_empty() {
-                return Err(inner.error("unexpected token after token string identifier"));
+                return Err(inner.error("Unexpected token after token string identifier"));
             }
             span_id
         };
 
-        input.parse::<Token![->]>()?;
+        token!(->);
         let return_type = input.parse()?;
-        input.parse::<Token![,]>()?;
+        token!(,);
 
-        let error_type = input.parse()?;
-        input.parse::<Token![;]>()?;
-        let no_match_error = input.parse()?;
-        input.parse::<Token![;]>()?;
+        let error_variant = input.parse()?;
+        token!(;);
 
         let rules = {
             let mut rules = Vec::new();
@@ -186,12 +182,13 @@ impl Parse for Lexer {
         };
 
         Ok(Self {
-            vis,
-            name,
+            struct_vis,
+            struct_name,
+            fn_vis,
+            fn_name,
             span_id,
             return_type,
-            error_type,
-            no_match_error,
+            error_variant,
             rules,
         })
     }
