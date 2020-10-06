@@ -40,7 +40,7 @@ lexer! {
     //         ...
     //     }
     // }
-    struct Lexer;
+    struct Lexer, LexerInternal;
     pub fn stream;
     (text) -> Token, Token::Error;
 
@@ -57,7 +57,7 @@ lexer! {
     r"}" => Some(Token::RightBracket),
     r";" => Some(Token::Semicolon),
     r"," => Some(Token::Comma),
-    r"[A-Za-z_][A-Za-z0-9_]*" => Some(Token::Ident(text)),
+    r"[A-Za-z_][A-Za-z0-9_]*" => Some(Token::Ident(text.to_string())),
     // Pair that matches integers, parses them into i64, and returns Token::Integer.
     r"[0-9]+" => {
         let i = text.parse().unwrap();

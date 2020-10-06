@@ -25,6 +25,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
     let Lexer {
         struct_vis,
         struct_name,
+        internal_name,
         fn_vis,
         fn_name,
         span_id,
@@ -54,6 +55,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         .map(|(dfa_state, action)| {
             let fn_name = format_ident!("action_{}", dfa_state);
             quote! {
+                #[allow(unused)]
                 fn #fn_name(#span_id: &str) -> std::option::Option<#return_type> {
                     #action
                 }
@@ -65,11 +67,12 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         .iter()
         .map(|(dfa_state, _)| {
             let fn_call = format_ident!("action_{}", dfa_state);
-            quote!(#dfa_state => #fn_call(span))
+            quote!(#dfa_state => #fn_call(&span))
         })
         .collect();
 
     (quote! {
+        #[derive(Debug, Clone)]
         #struct_vis struct #struct_name {
             dfa: ::llex::stream::LexerDFA,
         }
@@ -81,27 +84,40 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 }
             }
 
-            #fn_vis fn #fn_name<F, G>(&self, input: &str) -> ::llex::LexerStream<#return_type, F, G>
-            where
-                F: Fn(usize, &str) -> std::option::Option<#return_type>,
-                G: Fn() -> #return_type,
-            {
-
-                let matcher = ::llex::stream::LexerDFAMatcher::new(self.dfa.clone(),
-                    |dfa_state: usize, span: &str| {
-                        #(
-                            #action_fns
-                        )*
-
-                        match dfa_state {
-                            #( #action_match ),*,
-                            // Catch-all branch should never execute?
-                            _ => std::panic!(),
-                        }
-                    },
-                    || #error_variant,
-                );
+            #fn_vis fn #fn_name<'a>(&self, input: &'a str) -> ::llex::LexerStream<'a, #return_type, #internal_name> {
+                let matcher = #internal_name { dfa: &self.dfa };
                 ::llex::LexerStream::new(matcher, input)
+            }
+        }
+
+        #[derive(Debug, Clone)]
+        struct #internal_name<'a> {
+            dfa: &'a ::llex::stream::LexerDFA,
+        }
+
+        impl<'a> ::llex::stream::LexerDFAMatcher<#return_type> for #internal_name<'a> {
+            fn tokenize<'b>(&self, input: &'b str) -> std::option::Option<(#return_type, &'b str)> {
+                #(
+                    #action_fns
+                )*
+
+                // Step through DFA to the find the longest match.
+                let (m, final_state) = match self.dfa.find(&input.chars()) {
+                    Some(m) => m,
+                    None => return Some((#error_variant, input)),
+                };
+
+                // Execute the action expression corresponding to the final state.
+                let span: std::string::String = input.chars().take(m.end()).collect();
+                let token_op = match final_state {
+                    #( #action_match ),*,
+                    // Catch-all branch should never execute?
+                    _ => std::panic!(),
+                };
+
+                let idx = input.char_indices().nth(m.end()).unwrap().0;
+                let remaining = &input[idx..];
+                token_op.map(|t| (t, remaining))
             }
         }
     })
@@ -111,6 +127,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
 struct Lexer {
     struct_vis: Option<Visibility>,
     struct_name: Ident,
+    internal_name: Ident,
     fn_vis: Option<Visibility>,
     fn_name: Ident,
 
@@ -132,6 +149,8 @@ impl Parse for Lexer {
         let struct_vis = input.parse().ok();
         token!(struct);
         let struct_name = input.parse()?;
+        token!(,);
+        let internal_name = input.parse()?;
         token!(;);
 
         let fn_vis = input.parse().ok();
@@ -184,6 +203,7 @@ impl Parse for Lexer {
         Ok(Self {
             struct_vis,
             struct_name,
+            internal_name,
             fn_vis,
             fn_name,
             span_id,
