@@ -91,7 +91,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         }
 
         #[derive(Debug, Clone)]
-        struct #internal_name<'a> {
+        #struct_vis struct #internal_name<'a> {
             dfa: &'a ::llex::stream::LexerDFA,
         }
 
