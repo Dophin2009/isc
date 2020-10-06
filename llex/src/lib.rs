@@ -1,11 +1,4 @@
-#![feature(iterator_fold_self)]
-#![feature(proc_macro_diagnostic)]
+pub mod stream;
 
-mod macros;
-
-use proc_macro::TokenStream;
-
-#[proc_macro]
-pub fn lexer(tok: TokenStream) -> TokenStream {
-    macros::lexer(tok)
-}
+pub use llex_derive::lexer;
+pub use stream::{LexerItem, LexerStream};

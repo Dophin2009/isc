@@ -2,6 +2,7 @@
 members = [
   "automata",
   "llex",
+  "llex-derive",
   "regexp",
   "regexp2"
 ]

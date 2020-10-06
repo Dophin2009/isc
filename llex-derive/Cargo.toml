@@ -1,12 +1,14 @@
 [package]
-name = "llex"
+name = "llex-derive"
 version = "0.1.0"
 authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
-[dependencies]
-llex-derive = { path = "../llex-derive" }
+[lib]
+name = "llex_derive"
+proc-macro = true
 
+[dependencies]
 lazy_static = "1.4.0"
 proc-macro2 = "1.0.18"
 quote = "1.0"
@@ -14,3 +16,6 @@ syn = { version = "1.0", features = ["full"] }
 
 automata = { path = "../automata" }
 regexp2 = { path = "../regexp2" }
+
+[dev-dependencies]
+anyhow = "1.0.32"
