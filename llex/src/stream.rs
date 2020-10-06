@@ -10,7 +10,7 @@ pub trait LexerDFAMatcher<T>: Debug + Clone {
 
 #[derive(Debug, Clone)]
 pub struct LexerItem<T> {
-    token: T,
+    pub token: T,
 }
 
 impl<T> LexerItem<T> {
@@ -30,8 +30,8 @@ pub struct LexerStream<'a, T, M>
 where
     M: LexerDFAMatcher<T>,
 {
+    pub input: &'a str,
     matcher: M,
-    input: &'a str,
     current_item: Option<LexerItem<T>>,
 }
 
@@ -65,10 +65,15 @@ where
             // If no token was returned, one input symbol should be consumed and the process
             // restarted.
             None => {
-                let remaining: String = self.input.chars().skip(1).collect();
+                let remaining = match self.input.char_indices().nth(1) {
+                    Some((idx, _)) => &self.input[idx..],
+                    None => "",
+                };
+
                 if remaining.is_empty() {
                     None
                 } else {
+                    self.input = remaining;
                     self.next()
                 }
             }

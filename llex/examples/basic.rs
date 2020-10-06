@@ -4,7 +4,7 @@
 use llex::lexer;
 
 // The type returned from the generated lexer function.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Ident(String),
     Integer(i64),
@@ -80,8 +80,11 @@ pub enum Token {
 
 fn main() {
     let lexer = Lexer::new();
-    let _ = lexer.stream(INPUT_STR);
-    // let mut input = String::from(INPUT_STR);
+    let mut tokens = lexer.stream(INPUT_STR);
+
+    while let Some(t) = tokens.next() {
+        print!("{:?} ", t.token);
+    }
 
     // // Consume the input and return tokens until no pattern can be matched to the remaining string.
     // let mut offset = 0;

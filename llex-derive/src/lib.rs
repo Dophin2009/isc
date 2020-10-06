@@ -115,8 +115,10 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                     _ => std::panic!(),
                 };
 
-                let idx = input.char_indices().nth(m.end()).unwrap().0;
-                let remaining = &input[idx..];
+                let remaining = match input.char_indices().nth(m.end()) {
+                    Some((idx, _)) => &input[idx..],
+                    None => ""
+                };
                 token_op.map(|t| (t, remaining))
             }
         }
