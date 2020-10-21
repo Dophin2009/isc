@@ -26,22 +26,3 @@ yacc-ex-% : $(yacc-ex)/%/lexer.l $(yacc-ex)/%/parser.y
 	$(LEX) -o $(local_target)/lex.yy.c $(src_dir)/lexer.l
 	$(YACC) -o $(local_target)/y.tab.c $(src_dir)/parser.y
 	$(CC) $(local_target)/y.tab.c -ly -lfl -o $(local_target)/a.out $(CFLAGS)
-
-# Target to build book
-book = book
-
-define book_build_body
-	source("renv/activate.R");                                \
-	rmarkdown::render("src/index.Rmd", "pdf_document",        \
-										output_file = "$(knit_dir)/index.pdf",  \
-										output_dir = "$(knit_dir)",             \
-										intermediates_dir = "$(knit_dir)",      \
-										knit_root_dir = "$(knit_dir)")
-endef
-
-$(book) : local_target = $(TARGET)/$(BOOK)
-$(book) : knit_dir = $(realpath .)/$(local_target)
-$(book) :
-	@echo "Building $@..."
-	mkdir -p $(local_target)
-	cd $(book) && $(RSCRIPT) -e '$(book_build_body)'
