@@ -55,6 +55,10 @@ where
     type Item = LexerItem<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.input.is_empty() {
+            return None;
+        }
+
         let token_op = self.matcher.tokenize(self.input);
         match token_op {
             // If a token was returned, return the token and the remaining input.
