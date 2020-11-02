@@ -289,21 +289,21 @@ fn dfa_rebuilt(dfa: &DFA<CharClass>) -> TokenStream2 {
             let ranges: Vec<_> = tr
                 .ranges
                 .iter()
-                .map(|CharRange { start, end }| quote!(regexp2::class::CharRange::new(#start, #end)))
+                .map(|CharRange { start, end }| quote!(::llex::regexp2::class::CharRange::new(#start, #end)))
                 .collect();
-            quote! { dfa.transition.set(#src, automata::dfa::Transition(vec![ #( #ranges ),* ].into()), #dest); }
+            quote! { dfa.transition.set(#src, ::llex::automata::dfa::Transition(vec![ #( #ranges ),* ].into()), #dest); }
         })
         .collect();
 
     quote! {
         {
-            let mut dfa = automata::DFA::new();
+            let mut dfa = ::llex::automata::DFA::new();
             dfa.initial_state = #initial_state;
             dfa.total_states = #total_states;
             dfa.final_states = std::collections::HashSet::new();
             dfa.final_states.extend(&[ #( #final_states ),* ]);
 
-            dfa.transition = automata::table::Table::new();
+            dfa.transition = ::llex::automata::table::Table::new();
             #( #transition_sets )*
 
             dfa
