@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "automata",
+  "llalr",
   "llex",
   "llex-derive",
   "regexp",
