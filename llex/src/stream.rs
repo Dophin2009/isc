@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use automata::DFA;
+use regexp2::{automata::DFA, class::CharClass};
 
-pub type LexerDFA = DFA<regexp2::class::CharClass>;
+pub type LexerDFA = DFA<CharClass>;
 
 pub trait LexerDFAMatcher<T>: Debug + Clone {
     fn tokenize<'a>(&self, input: &'a str) -> Option<(T, &'a str)>;

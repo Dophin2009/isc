@@ -3,14 +3,14 @@
 
 use std::collections::HashMap;
 
-use automata::{
-    dfa::{DFAFromNFA, Transition},
-    DFA, NFA,
-};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use regexp2::{
+    automata::{
+        dfa::{DFAFromNFA, Transition},
+        DFA, NFA,
+    },
     class::{CharClass, CharRange},
     parser::{NFAParser, Parser},
 };
@@ -291,19 +291,21 @@ fn dfa_rebuilt(dfa: &DFA<CharClass>) -> TokenStream2 {
                 .iter()
                 .map(|CharRange { start, end }| quote!(::llex::regexp2::class::CharRange::new(#start, #end)))
                 .collect();
-            quote! { dfa.transition.set(#src, ::llex::automata::dfa::Transition(vec![ #( #ranges ),* ].into()), #dest); }
+            quote! {
+                dfa.transition.set(#src, ::llex::regexp2::automata::dfa::Transition(vec![ #( #ranges ),* ].into()), #dest);
+            }
         })
         .collect();
 
     quote! {
         {
-            let mut dfa = ::llex::automata::DFA::new();
+            let mut dfa = ::llex::regexp2::automata::DFA::new();
             dfa.initial_state = #initial_state;
             dfa.total_states = #total_states;
             dfa.final_states = std::collections::HashSet::new();
             dfa.final_states.extend(&[ #( #final_states ),* ]);
 
-            dfa.transition = ::llex::automata::table::Table::new();
+            dfa.transition = ::llex::regexp2::automata::table::Table::new();
             #( #transition_sets )*
 
             dfa
