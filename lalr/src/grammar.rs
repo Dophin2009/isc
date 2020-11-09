@@ -1,4 +1,3 @@
-use crate::left_recursion::GrammarEliminateLR;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::FromIterator;
@@ -85,10 +84,6 @@ where
     // TODO: Return Result with custom error.
     pub fn new(rules: HashMap<N, Vec<RuleBody<T, N>>>) -> Option<Self> {
         Some(Self { rules })
-    }
-
-    pub fn eliminate_left_recursion(grammar: &Self) -> Self {
-        GrammarEliminateLR::new_grammar(grammar)
     }
 
     pub fn rules(&self) -> &HashMap<N, Vec<RuleBody<T, N>>> {
