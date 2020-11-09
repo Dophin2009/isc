@@ -1,27 +1,63 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::iter::FromIterator;
+use std::vec;
+
+pub trait SymbolType = Clone + PartialEq + Eq;
+pub trait Nonterminal = Hash + SymbolType;
+
 #[derive(Debug, Clone)]
 pub struct Grammar<T, N>
 where
-    T: Clone + PartialEq,
-    N: Clone + PartialEq,
+    T: SymbolType,
+    N: Nonterminal,
 {
-    pub productions: Vec<Production<T, N>>,
+    rules: HashMap<N, Vec<RuleBody<T, N>>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Production<T, N>
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleBody<T, N>(pub Vec<Symbol<T, N>>)
 where
-    T: Clone + PartialEq,
-    N: Clone + PartialEq,
+    T: SymbolType,
+    N: Nonterminal;
+
+impl<T, N> RuleBody<T, N>
+where
+    T: SymbolType,
+    N: Nonterminal,
 {
-    pub head: N,
-    pub body: Vec<Symbol<T, N>>,
+    pub fn first(&self) -> Option<&Symbol<T, N>> {
+        self.0.first()
+    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl<T, N> IntoIterator for RuleBody<T, N>
+where
+    T: SymbolType,
+    N: Nonterminal,
+{
+    type Item = Symbol<T, N>;
+    type IntoIter = vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<T, N> FromIterator<Symbol<T, N>> for RuleBody<T, N>
+where
+    T: SymbolType,
+    N: Nonterminal,
+{
+    fn from_iter<I: IntoIterator<Item = Symbol<T, N>>>(iter: I) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Symbol<T, N>
 where
-    T: Clone + PartialEq,
-    N: Clone + PartialEq,
+    T: SymbolType,
+    N: Nonterminal,
 {
     Terminal(T),
     Nonterminal(N),
@@ -29,8 +65,8 @@ where
 
 impl<T, N> PartialEq<N> for Symbol<T, N>
 where
-    T: Clone + PartialEq,
-    N: Clone + PartialEq,
+    T: SymbolType,
+    N: Nonterminal,
 {
     fn eq(&self, other: &N) -> bool {
         match self {
@@ -42,13 +78,15 @@ where
 
 impl<T, N> Grammar<T, N>
 where
-    T: Clone + PartialEq,
-    N: Clone + PartialEq,
+    T: SymbolType,
+    N: Nonterminal,
 {
-    pub fn productions_with_head(&self, head: &N) -> Vec<&Production<T, N>> {
-        self.productions
-            .iter()
-            .filter(|&p| p.head == *head)
-            .collect()
+    // TODO: Return Result with custom error.
+    pub fn new(rules: HashMap<N, Vec<RuleBody<T, N>>>) -> Option<Self> {
+        Some(Self { rules })
+    }
+
+    pub fn rules(&self) -> &HashMap<N, Vec<RuleBody<T, N>>> {
+        &self.rules
     }
 }
