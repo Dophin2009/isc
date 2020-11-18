@@ -1,4 +1,7 @@
+build/
 target/
+
 **/*.rs.bk
 
-.ccls-cache/
+compile_commands.json
+.cache/
