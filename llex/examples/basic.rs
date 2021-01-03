@@ -1,17 +1,17 @@
-// lexer! defines two structs with visibility (#struct_visibility) and names (#struct_name) and
-// (#internal_struct_name). It defines the method #struct_name::#fn_name (e.g. Lexer::stream) to
-// return an iterator for tokens (LexerStream<#token_type>) parsed from the given input. See
-// below example. On error (such as where no tokens can be produced from the remaining non-empty
-// input), the error variant (#error_variant) is returned.
+// lexer! creates a struct with visibility (#struct_visibility) and name (#struct_name). It defines
+// the method #struct_name::#fn_name (e.g. Lexer::stream) to return an iterator for tokens
+// (LexerStream<#token_type>) parsed from the given input. See below example. On error (such as
+// where no tokens can be produced from the remaining non-empty input), the error variant
+// (#error_variant) is returned.
 //
-// Define the regular expression and their corresponding actions, highest precedence first.
-// See `regexp2` crate for supported regular expression syntax. The action expressions must
-// return Option<#token_type>.
+// Define the regular expression and their corresponding actions, highest precedence first.  See
+// `regexp2` crate for supported regular expression syntax. The action expressions must return
+// Option<#token_type>.
 //
 //
 // FORMAT:
 //
-// #struct_visibility struct #struct_name, #internal_struct_name;
+// #struct_visibility struct #struct_name;
 // #fn_visibility fn #fn_name;
 // (#span_var) -> #token_type, #error_variant;
 //
@@ -19,8 +19,6 @@
 // GENERATED:
 //
 // #struct_visibility struct #struct_name { ... }
-//
-// #struct_visibility struct #internal_struct_name { ... }
 //
 // impl #struct_name {
 //     #struct_visibility fn stream(&self, input: &str) -> Option<LexerItem<#token_type>> {
@@ -56,7 +54,6 @@ lexer! {
     // Generated:
     //
     //     pub struct Lexer { ... }
-    //     pub struct LexerInternal { ... }
     //
 
     pub fn stream;

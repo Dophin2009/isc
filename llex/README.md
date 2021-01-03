@@ -1,8 +1,8 @@
 # Llex
 
-Llex (lame lexer analyser generator) is an attempt at a simple lexer
-generator. It uses the [`automata`](../automata) and
-[`regexp2`](../regexp2) crates and takes the form of a procedural macro.
+Llex (lame lexer analyser generator) is an attempt at a simple lexer generator.
+It uses the [`automata`](../automata) and [`regexp2`](../regexp2) crates and
+takes the form of a procedural macro.
 
 ## Usage
 
@@ -63,11 +63,10 @@ pub enum Token {
 }
 
 lexer! {
-    pub struct Lexer, LexerInternal;
+    pub struct Lexer;
     // Generated:
     //
     //     pub struct Lexer { ... }
-    //     pub struct LexerInternal { ... }
     //
 
     pub fn stream;
