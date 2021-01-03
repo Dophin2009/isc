@@ -52,7 +52,7 @@ pub enum Token {
 }
 
 lexer! {
-    pub struct Lexer, LexerInternal;
+    pub struct Lexer;
     // Generated:
     //
     //     pub struct Lexer { ... }

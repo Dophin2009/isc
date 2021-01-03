@@ -24,7 +24,6 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
     let Lexer {
         struct_vis,
         struct_name,
-        internal_name,
         fn_vis,
         fn_name,
         span_id,
@@ -73,29 +72,21 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
     (quote! {
         #[derive(Debug, Clone)]
         #struct_vis struct #struct_name {
-            dfa: std::rc::Rc<::llex::stream::LexerDFA>,
+            dfa: ::llex::stream::LexerDFA,
         }
 
         impl #struct_name {
             #struct_vis fn new() -> Self {
                 let dfa = #dfa_rebuilt;
-                Self {
-                    dfa: std::rc::Rc::new(dfa),
-                }
+                Self { dfa }
             }
 
-            #fn_vis fn #fn_name<'a>(&self, input: &'a str) -> ::llex::LexerStream<'a, #return_type, #internal_name> {
-                let matcher = #internal_name { dfa: self.dfa.clone() };
-                ::llex::LexerStream::new(matcher, input)
+            #fn_vis fn #fn_name<'a>(&self, input: &'a str) -> ::llex::LexerStream<'a, #return_type, &#struct_name> {
+                ::llex::LexerStream::new(self, input)
             }
         }
 
-        #[derive(Debug, Clone)]
-        #struct_vis struct #internal_name {
-            dfa: std::rc::Rc<::llex::stream::LexerDFA>,
-        }
-
-        impl ::llex::stream::LexerDFAMatcher<#return_type> for #internal_name {
+        impl ::llex::stream::LexerDFAMatcher<#return_type> for #struct_name {
             fn tokenize<'a>(&self, input: &'a str) -> std::option::Option<(#return_type, &'a str)> {
                 #(
                     #action_fns
@@ -122,6 +113,13 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 token_op.map(|t| (t, remaining))
             }
         }
+
+        impl ::llex::stream::LexerDFAMatcher<#return_type> for &#struct_name {
+            fn tokenize<'a>(&self, input: &'a str) -> std::option::Option<(#return_type, &'a str)> {
+                (*self).tokenize(input)
+            }
+        }
+
     })
     .into()
 }
@@ -129,7 +127,6 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
 struct Lexer {
     struct_vis: Option<Visibility>,
     struct_name: Ident,
-    internal_name: Ident,
     fn_vis: Option<Visibility>,
     fn_name: Ident,
 
@@ -151,8 +148,6 @@ impl Parse for Lexer {
         let struct_vis = input.parse().ok();
         token!(struct);
         let struct_name = input.parse()?;
-        token!(,);
-        let internal_name = input.parse()?;
         token!(;);
 
         let fn_vis = input.parse().ok();
@@ -205,7 +200,6 @@ impl Parse for Lexer {
         Ok(Self {
             struct_vis,
             struct_name,
-            internal_name,
             fn_vis,
             fn_name,
             span_id,
