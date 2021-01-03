@@ -1,4 +1,3 @@
-#![feature(iterator_fold_self)]
 #![feature(proc_macro_diagnostic)]
 
 use std::collections::HashMap;
@@ -74,29 +73,30 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
     (quote! {
         #[derive(Debug, Clone)]
         #struct_vis struct #struct_name {
-            dfa: ::llex::stream::LexerDFA,
+            dfa: std::rc::Rc<::llex::stream::LexerDFA>,
         }
 
         impl #struct_name {
             #struct_vis fn new() -> Self {
+                let dfa = #dfa_rebuilt;
                 Self {
-                    dfa: #dfa_rebuilt,
+                    dfa: std::rc::Rc::new(dfa),
                 }
             }
 
             #fn_vis fn #fn_name<'a>(&self, input: &'a str) -> ::llex::LexerStream<'a, #return_type, #internal_name> {
-                let matcher = #internal_name { dfa: &self.dfa };
+                let matcher = #internal_name { dfa: self.dfa.clone() };
                 ::llex::LexerStream::new(matcher, input)
             }
         }
 
         #[derive(Debug, Clone)]
-        #struct_vis struct #internal_name<'a> {
-            dfa: &'a ::llex::stream::LexerDFA,
+        #struct_vis struct #internal_name {
+            dfa: std::rc::Rc<::llex::stream::LexerDFA>,
         }
 
-        impl<'a> ::llex::stream::LexerDFAMatcher<#return_type> for #internal_name<'a> {
-            fn tokenize<'b>(&self, input: &'b str) -> std::option::Option<(#return_type, &'b str)> {
+        impl ::llex::stream::LexerDFAMatcher<#return_type> for #internal_name {
+            fn tokenize<'a>(&self, input: &'a str) -> std::option::Option<(#return_type, &'a str)> {
                 #(
                     #action_fns
                 )*
