@@ -37,6 +37,7 @@ private:
 
 public:
   Lexer();
+  ~Lexer();
 
   Token next();
 };
