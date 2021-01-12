@@ -18,6 +18,18 @@ pub struct Rhs<T, N, A> {
     pub assoc: A,
 }
 
+impl<T, N, A> Rhs<T, N, A> {
+    pub fn new(body: Vec<Symbol<T, N>>, assoc: A) -> Self {
+        Self { body, assoc }
+    }
+}
+
+impl<T, N> Rhs<T, N, ()> {
+    pub fn noop(body: Vec<Symbol<T, N>>) -> Self {
+        Self { body, assoc: () }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Symbol<T, N> {
     Terminal(T),
