@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::{Grammar, Rhs, Symbol};
 
 use std::collections::{btree_set, BTreeSet};
