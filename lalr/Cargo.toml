@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
+itertools = "0.10.0"
 thiserror = "1.0"
 
 [dev-dependencies]

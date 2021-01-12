@@ -1,43 +1,62 @@
 use crate::{Grammar, Rhs, Symbol};
 
-use std::collections::{btree_set, BTreeSet, VecDeque};
+use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Debug;
+
+use itertools::Itertools;
 
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
-    fn lr0_set<'a>(&'a self) -> ItemSet<'a, T, N, A>
+    fn lr0_set<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
     where
-        T: Eq + PartialEq + Debug,
-        N: Ord + PartialOrd + Debug,
-        A: Debug,
-        Item<'a, T, N, A>: Ord + PartialOrd,
+        T: Ord,
+        N: Ord,
+        Item<'a, T, N, A>: Ord,
     {
+        // Vector of states and transitions of the final automaton.
+        let mut states = Vec::new();
+        // Set of existing sets of items, to be used to check before adding to vector of states.
+        let mut existing_sets = BTreeSet::new();
+
         // Initialize item set to closure of {[S' -> S]}.
-        let mut set = ItemSet::new();
-        set.insert(Item {
+        let mut initial_set = ItemSet::new();
+        initial_set.insert(Item {
             lhs: &self.start,
             rhs: &self.rules.get(&self.start).unwrap()[0],
             pos: 0,
         });
-        self.item_closure(&mut set);
+        self.item_closure(&mut initial_set);
+        let initial_state = LR0State {
+            items: initial_set.clone(),
+        };
+
+        states.push((initial_state.clone(), BTreeMap::new()));
 
         // Maintain queue of items who rhs symbols to close on.
-        let mut set_vec: VecDeque<_> = set.clone().into_iter().collect();
-        while let Some(item) = set_vec.pop_front() {
-            for sy in &item.rhs.body {
-                let goto = self.close_goto(&set, sy);
+        let mut states_queue = VecDeque::new();
+        states_queue.push_back(initial_state);
 
-                // Add items to total set.
-                for new_item in goto {
-                    if set.insert(new_item.clone()) {
-                        // Push back new items to queue to close on later.
-                        set_vec.push_back(new_item);
-                    }
-                }
+        // For each set of items I in C
+        while let Some(state) = states_queue.pop_front() {
+            // For each grammar symbol X
+            let symbols = state.items.iter().flat_map(|item| item.rhs.body).dedup();
+            for sy in symbols {
+                // Compute GOTO(I, X) and check if it's in C.
+                let goto_closure = self.close_goto(&state.items, &sy);
+                let new_state = LR0State {
+                    items: goto_closure,
+                };
+
+                // Check if this new state already exists in the automaton.
+                // If it does, do nothing.
+                if states.contains(&new_state) {}
+
+                // Push state to queue to close on later.
+                states_queue.push_back(new_state);
             }
         }
 
-        set
+        LR0Automaton { states }
     }
 
     /// Compute the closure of items for the given item set.
@@ -124,6 +143,29 @@ impl<T, N, A> Grammar<T, N, A> {
     }
 }
 
+/// An LR(0) state machine.
+#[derive(Debug)]
+struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
+    /// The states of the machine and their transitions to other states.
+    pub states: Vec<(LR0State<'a, T, N, A>, BTreeMap<&'a Symbol<T, N>, usize>)>,
+}
+
+/// A state in the LR(0) automaton, containing a set of items.
+#[derive(Debug)]
+struct LR0State<'a, T: 'a, N: 'a, A: 'a> {
+    pub items: ItemSet<'a, T, N, A>,
+}
+
+comparators!(LR0State('a, T, N, A), (T, N), (items));
+
+impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Item<'a, T: 'a, N: 'a, A: 'a> {
     pub lhs: &'a N,
@@ -132,6 +174,8 @@ struct Item<'a, T: 'a, N: 'a, A: 'a> {
     /// Position of item, equal to index next symbol.
     pub pos: usize,
 }
+
+comparators!(Item('a, T, N, A), (T, N), (lhs, rhs, pos));
 
 impl<'a, T: 'a, N: 'a, A: 'a> Item<'a, T, N, A> {
     /// Retrieves B for A -> a.Bb, or None if A -> a.
@@ -150,55 +194,16 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for Item<'a, T, N, A> {
     }
 }
 
-impl<'a, T: 'a, N: 'a, A: 'a> PartialEq for Item<'a, T, N, A>
-where
-    T: PartialEq,
-    N: PartialEq,
-    A: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.lhs == other.lhs && self.rhs == other.rhs && self.pos == other.pos
-    }
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> Eq for Item<'a, T, N, A>
-where
-    T: Eq,
-    N: Eq,
-    A: Eq,
-{
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> PartialOrd for Item<'a, T, N, A>
-where
-    T: PartialOrd,
-    N: PartialOrd,
-    A: PartialOrd,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        ((self.lhs, self.rhs, self.pos)).partial_cmp(&(other.lhs, other.rhs, other.pos))
-    }
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> Ord for Item<'a, T, N, A>
-where
-    T: Ord,
-    N: Ord,
-    A: Ord,
-{
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        ((self.lhs, self.rhs, self.pos)).cmp(&(other.lhs, other.rhs, other.pos))
-    }
-}
-
 #[derive(Debug)]
 struct ItemSet<'a, T: 'a, N: 'a, A: 'a> {
     pub items: BTreeSet<Item<'a, T, N, A>>,
 }
 
+comparators!(ItemSet('a, T, N, A), (T, N), (items));
+
 impl<'a, T: 'a, N: 'a, A: 'a> ItemSet<'a, T, N, A>
 where
-    Item<'a, T, N, A>: Ord + PartialOrd,
+    Item<'a, T, N, A>: Ord,
 {
     fn new() -> Self {
         Self {
@@ -233,47 +238,6 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for ItemSet<'a, T, N, A> {
         Self {
             items: self.items.clone(),
         }
-    }
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> PartialEq for ItemSet<'a, T, N, A>
-where
-    T: PartialEq,
-    N: PartialEq,
-    A: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.items == other.items
-    }
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> Eq for ItemSet<'a, T, N, A>
-where
-    T: Eq,
-    N: Eq,
-    A: Eq,
-{
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> PartialOrd for ItemSet<'a, T, N, A>
-where
-    T: PartialOrd,
-    N: PartialOrd,
-    A: PartialOrd,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.items.partial_cmp(&other.items)
-    }
-}
-
-impl<'a, T: 'a, N: 'a, A: 'a> Ord for ItemSet<'a, T, N, A>
-where
-    T: Ord,
-    N: Ord,
-    A: Ord,
-{
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.items.cmp(&other.items)
     }
 }
 

@@ -12,11 +12,13 @@ pub struct Grammar<T, N, A> {
 
 pub type GrammarNoop<T, N> = Grammar<T, N, ()>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct Rhs<T, N, A> {
     pub body: Vec<Symbol<T, N>>,
     pub assoc: A,
 }
+
+comparators!(Rhs(T, N, A), (T, N), (body));
 
 impl<T, N, A> Rhs<T, N, A> {
     pub fn new(body: Vec<Symbol<T, N>>, assoc: A) -> Self {
@@ -39,7 +41,7 @@ pub enum Symbol<T, N> {
 impl<T, N, A> Grammar<T, N, A>
 where
     T: PartialEq,
-    N: PartialEq + Ord + PartialOrd,
+    N: Ord,
 {
     // TODO: Return Result with custom error.
     pub fn new(start: N, rules: BTreeMap<N, Vec<Rhs<T, N, A>>>) -> Result<Self> {
