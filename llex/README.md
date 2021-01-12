@@ -4,6 +4,10 @@ Llex (lame lexer analyser generator) is an attempt at a simple lexer generator.
 It uses the [`automata`](../automata) and [`regexp2`](../regexp2) crates and
 takes the form of a procedural macro.
 
+## Todo
+
+-   Lazy input reading via `BufRead`?
+
 ## Usage
 
 See the [examples](./examples).
