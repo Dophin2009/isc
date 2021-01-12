@@ -3,12 +3,7 @@ use crate::{Grammar, Rhs, Symbol};
 use std::collections::{btree_set, BTreeSet};
 use std::fmt::Debug;
 
-impl<T, N, A> Grammar<T, N, A>
-where
-    T: Debug,
-    N: Debug,
-    A: Debug,
-{
+impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
     // fn lr0_set<'a>(&'a self) -> ItemSet<'a, T, N, A> {}
 
@@ -55,30 +50,27 @@ where
 
     /// Compute the GOTO(I, X) where I is a set of items and X is a grammar symbol, returning the
     /// set of all items [A -> aX.B] such that [A -> a.XB] is in I.
-    fn close_goto<'a>(&'a self, set: &mut ItemSet<'a, T, N, A>, x: &'a N)
+    fn close_goto<'a>(
+        &'a self,
+        set: &ItemSet<'a, T, N, A>,
+        x: &'a Symbol<T, N>,
+    ) -> ItemSet<'a, T, N, A>
     where
-        N: Ord + PartialOrd,
+        T: Eq + PartialEq,
+        N: Eq + PartialEq + Ord + PartialOrd,
         Item<'a, T, N, A>: Ord + PartialOrd,
     {
-        // If passed-in set is empty, end recursion.
-        if set.is_empty() {
-            return;
-        }
-
         // Collection of all new items.
-        let mut added = ItemSet::new();
+        let mut closure = ItemSet::new();
         for item in set.iter() {
             // Get the symbol after the .
             let next_symbol = match item.next_symbol() {
-                Some(sy) => match sy {
-                    Symbol::Nonterminal(n) => n,
-                    Symbol::Terminal(_) => continue,
-                },
+                Some(sy) => sy,
                 None => continue,
             };
 
             // Check that the next symbol is X.
-            if next_symbol != x {
+            if *next_symbol != *x {
                 continue;
             }
 
@@ -92,8 +84,10 @@ where
             self.item_closure(&mut new_set);
 
             // Add to total new item collection.
-            added.append(&mut new_set);
+            closure.append(&mut new_set);
         }
+
+        closure
     }
 }
 
@@ -192,8 +186,20 @@ mod test {
         Id,
     }
 
-    #[test]
-    fn test_item_closure() {
+    type GrammarRhs = Rhs<Terminal, Nonterminal, ()>;
+
+    struct GrammarUtil {
+        start_rhs: GrammarRhs,
+        e_plus_t: GrammarRhs,
+        t: GrammarRhs,
+        t_times_f: GrammarRhs,
+        f: GrammarRhs,
+        paren_e: GrammarRhs,
+        id: GrammarRhs,
+        grammar: Grammar<Terminal, Nonterminal, ()>,
+    }
+
+    fn create_grammar() -> GrammarUtil {
         let mut rules = BTreeMap::new();
 
         // S -> E
@@ -219,6 +225,30 @@ mod test {
         rules.insert(F, vec![paren_e.clone(), id.clone()]);
 
         let grammar = Grammar::new(S, rules).unwrap();
+        GrammarUtil {
+            start_rhs,
+            e_plus_t,
+            t,
+            t_times_f,
+            f,
+            paren_e,
+            id,
+            grammar,
+        }
+    }
+
+    #[test]
+    fn test_item_closure() {
+        let GrammarUtil {
+            start_rhs,
+            e_plus_t,
+            t,
+            t_times_f,
+            f,
+            paren_e,
+            id,
+            grammar,
+        } = create_grammar();
 
         // Initial set of {[S -> .E]}
         let mut set = ItemSet::new();
@@ -264,5 +294,62 @@ mod test {
         grammar.item_closure(&mut set);
 
         assert_eq!(set, expected);
+    }
+
+    #[test]
+    fn test_close_goto() {
+        let GrammarUtil {
+            start_rhs,
+            e_plus_t,
+            t: _,
+            t_times_f,
+            f,
+            paren_e,
+            id,
+            grammar,
+        } = create_grammar();
+
+        let mut set = ItemSet::new();
+        set.insert(Item {
+            lhs: &S,
+            rhs: &start_rhs,
+            pos: 1,
+        });
+        set.insert(Item {
+            lhs: &E,
+            rhs: &e_plus_t,
+            pos: 1,
+        });
+
+        let closure = grammar.close_goto(&set, &TT(Plus));
+
+        let mut expected = ItemSet::new();
+        expected.insert(Item {
+            lhs: &E,
+            rhs: &e_plus_t,
+            pos: 2,
+        });
+        expected.insert(Item {
+            lhs: &T,
+            rhs: &t_times_f,
+            pos: 0,
+        });
+        expected.insert(Item {
+            lhs: &T,
+            rhs: &f,
+            pos: 0,
+        });
+        expected.insert(Item {
+            lhs: &F,
+            rhs: &paren_e,
+            pos: 0,
+        });
+        expected.insert(Item {
+            lhs: &F,
+            rhs: &id,
+            pos: 0,
+        });
+
+        assert_eq!(closure, expected);
     }
 }

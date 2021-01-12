@@ -30,22 +30,10 @@ impl<T, N> Rhs<T, N, ()> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Symbol<T, N> {
     Terminal(T),
     Nonterminal(N),
-}
-
-impl<T, N> PartialEq<N> for Symbol<T, N>
-where
-    N: PartialEq,
-{
-    fn eq(&self, other: &N) -> bool {
-        match self {
-            Self::Terminal(_) => false,
-            Self::Nonterminal(n) => n == other,
-        }
-    }
 }
 
 impl<T, N, A> Grammar<T, N, A>
