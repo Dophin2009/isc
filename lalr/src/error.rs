@@ -1,4 +1,13 @@
-use thiserror::Error;
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum Error {
+    #[error("grammar is malformed: {0}")]
+    MalformedGrammar(#[from] MalformedGrammarError),
+}
 
-#[derive(Error, Debug, Clone)]
-pub enum ConstructionError {}
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum MalformedGrammarError {
+    #[error("starting nonterminal has no productions")]
+    NoStartRule,
+    #[error("nonterminal in right-hand side does not exist")]
+    InvalidNonterminal,
+}
