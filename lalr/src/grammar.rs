@@ -12,7 +12,7 @@ pub struct Grammar<T, N, A> {
 
 pub type GrammarNoop<T, N> = Grammar<T, N, ()>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Rhs<T, N, A> {
     pub body: Vec<Symbol<T, N>>,
     pub assoc: A,
@@ -42,22 +42,23 @@ where
     N: PartialEq + Ord + PartialOrd,
 {
     // TODO: Return Result with custom error.
-    pub fn new(start: N, rules: BTreeMap<N, Vec<Rhs<T, N, A>>>) -> Option<Self> {
+    pub fn new(start: N, rules: BTreeMap<N, Vec<Rhs<T, N, A>>>) -> Result<Self> {
         // Check that all nonterminals used in rule bodies have their own rules.
-        let valid = rules.iter().any(|(n, _)| *n == start)
-            && rules
-                .iter()
-                .flat_map(|(_, rhs)| rhs)
-                .flat_map(|rhs| &rhs.body)
-                .any(|sy| match sy {
-                    Symbol::Nonterminal(n) => rules.get(&n).is_none(),
-                    Symbol::Terminal(_) => false,
-                });
-
-        if valid {
-            None
+        // Vectors of Rhs may be empty to indicate A -> e.
+        if !rules.iter().any(|(n, _)| *n == start) {
+            Err(Error::NoStartRule)
+        } else if rules
+            .iter()
+            .flat_map(|(_, rhs)| rhs)
+            .flat_map(|rhs| &rhs.body)
+            .any(|sy| match sy {
+                Symbol::Nonterminal(n) => rules.get(&n).is_none(),
+                Symbol::Terminal(_) => false,
+            })
+        {
+            Err(Error::InvalidNonterminal)
         } else {
-            Some(Self { start, rules })
+            Ok(Self { start, rules })
         }
     }
 }
