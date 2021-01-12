@@ -5,32 +5,40 @@ use std::fmt::Debug;
 
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
-    // fn lr0_set<'a>(&'a self) -> ItemSet<'a, T, N, A>
-    // where
-    // T: Eq + PartialEq,
-    // N: Ord + PartialOrd,
-    // Item<'a, T, N, A>: Ord + PartialOrd,
-    // {
-    // // Initialize item set to closure of {[S' -> S]}.
-    // let mut set = ItemSet::new();
-    // set.insert(Item {
-    // lhs: &self.start,
-    // rhs: &self.rules.get(&self.start).unwrap()[0],
-    // pos: 0,
-    // });
-    // self.item_closure(&mut set);
+    fn lr0_set<'a>(&'a self) -> ItemSet<'a, T, N, A>
+    where
+        T: Eq + PartialEq + Debug,
+        N: Ord + PartialOrd + Debug,
+        A: Debug,
+        Item<'a, T, N, A>: Ord + PartialOrd,
+    {
+        // Initialize item set to closure of {[S' -> S]}.
+        let mut set = ItemSet::new();
+        set.insert(Item {
+            lhs: &self.start,
+            rhs: &self.rules.get(&self.start).unwrap()[0],
+            pos: 0,
+        });
+        self.item_closure(&mut set);
 
-    // let mut set_vec: VecDeque<_> = set.clone().into_iter().collect();
+        // Maintain queue of items who rhs symbols to close on.
+        let mut set_vec: VecDeque<_> = set.clone().into_iter().collect();
+        while let Some(item) = set_vec.pop_front() {
+            for sy in &item.rhs.body {
+                let goto = self.close_goto(&set, sy);
 
-    // while let Some(item) = set_vec.pop_front() {
-    // for sy in &item.rhs.body {
-    // let mut goto = self.close_goto(&set, sy);
-    // set.append(&mut goto);
-    // }
-    // }
+                // Add items to total set.
+                for new_item in goto {
+                    if set.insert(new_item.clone()) {
+                        // Push back new items to queue to close on later.
+                        set_vec.push_back(new_item);
+                    }
+                }
+            }
+        }
 
-    // set
-    // }
+        set
+    }
 
     /// Compute the closure of items for the given item set.
     ///
@@ -198,8 +206,8 @@ where
         }
     }
 
-    fn insert(&mut self, item: Item<'a, T, N, A>) {
-        self.items.insert(item);
+    fn insert(&mut self, item: Item<'a, T, N, A>) -> bool {
+        self.items.insert(item)
     }
 
     fn append(&mut self, set: &mut Self) {
@@ -208,6 +216,10 @@ where
 
     fn is_empty(&self) -> bool {
         self.items.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.items.len()
     }
 
     /// Iterate through the items in this ItemSet.
@@ -353,6 +365,12 @@ mod test {
             id,
             grammar,
         }
+    }
+
+    #[test]
+    fn test_lr0_set() {
+        let GrammarUtil { grammar, .. } = create_grammar();
+        let _set = grammar.lr0_set();
     }
 
     #[test]
