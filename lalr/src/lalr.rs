@@ -1,19 +1,44 @@
 use crate::{Grammar, Rhs, Symbol};
 
-use std::collections::{btree_set, BTreeSet};
+use std::collections::{btree_set, BTreeSet, VecDeque};
 use std::fmt::Debug;
 
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
-    // fn lr0_set<'a>(&'a self) -> ItemSet<'a, T, N, A> {}
+    // fn lr0_set<'a>(&'a self) -> ItemSet<'a, T, N, A>
+    // where
+    // T: Eq + PartialEq,
+    // N: Ord + PartialOrd,
+    // Item<'a, T, N, A>: Ord + PartialOrd,
+    // {
+    // // Initialize item set to closure of {[S' -> S]}.
+    // let mut set = ItemSet::new();
+    // set.insert(Item {
+    // lhs: &self.start,
+    // rhs: &self.rules.get(&self.start).unwrap()[0],
+    // pos: 0,
+    // });
+    // self.item_closure(&mut set);
+
+    // let mut set_vec: VecDeque<_> = set.clone().into_iter().collect();
+
+    // while let Some(item) = set_vec.pop_front() {
+    // for sy in &item.rhs.body {
+    // let mut goto = self.close_goto(&set, sy);
+    // set.append(&mut goto);
+    // }
+    // }
+
+    // set
+    // }
 
     /// Compute the closure of items for the given item set.
     ///
     /// TODO: Find better, non-recursive way to write this?
     fn item_closure<'a>(&'a self, set: &mut ItemSet<'a, T, N, A>)
     where
-        N: Ord + PartialOrd,
-        Item<'a, T, N, A>: Ord + PartialOrd,
+        N: Ord,
+        Item<'a, T, N, A>: Ord,
     {
         let mut added = ItemSet::new();
         for item in set.iter() {
@@ -56,9 +81,9 @@ impl<T, N, A> Grammar<T, N, A> {
         x: &'a Symbol<T, N>,
     ) -> ItemSet<'a, T, N, A>
     where
-        T: Eq + PartialEq,
-        N: Eq + PartialEq + Ord + PartialOrd,
-        Item<'a, T, N, A>: Ord + PartialOrd,
+        T: PartialEq,
+        N: Ord,
+        Item<'a, T, N, A>: Ord,
     {
         // Collection of all new items.
         let mut closure = ItemSet::new();
@@ -91,7 +116,7 @@ impl<T, N, A> Grammar<T, N, A> {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug)]
 struct Item<'a, T: 'a, N: 'a, A: 'a> {
     pub lhs: &'a N,
     pub rhs: &'a Rhs<T, N, A>,
@@ -107,7 +132,58 @@ impl<'a, T: 'a, N: 'a, A: 'a> Item<'a, T, N, A> {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+impl<'a, T: 'a, N: 'a, A: 'a> Clone for Item<'a, T, N, A> {
+    fn clone(&self) -> Self {
+        Self {
+            lhs: self.lhs,
+            rhs: self.rhs,
+            pos: self.pos,
+        }
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> PartialEq for Item<'a, T, N, A>
+where
+    T: PartialEq,
+    N: PartialEq,
+    A: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.lhs == other.lhs && self.rhs == other.rhs && self.pos == other.pos
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> Eq for Item<'a, T, N, A>
+where
+    T: Eq,
+    N: Eq,
+    A: Eq,
+{
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> PartialOrd for Item<'a, T, N, A>
+where
+    T: PartialOrd,
+    N: PartialOrd,
+    A: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        ((self.lhs, self.rhs, self.pos)).partial_cmp(&(other.lhs, other.rhs, other.pos))
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> Ord for Item<'a, T, N, A>
+where
+    T: Ord,
+    N: Ord,
+    A: Ord,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        ((self.lhs, self.rhs, self.pos)).cmp(&(other.lhs, other.rhs, other.pos))
+    }
+}
+
+#[derive(Debug)]
 struct ItemSet<'a, T: 'a, N: 'a, A: 'a> {
     pub items: BTreeSet<Item<'a, T, N, A>>,
 }
@@ -133,21 +209,63 @@ where
     fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
-}
 
-impl<'a, T: 'a, N: 'a, A: 'a> ItemSet<'a, T, N, A>
-where
-    Item<'a, T, N, A>: Ord + PartialOrd,
-{
+    /// Iterate through the items in this ItemSet.
     fn iter(&self) -> btree_set::Iter<Item<'a, T, N, A>> {
         self.items.iter()
     }
 }
 
-impl<'a, T: 'a, N: 'a, A: 'a> IntoIterator for ItemSet<'a, T, N, A>
+impl<'a, T: 'a, N: 'a, A: 'a> Clone for ItemSet<'a, T, N, A> {
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+        }
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> PartialEq for ItemSet<'a, T, N, A>
 where
-    Item<'a, T, N, A>: Ord + PartialOrd,
+    T: PartialEq,
+    N: PartialEq,
+    A: PartialEq,
 {
+    fn eq(&self, other: &Self) -> bool {
+        self.items == other.items
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> Eq for ItemSet<'a, T, N, A>
+where
+    T: Eq,
+    N: Eq,
+    A: Eq,
+{
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> PartialOrd for ItemSet<'a, T, N, A>
+where
+    T: PartialOrd,
+    N: PartialOrd,
+    A: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.items.partial_cmp(&other.items)
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> Ord for ItemSet<'a, T, N, A>
+where
+    T: Ord,
+    N: Ord,
+    A: Ord,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.items.cmp(&other.items)
+    }
+}
+
+impl<'a, T: 'a, N: 'a, A: 'a> IntoIterator for ItemSet<'a, T, N, A> {
     type Item = Item<'a, T, N, A>;
     type IntoIter = std::collections::btree_set::IntoIter<Self::Item>;
 
