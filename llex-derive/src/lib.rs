@@ -1,3 +1,4 @@
+#![deny(rust_2018_idioms)]
 #![feature(proc_macro_diagnostic)]
 
 use std::collections::HashMap;
@@ -138,7 +139,7 @@ struct Lexer {
 }
 
 impl Parse for Lexer {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
         macro_rules! token {
             ($x:tt) => {
                 input.parse::<Token![$x]>()?

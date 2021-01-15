@@ -1,3 +1,5 @@
+#![deny(rust_2018_idioms)]
+
 pub mod stream;
 
 pub use llex_derive::lexer;

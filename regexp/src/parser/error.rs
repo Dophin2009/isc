@@ -8,7 +8,7 @@ pub enum ParseError {
 }
 
 impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt<'a>(&self, f: &mut fmt::Formatter<'a>) -> fmt::Result {
         match *self {
             ParseError::Ast => write!(f, "malformed expression"),
             ParseError::Dfa => write!(f, "failed to construct DFA"),
