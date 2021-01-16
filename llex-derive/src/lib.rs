@@ -110,7 +110,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 let token_op = match final_state {
                     #( #action_match ),*,
                     // Catch-all branch should never execute?
-                    _ => std::panic!(),
+                    _ => std::unreachable!(),
                 };
 
                 token_op
