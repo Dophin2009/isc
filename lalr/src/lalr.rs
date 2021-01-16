@@ -5,6 +5,33 @@ use std::fmt::Debug;
 
 use itertools::Itertools;
 
+/// An LR(0) state machine.
+#[derive(Debug)]
+struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
+    /// The states of the machine and their transitions to other states.
+    pub states: Vec<(LR0State<'a, T, N, A>, BTreeMap<&'a Symbol<T, N>, usize>)>,
+}
+
+/// A state in the LR(0) automaton, containing a set of items.
+#[derive(Debug)]
+struct LR0State<'a, T: 'a, N: 'a, A: 'a> {
+    /// Set of items represented by this state.
+    pub items: ItemSet<'a, T, N, A>,
+    /// Set of symbols to reduce on.
+    pub reducers: BTreeSet<&'a Symbol<T, N>>,
+}
+
+comparators!(LR0State('a, T, N, A), (T, N), (items));
+
+impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+            reducers: self.reducers.clone(),
+        }
+    }
+}
+
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
     fn lr0_set<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
@@ -13,10 +40,13 @@ impl<T, N, A> Grammar<T, N, A> {
         N: Ord,
         Item<'a, T, N, A>: Ord,
     {
-        // Vector of states and transitions of the final automaton.
-        let mut states = Vec::new();
-        // Set of existing sets of items, to be used to check before adding to vector of states.
-        let mut existing_sets = BTreeSet::new();
+        // Compute the set of symbols on which to reduce the given state (set of items).
+        // fn compute_reductions<'a, T, N, A>(set: &ItemSet<'a, T, N, A>) -> BTreeSet<&'a Symbol<T, N>>
+        // where
+        // T: Ord,
+        // N: Ord,
+        // {
+        // }
 
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = ItemSet::new();
@@ -28,31 +58,46 @@ impl<T, N, A> Grammar<T, N, A> {
         self.item_closure(&mut initial_set);
         let initial_state = LR0State {
             items: initial_set.clone(),
+            reducers: BTreeSet::new(),
         };
 
-        states.push((initial_state.clone(), BTreeMap::new()));
-
+        // Vector of states and transitions of the final automaton.
+        let mut states = Vec::new();
         // Maintain queue of items who rhs symbols to close on.
         let mut states_queue = VecDeque::new();
-        states_queue.push_back(initial_state);
+        // Set of existing sets of items and their indexes in states, to be used to check before
+        // adding to vector of states.
+        let mut existing_sets = BTreeMap::new();
+
+        states.push((initial_state.clone(), BTreeMap::new()));
+        states_queue.push_back(initial_state.clone());
+        existing_sets.insert(initial_set, 0);
 
         // For each set of items I in C
         while let Some(state) = states_queue.pop_front() {
             // For each grammar symbol X
-            let symbols = state.items.iter().flat_map(|item| item.rhs.body).dedup();
+            let symbols = state.items.iter().flat_map(|item| &item.rhs.body).dedup();
             for sy in symbols {
+                // Transitions for current state.
+                // let transitions = BTreeMap::new();
+
                 // Compute GOTO(I, X) and check if it's in C.
                 let goto_closure = self.close_goto(&state.items, &sy);
-                let new_state = LR0State {
-                    items: goto_closure,
+
+                // Check if GOTO(I, X) set already exists.
+                match existing_sets.get(&goto_closure) {
+                    // If so, make transitions based off existing vector index.
+                    Some(state_idx) => {}
+                    // Else, push new state and assign transitions.
+                    None => {
+                        // let new_state = LR0State {
+                        // items: goto_closure,
+                        // };
+                    }
                 };
 
-                // Check if this new state already exists in the automaton.
-                // If it does, do nothing.
-                if states.contains(&new_state) {}
-
                 // Push state to queue to close on later.
-                states_queue.push_back(new_state);
+                // states_queue.push_back(new_state);
             }
         }
 
@@ -140,29 +185,6 @@ impl<T, N, A> Grammar<T, N, A> {
         }
 
         closure
-    }
-}
-
-/// An LR(0) state machine.
-#[derive(Debug)]
-struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
-    /// The states of the machine and their transitions to other states.
-    pub states: Vec<(LR0State<'a, T, N, A>, BTreeMap<&'a Symbol<T, N>, usize>)>,
-}
-
-/// A state in the LR(0) automaton, containing a set of items.
-#[derive(Debug)]
-struct LR0State<'a, T: 'a, N: 'a, A: 'a> {
-    pub items: ItemSet<'a, T, N, A>,
-}
-
-comparators!(LR0State('a, T, N, A), (T, N), (items));
-
-impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
-    fn clone(&self) -> Self {
-        Self {
-            items: self.items.clone(),
-        }
     }
 }
 
