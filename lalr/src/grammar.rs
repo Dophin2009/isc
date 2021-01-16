@@ -41,6 +41,9 @@ pub enum Symbol<T, N> {
     Nonterminal(N),
 }
 
+pub type FirstSets<'a, T, N> = BTreeMap<&'a N, (BTreeSet<&'a T>, bool)>;
+pub type FollowSets<'a, T, N> = BTreeMap<&'a N, BTreeSet<&'a T>>;
+
 impl<T, N, A> Grammar<T, N, A>
 where
     T: PartialEq,
@@ -99,27 +102,14 @@ where
             changed = false;
             for (lhs, rhs_set) in &self.rules {
                 for rhs in rhs_set {
-                    // For A -> αB, add FOLLOW(A) to FOLLOW(B).
-                    match rhs.body.last() {
-                        Some(sy) => match sy {
-                            Symbol::Nonterminal(ref n) => {
-                                let lhs_follow = map.get(lhs).unwrap().clone();
-                                let set = map.get_mut(&n).unwrap();
-                                for t in lhs_follow {
-                                    if set.insert(t) {
-                                        changed = true;
-                                    }
-                                }
-                            }
-                            Symbol::Terminal(_) => {}
-                        },
-                        None => {}
-                    }
-
                     // Keep track of the following terminals; when an nonterminal is encountered,
                     // these terminals (which comes after it in the production body) will be added to
                     // that nonterminal's FOLLOW set.
                     let mut follow = BTreeSet::new();
+
+                    // Flag to indicate whether or not all FIRST sets of previous (from the end)
+                    // symbols have contained ε.
+                    let mut open_end = true;
 
                     // Iterate through body symbols in reverse.
                     for sy in rhs.body.iter().rev() {
@@ -128,13 +118,17 @@ where
                             // FIRST(X) = {X} when X is a terminal, so in the case of A -> αBβ,
                             // where β is a terminal, FIRST(β) = β is added to FOLLOW(B).
                             Symbol::Terminal(ref t) => {
+                                open_end = false;
                                 follow.clear();
                                 follow.insert(t);
                             }
                             // When a nonterminal N is encountered,
                             Symbol::Nonterminal(ref n) => {
-                                let set = map.get_mut(&n).unwrap();
+                                // Modify the FOLLOW set of this nonterminal.
+                                let mut set = map.get(&n).unwrap().clone();
 
+                                // Add the tracked terminals (that follow this nonterminal) to the
+                                // FOLLOW set.
                                 // For A -> αBβ, add FIRST(β) to FOLLOW(B).
                                 for &t in follow.iter() {
                                     if set.insert(t) {
@@ -142,13 +136,30 @@ where
                                     }
                                 }
 
+                                // For A -> αB or A -> αBβ where FIRST(β) contains ε, add FOLLOW(A)
+                                // to FOLLOW(B).
+                                if open_end {
+                                    for &t in map.get(&lhs).unwrap() {
+                                        if set.insert(t) {
+                                            changed = true;
+                                        }
+                                    }
+                                }
+
                                 // Clear tracked terminals.
                                 follow.clear();
 
-                                // Add FIRST set of this nonterminal to follow set for the next
+                                // Add FIRST set of this nonterminal to FOLLOW set for the next
                                 // (previous) nonterminal.
                                 let n_first = first_sets.get(n).unwrap();
-                                follow.extend(n_first);
+                                follow.extend(&n_first.0);
+
+                                // If FIRST(n) does not contain ε,
+                                if !n_first.1 {
+                                    open_end = false;
+                                }
+
+                                map.insert(n, set);
                             }
                         }
                     }
@@ -207,12 +218,9 @@ where
             }
         }
 
-        map.into_iter().map(|(lhs, (set, _))| (lhs, set)).collect()
+        map
     }
 }
-
-pub type FirstSets<'a, T, N> = BTreeMap<&'a N, BTreeSet<&'a T>>;
-pub type FollowSets<'a, T, N> = BTreeMap<&'a N, BTreeSet<&'a T>>;
 
 #[cfg(test)]
 mod test {
@@ -226,6 +234,26 @@ mod test {
     use Terminal::*;
 
     #[test]
+    fn test_follow_sets() {
+        let GrammarUtil { grammar, .. } = create_grammar();
+        let follow_sets = grammar.follow_sets(None);
+
+        let mut expected = BTreeMap::new();
+
+        let right_paren: BTreeSet<_> = [RightParen].iter().collect();
+        expected.insert(&D, right_paren.clone());
+        expected.insert(&E, right_paren.clone());
+
+        let plus_right_paren: BTreeSet<_> = [Plus, RightParen].iter().collect();
+        expected.insert(&T, plus_right_paren.clone());
+        expected.insert(&U, plus_right_paren.clone());
+
+        expected.insert(&F, [Plus, Times, RightParen].iter().collect());
+
+        assert_eq!(expected, follow_sets);
+    }
+
+    #[test]
     fn test_first_sets() {
         let GrammarUtil { grammar, .. } = create_grammar();
         let first_sets = grammar.first_sets();
@@ -233,11 +261,11 @@ mod test {
         let mut expected = BTreeMap::new();
 
         let shared_set: BTreeSet<_> = [LeftParen, Id].iter().collect();
-        expected.insert(&D, shared_set.clone());
-        expected.insert(&T, shared_set.clone());
-        expected.insert(&F, shared_set);
-        expected.insert(&E, [Plus].iter().collect());
-        expected.insert(&U, [Times].iter().collect());
+        expected.insert(&D, (shared_set.clone(), false));
+        expected.insert(&T, (shared_set.clone(), false));
+        expected.insert(&F, (shared_set, false));
+        expected.insert(&E, ([Plus].iter().collect(), true));
+        expected.insert(&U, ([Times].iter().collect(), true));
 
         assert_eq!(expected, first_sets);
     }
@@ -260,17 +288,7 @@ mod test {
         Id,
     }
 
-    type GrammarRhs = Rhs<Terminal, Nonterminal, ()>;
-
     struct GrammarUtil {
-        expr: GrammarRhs,
-        expr_prime: GrammarRhs,
-        expr_prime_empty: GrammarRhs,
-        term: GrammarRhs,
-        term_prime: GrammarRhs,
-        term_prime_empty: GrammarRhs,
-        factor: GrammarRhs,
-        factor_id: GrammarRhs,
         grammar: Grammar<Terminal, Nonterminal, ()>,
     }
 
@@ -279,41 +297,31 @@ mod test {
 
         // D -> T E
         let expr = Rhs::noop(vec![NT(T), NT(E)]);
-        rules.insert(D, vec![expr.clone()]);
+        rules.insert(D, vec![expr]);
 
         // E -> + T E
         //    | ε
         let expr_prime = Rhs::noop(vec![TT(Plus), NT(T), NT(E)]);
         let expr_prime_empty = Rhs::noop(vec![]);
-        rules.insert(E, vec![expr_prime.clone(), expr_prime_empty.clone()]);
+        rules.insert(E, vec![expr_prime, expr_prime_empty]);
 
         // T -> F U
         let term = Rhs::noop(vec![NT(F), NT(U)]);
-        rules.insert(T, vec![term.clone()]);
+        rules.insert(T, vec![term]);
 
         // U -> * F U
         //    | ε
         let term_prime = Rhs::noop(vec![TT(Times), NT(F), NT(U)]);
         let term_prime_empty = Rhs::noop(vec![]);
-        rules.insert(U, vec![term_prime.clone(), term_prime_empty.clone()]);
+        rules.insert(U, vec![term_prime, term_prime_empty]);
 
         // F -> ( D )
         //    | id
         let factor = Rhs::noop(vec![TT(LeftParen), NT(D), TT(RightParen)]);
         let factor_id = Rhs::noop(vec![TT(Id)]);
-        rules.insert(F, vec![factor.clone(), factor_id.clone()]);
+        rules.insert(F, vec![factor, factor_id]);
 
         let grammar = Grammar::new(D, rules).unwrap();
-        GrammarUtil {
-            grammar,
-            expr,
-            expr_prime,
-            expr_prime_empty,
-            term,
-            term_prime,
-            term_prime_empty,
-            factor,
-            factor_id,
-        }
+        GrammarUtil { grammar }
     }
 }
