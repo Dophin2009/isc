@@ -76,6 +76,7 @@ where
     T: Ord,
     N: Ord,
 {
+    /// Compute FOLLOW sets for the nonterminals in the grammar.
     pub fn follow_sets<'a>(
         &'a self,
         first_sets: Option<&'a FirstSets<'a, T, N>>,
@@ -170,6 +171,7 @@ where
         map
     }
 
+    /// Compute the FIRST sets for the nonterminals in the grammar.
     pub fn first_sets<'a>(&'a self) -> FirstSets<'a, T, N> {
         // Map of FIRST sets, with flag indicating whether or not the set contains ε.
         let mut map: BTreeMap<_, _> = self
