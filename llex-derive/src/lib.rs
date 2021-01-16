@@ -82,41 +82,48 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 Self { dfa }
             }
 
-            #fn_vis fn #fn_name<'a>(&self, input: &'a str) -> ::llex::LexerStream<'a, #return_type, &#struct_name> {
+            #fn_vis fn #fn_name<'a, I>(&self, input: I) -> ::llex::LexerStream<#return_type, &#struct_name, I>
+            where
+                I: std::iter::Iterator<Item = char>,
+            {
                 ::llex::LexerStream::new(self, input)
             }
         }
 
         impl ::llex::stream::LexerDFAMatcher<#return_type> for #struct_name {
-            fn tokenize<'a>(&self, input: &'a str) -> std::option::Option<(#return_type, &'a str)> {
+            fn tokenize<'a, I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
+            where
+                I: std::iter::Iterator<Item = char> + std::fmt::Debug,
+            {
                 #(
                     #action_fns
                 )*
 
                 // Step through DFA to the find the longest match.
-                let (m, final_state) = match self.dfa.find(&input.chars()) {
-                    Some(m) => m,
-                    None => return Some((#error_variant, input)),
+                let (m, final_state) = match self.dfa.find_mut(input) {
+                    std::option::Option::Some(m) => m,
+                    std::option::Option::None => return std::option::Option::Some(#error_variant),
                 };
 
+                // println!("{:?}", m);
+
                 // Execute the action expression corresponding to the final state.
-                let span: std::string::String = input.chars().take(m.end()).collect();
+                let span: std::string::String = m.span.into_iter().collect();
                 let token_op = match final_state {
                     #( #action_match ),*,
                     // Catch-all branch should never execute?
                     _ => std::panic!(),
                 };
 
-                let remaining = match input.char_indices().nth(m.end()) {
-                    Some((idx, _)) => &input[idx..],
-                    None => ""
-                };
-                token_op.map(|t| (t, remaining))
+                token_op
             }
         }
 
         impl ::llex::stream::LexerDFAMatcher<#return_type> for &#struct_name {
-            fn tokenize<'a>(&self, input: &'a str) -> std::option::Option<(#return_type, &'a str)> {
+            fn tokenize<I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
+            where
+                I: std::iter::Iterator<Item = char> + std::fmt::Debug,
+            {
                 (*self).tokenize(input)
             }
         }

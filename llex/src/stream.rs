@@ -1,11 +1,14 @@
-use std::fmt::Debug;
+use std::iter::Peekable;
 
 use regexp2::{automata::DFA, class::CharClass};
 
 pub type LexerDFA = DFA<CharClass>;
 
-pub trait LexerDFAMatcher<T>: Debug + Clone {
-    fn tokenize<'a>(&self, input: &'a str) -> Option<(T, &'a str)>;
+pub trait LexerDFAMatcher<T>: Clone {
+    fn tokenize<I: Iterator<Item = char> + std::fmt::Debug>(
+        &self,
+        input: &mut Peekable<I>,
+    ) -> Option<T>;
 }
 
 #[derive(Debug, Clone)]
@@ -25,61 +28,53 @@ impl<T> From<T> for LexerItem<T> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct LexerStream<'a, T, M>
+#[derive(Debug)]
+pub struct LexerStream<T, M, I>
 where
     M: LexerDFAMatcher<T>,
+    I: Iterator<Item = char>,
 {
-    pub input: &'a str,
+    pub input: Peekable<I>,
     matcher: M,
     current_item: Option<LexerItem<T>>,
 }
 
-impl<'a, T, M> LexerStream<'a, T, M>
+impl<T, M, I> LexerStream<T, M, I>
 where
     M: LexerDFAMatcher<T>,
+    I: Iterator<Item = char>,
 {
-    pub fn new(matcher: M, input: &'a str) -> Self {
+    pub fn new(matcher: M, input: I) -> Self {
         Self {
             matcher,
             current_item: None,
-            input,
+            input: input.peekable(),
         }
     }
 }
 
-impl<'a, T, M> Iterator for LexerStream<'a, T, M>
+impl<'a, T, M, I> Iterator for LexerStream<T, M, I>
 where
     M: LexerDFAMatcher<T>,
+    I: Iterator<Item = char> + std::fmt::Debug,
+    T: std::fmt::Debug,
 {
     type Item = LexerItem<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.input.is_empty() {
-            return None;
-        }
-
-        let token_op = self.matcher.tokenize(self.input);
+        // println!("{:?}", self.input);
+        let token_op = self.matcher.tokenize(&mut self.input);
         match token_op {
             // If a token was returned, return the token and the remaining input.
-            Some((t, remaining)) => {
-                self.input = remaining;
+            Some(t) => {
+                // println!("{:?}", t);
                 Some(t.into())
             }
             // If no token was returned, one input symbol should be consumed and the process
             // restarted.
             None => {
-                let remaining = match self.input.char_indices().nth(1) {
-                    Some((idx, _)) => &self.input[idx..],
-                    None => "",
-                };
-
-                if remaining.is_empty() {
-                    None
-                } else {
-                    self.input = remaining;
-                    self.next()
-                }
+                // println!("{:?}", self.input);
+                self.next()
             }
         }
     }

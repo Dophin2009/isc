@@ -101,9 +101,10 @@ pub enum Token {
 
 fn main() {
     let lexer = Lexer::new();
-    let mut tokens = lexer.stream(INPUT_STR);
+    let chars = INPUT_STR.chars();
+    let tokens = lexer.stream(chars);
 
-    while let Some(t) = tokens.next() {
+    for t in tokens.take(10) {
         print!("{:?} ", t.token);
     }
 }
