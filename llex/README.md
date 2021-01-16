@@ -4,10 +4,6 @@ Llex (lame lexer analyser generator) is an attempt at a simple lexer generator.
 It uses the [`automata`](../automata) and [`regexp2`](../regexp2) crates and
 takes the form of a procedural macro.
 
-## Todo
-
--   Lazy input reading via `BufRead`?
-
 ## Usage
 
 See the [examples](./examples).
@@ -118,10 +114,13 @@ pub enum Token {
 
 fn main() {
     let lexer = Lexer::new();
-    let mut tokens = lexer.stream(INPUT_STR);
+    let chars = INPUT_STR.chars();
+    let mut tokens = lexer.stream(chars);
 
     while let Some(t) = tokens.next() {
         print!("{:?} ", t.token);
     }
+
+    // KeywordPub KeywordEnum Ident("Token") LeftBracket ... RightParenthesis Comma Ident("Integer")
 }
 ```
