@@ -227,20 +227,19 @@ mod test {
 
     #[test]
     fn test_first_sets() {
-        let GrammarUtil {
-            expr,
-            expr_prime,
-            expr_prime_empty,
-            term,
-            term_prime,
-            term_prime_empty,
-            factor,
-            factor_id,
-            grammar,
-        } = create_grammar();
-
+        let GrammarUtil { grammar, .. } = create_grammar();
         let first_sets = grammar.first_sets();
-        println!("{:#?}", first_sets);
+
+        let mut expected = BTreeMap::new();
+
+        let shared_set: BTreeSet<_> = [LeftParen, Id].iter().collect();
+        expected.insert(&D, shared_set.clone());
+        expected.insert(&T, shared_set.clone());
+        expected.insert(&F, shared_set);
+        expected.insert(&E, [Plus].iter().collect());
+        expected.insert(&U, [Times].iter().collect());
+
+        assert_eq!(expected, first_sets);
     }
 
     #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
