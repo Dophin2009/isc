@@ -39,15 +39,23 @@ pub enum Symbol<T, N> {
     Nonterminal(N),
 }
 
+/// Map of FIRST sets for the nonterminals in a grammar. The boolean flag indicates whether or not
+/// the FIRST set contains ε.
 pub type FirstSets<'a, T, N> = BTreeMap<&'a N, (BTreeSet<&'a T>, bool)>;
-pub type FollowSets<'a, T, N> = BTreeMap<&'a N, BTreeSet<&'a T>>;
+
+/// Map of the FOLLOW sets for the nonterminals in a grammar. The boolean flag indicates whether or
+/// not the FOLLOW set contains $, the endmarker symbol.
+pub type FollowSets<'a, T, N> = BTreeMap<&'a N, (BTreeSet<&'a T>, bool)>;
 
 impl<T, N, A> Grammar<T, N, A>
 where
     T: PartialEq,
     N: Ord,
 {
-    // TODO: Return Result with custom error.
+    /// Create a new grammar for the given starting nonterminal and rules.
+    ///
+    /// Returns [`Err`] if the starting nonterminal has no grammar rules, or rule bodies reference
+    /// nonterminals that have no rules of their own.
     pub fn new(start: N, rules: BTreeMap<N, Vec<Rhs<T, N, A>>>) -> Result<Self> {
         // Check that all nonterminals used in rule bodies have their own rules.
         // Vectors of Rhs may be empty to indicate A -> e.
@@ -75,6 +83,8 @@ where
     N: Ord,
 {
     /// Compute FOLLOW sets for the nonterminals in the grammar.
+    ///
+    /// Partly from [`goffrie/lalr`](https://github.com/goffrie/lalr/blob/master/src/lib.rs).
     pub fn follow_sets<'a>(
         &'a self,
         first_sets: Option<&'a FirstSets<'a, T, N>>,
@@ -92,8 +102,12 @@ where
         let mut map: BTreeMap<_, _> = self
             .rules
             .iter()
-            .map(|(lhs, _)| (lhs, BTreeSet::new()))
+            .map(|(lhs, _)| (lhs, (BTreeSet::new(), false)))
             .collect();
+
+        // Place $ in FOLLOW(S), where S is the start symbol, and $ is the input right endmarker.
+        let start_follow = map.get_mut(&self.start).unwrap();
+        start_follow.1 = true;
 
         // Loop until no FOLLOW sets have been modified.
         let mut changed = true;
@@ -104,11 +118,7 @@ where
                     // Keep track of the following terminals; when an nonterminal is encountered,
                     // these terminals (which comes after it in the production body) will be added to
                     // that nonterminal's FOLLOW set.
-                    let mut follow = BTreeSet::new();
-
-                    // Flag to indicate whether or not all FIRST sets of previous (from the end)
-                    // symbols have contained ε.
-                    let mut open_end = true;
+                    let mut follow = map.get(&lhs).unwrap().clone();
 
                     // Iterate through body symbols in reverse.
                     for sy in rhs.body.iter().rev() {
@@ -117,9 +127,9 @@ where
                             // FIRST(X) = {X} when X is a terminal, so in the case of A -> αBβ,
                             // where β is a terminal, FIRST(β) = β is added to FOLLOW(B).
                             Symbol::Terminal(ref t) => {
-                                open_end = false;
-                                follow.clear();
-                                follow.insert(t);
+                                follow.1 = false;
+                                follow.0.clear();
+                                follow.0.insert(t);
                             }
                             // When a nonterminal N is encountered,
                             Symbol::Nonterminal(ref n) => {
@@ -129,34 +139,28 @@ where
                                 // Add the tracked terminals (that follow this nonterminal) to the
                                 // FOLLOW set.
                                 // For A -> αBβ, add FIRST(β) to FOLLOW(B).
-                                for &t in follow.iter() {
-                                    if set.insert(t) {
+                                for &t in follow.0.iter() {
+                                    if set.0.insert(t) {
                                         changed = true;
                                     }
                                 }
 
-                                // For A -> αB or A -> αBβ where FIRST(β) contains ε, add FOLLOW(A)
-                                // to FOLLOW(B).
-                                if open_end {
-                                    for &t in map.get(&lhs).unwrap() {
-                                        if set.insert(t) {
-                                            changed = true;
-                                        }
-                                    }
+                                // Add the $ endmarker to the FOLLOW set if it is in the current
+                                // tracked terminals.
+                                if !set.1 && follow.1 {
+                                    set.1 = true;
+                                    changed = true;
                                 }
-
-                                // Clear tracked terminals.
-                                follow.clear();
 
                                 // Add FIRST set of this nonterminal to FOLLOW set for the next
                                 // (previous) nonterminal.
                                 let n_first = first_sets.get(n).unwrap();
-                                follow.extend(&n_first.0);
-
-                                // If FIRST(n) does not contain ε,
                                 if !n_first.1 {
-                                    open_end = false;
+                                    follow.0.clear();
+                                    follow.1 = false;
                                 }
+
+                                follow.0.extend(&n_first.0);
 
                                 map.insert(n, set);
                             }
@@ -241,14 +245,16 @@ mod test {
         let mut expected = BTreeMap::new();
 
         let right_paren: BTreeSet<_> = [RightParen].iter().collect();
+        let right_paren = (right_paren, true);
         expected.insert(&D, right_paren.clone());
         expected.insert(&E, right_paren.clone());
 
         let plus_right_paren: BTreeSet<_> = [Plus, RightParen].iter().collect();
+        let plus_right_paren = (plus_right_paren, true);
         expected.insert(&T, plus_right_paren.clone());
         expected.insert(&U, plus_right_paren.clone());
 
-        expected.insert(&F, [Plus, Times, RightParen].iter().collect());
+        expected.insert(&F, ([Plus, Times, RightParen].iter().collect(), true));
 
         assert_eq!(expected, follow_sets);
     }

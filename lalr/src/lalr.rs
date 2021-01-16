@@ -34,19 +34,13 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
 
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
-    fn lr0_set<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
+    fn lr0_automaton<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
     where
         T: Ord,
         N: Ord,
         Item<'a, T, N, A>: Ord,
     {
-        // Compute the set of symbols on which to reduce the given state (set of items).
-        // fn compute_reductions<'a, T, N, A>(set: &ItemSet<'a, T, N, A>) -> BTreeSet<&'a Symbol<T, N>>
-        // where
-        // T: Ord,
-        // N: Ord,
-        // {
-        // }
+        let follow_sets = self.follow_sets(None);
 
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = ItemSet::new();
@@ -285,80 +279,6 @@ mod test {
     use Nonterminal::*;
     use Terminal::*;
 
-    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-    enum Nonterminal {
-        S,
-        E,
-        T,
-        F,
-    }
-
-    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-    enum Terminal {
-        Plus,
-        Times,
-        LeftParen,
-        RightParen,
-        Id,
-    }
-
-    type GrammarRhs = Rhs<Terminal, Nonterminal, ()>;
-
-    struct GrammarUtil {
-        start_rhs: GrammarRhs,
-        e_plus_t: GrammarRhs,
-        t: GrammarRhs,
-        t_times_f: GrammarRhs,
-        f: GrammarRhs,
-        paren_e: GrammarRhs,
-        id: GrammarRhs,
-        grammar: Grammar<Terminal, Nonterminal, ()>,
-    }
-
-    fn create_grammar() -> GrammarUtil {
-        let mut rules = BTreeMap::new();
-
-        // S -> E
-        let start_rhs = Rhs::noop(vec![NT(E)]);
-        rules.insert(S, vec![start_rhs.clone()]);
-
-        // E -> E + T
-        //    | T
-        let e_plus_t = Rhs::noop(vec![NT(E), TT(Plus), NT(T)]);
-        let t = Rhs::noop(vec![NT(T)]);
-        rules.insert(E, vec![e_plus_t.clone(), t.clone()]);
-
-        // T -> T * F
-        //    | F
-        let t_times_f = Rhs::noop(vec![NT(T), TT(Times), NT(F)]);
-        let f = Rhs::noop(vec![NT(F)]);
-        rules.insert(T, vec![t_times_f.clone(), f.clone()]);
-
-        // F -> ( E )
-        //    | id
-        let paren_e = Rhs::noop(vec![TT(LeftParen), NT(E), TT(RightParen)]);
-        let id = Rhs::noop(vec![TT(Id)]);
-        rules.insert(F, vec![paren_e.clone(), id.clone()]);
-
-        let grammar = Grammar::new(S, rules).unwrap();
-        GrammarUtil {
-            start_rhs,
-            e_plus_t,
-            t,
-            t_times_f,
-            f,
-            paren_e,
-            id,
-            grammar,
-        }
-    }
-
-    #[test]
-    fn test_lr0_set() {
-        let GrammarUtil { grammar, .. } = create_grammar();
-        let _set = grammar.lr0_set();
-    }
-
     #[test]
     fn test_item_closure() {
         let GrammarUtil {
@@ -473,5 +393,73 @@ mod test {
         });
 
         assert_eq!(closure, expected);
+    }
+
+    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    enum Nonterminal {
+        S,
+        E,
+        T,
+        F,
+    }
+
+    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    enum Terminal {
+        Plus,
+        Times,
+        LeftParen,
+        RightParen,
+        Id,
+    }
+
+    type GrammarRhs = Rhs<Terminal, Nonterminal, ()>;
+
+    struct GrammarUtil {
+        start_rhs: GrammarRhs,
+        e_plus_t: GrammarRhs,
+        t: GrammarRhs,
+        t_times_f: GrammarRhs,
+        f: GrammarRhs,
+        paren_e: GrammarRhs,
+        id: GrammarRhs,
+        grammar: Grammar<Terminal, Nonterminal, ()>,
+    }
+
+    fn create_grammar() -> GrammarUtil {
+        let mut rules = BTreeMap::new();
+
+        // S -> E
+        let start_rhs = Rhs::noop(vec![NT(E)]);
+        rules.insert(S, vec![start_rhs.clone()]);
+
+        // E -> E + T
+        //    | T
+        let e_plus_t = Rhs::noop(vec![NT(E), TT(Plus), NT(T)]);
+        let t = Rhs::noop(vec![NT(T)]);
+        rules.insert(E, vec![e_plus_t.clone(), t.clone()]);
+
+        // T -> T * F
+        //    | F
+        let t_times_f = Rhs::noop(vec![NT(T), TT(Times), NT(F)]);
+        let f = Rhs::noop(vec![NT(F)]);
+        rules.insert(T, vec![t_times_f.clone(), f.clone()]);
+
+        // F -> ( E )
+        //    | id
+        let paren_e = Rhs::noop(vec![TT(LeftParen), NT(E), TT(RightParen)]);
+        let id = Rhs::noop(vec![TT(Id)]);
+        rules.insert(F, vec![paren_e.clone(), id.clone()]);
+
+        let grammar = Grammar::new(S, rules).unwrap();
+        GrammarUtil {
+            start_rhs,
+            e_plus_t,
+            t,
+            t_times_f,
+            f,
+            paren_e,
+            id,
+            grammar,
+        }
     }
 }
