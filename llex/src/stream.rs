@@ -5,10 +5,7 @@ use regexp2::{automata::DFA, class::CharClass};
 pub type LexerDFA = DFA<CharClass>;
 
 pub trait LexerDFAMatcher<T>: Clone {
-    fn tokenize<I: Iterator<Item = char> + std::fmt::Debug>(
-        &self,
-        input: &mut Peekable<I>,
-    ) -> Option<T>;
+    fn tokenize<I: Iterator<Item = char>>(&self, input: &mut Peekable<I>) -> Option<T>;
 }
 
 #[derive(Debug, Clone)]
@@ -56,26 +53,18 @@ where
 impl<'a, T, M, I> Iterator for LexerStream<T, M, I>
 where
     M: LexerDFAMatcher<T>,
-    I: Iterator<Item = char> + std::fmt::Debug,
-    T: std::fmt::Debug,
+    I: Iterator<Item = char>,
 {
     type Item = LexerItem<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // println!("{:?}", self.input);
         let token_op = self.matcher.tokenize(&mut self.input);
         match token_op {
             // If a token was returned, return the token and the remaining input.
-            Some(t) => {
-                // println!("{:?}", t);
-                Some(t.into())
-            }
+            Some(t) => Some(t.into()),
             // If no token was returned, one input symbol should be consumed and the process
             // restarted.
-            None => {
-                // println!("{:?}", self.input);
-                self.next()
-            }
+            None => self.next(),
         }
     }
 }

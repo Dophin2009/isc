@@ -93,7 +93,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         impl ::llex::stream::LexerDFAMatcher<#return_type> for #struct_name {
             fn tokenize<'a, I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
             where
-                I: std::iter::Iterator<Item = char> + std::fmt::Debug,
+                I: std::iter::Iterator<Item = char>,
             {
                 #(
                     #action_fns
@@ -104,8 +104,6 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                     std::option::Option::Some(m) => m,
                     std::option::Option::None => return std::option::Option::Some(#error_variant),
                 };
-
-                // println!("{:?}", m);
 
                 // Execute the action expression corresponding to the final state.
                 let span: std::string::String = m.span.into_iter().collect();
@@ -122,7 +120,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         impl ::llex::stream::LexerDFAMatcher<#return_type> for &#struct_name {
             fn tokenize<I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
             where
-                I: std::iter::Iterator<Item = char> + std::fmt::Debug,
+                I: std::iter::Iterator<Item = char>,
             {
                 (*self).tokenize(input)
             }
