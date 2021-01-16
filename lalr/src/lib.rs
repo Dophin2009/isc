@@ -33,5 +33,5 @@ mod error;
 mod grammar;
 mod lalr;
 
-pub use error::Error;
+pub use error::{Error, Result};
 pub use grammar::*;

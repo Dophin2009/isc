@@ -5,3 +5,5 @@ pub enum Error {
     #[error("nonterminal in right-hand side does not exist")]
     InvalidNonterminal,
 }
+
+pub type Result<T> = std::result::Result<T, Error>;

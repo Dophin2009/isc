@@ -3,9 +3,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 
-use crate::error::Error;
-
-pub type Result<T> = std::result::Result<T, Error>;
+use crate::error::{Error, Result};
 
 #[derive(Debug, Clone)]
 pub struct Grammar<T, N, A> {
