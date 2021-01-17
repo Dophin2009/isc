@@ -9,7 +9,9 @@ use itertools::Itertools;
 #[derive(Debug)]
 struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
     /// The states of the machine and their transitions to other states.
-    pub states: Vec<(LR0State<'a, T, N, A>, BTreeMap<&'a Symbol<T, N>, usize>)>,
+    pub states: Vec<LR0State<'a, T, N, A>>,
+    /// Index of the starting state.
+    pub start: usize,
 }
 
 /// A state in the LR(0) automaton, containing a set of items.
@@ -17,20 +19,27 @@ struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
 struct LR0State<'a, T: 'a, N: 'a, A: 'a> {
     /// Set of items represented by this state.
     pub items: ItemSet<'a, T, N, A>,
-    /// Set of symbols to reduce on.
-    pub reducers: BTreeSet<&'a Symbol<T, N>>,
+    pub transitions: BTreeMap<&'a Symbol<T, N>, usize>,
 }
 
+// LR0State comparators based off items only for performance.
 comparators!(LR0State('a, T, N, A), (T, N), (items));
 
 impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
-            reducers: self.reducers.clone(),
+            transitions: self.transitions.clone(),
         }
     }
 }
+
+// #[derive(Debug)]
+// enum LR1Action<'a, T: 'a, N: 'a, A: 'a> {
+// Reduce(&'a N, &'a Rhs<T, N, A>),
+// Shift(usize),
+// Accept,
+// }
 
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
@@ -40,8 +49,6 @@ impl<T, N, A> Grammar<T, N, A> {
         N: Ord,
         Item<'a, T, N, A>: Ord,
     {
-        let follow_sets = self.follow_sets(None);
-
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = ItemSet::new();
         initial_set.insert(Item {
@@ -52,7 +59,7 @@ impl<T, N, A> Grammar<T, N, A> {
         self.item_closure(&mut initial_set);
         let initial_state = LR0State {
             items: initial_set.clone(),
-            reducers: BTreeSet::new(),
+            transitions: BTreeMap::new(),
         };
 
         // Vector of states and transitions of the final automaton.
@@ -63,39 +70,50 @@ impl<T, N, A> Grammar<T, N, A> {
         // adding to vector of states.
         let mut existing_sets = BTreeMap::new();
 
-        states.push((initial_state.clone(), BTreeMap::new()));
-        states_queue.push_back(initial_state.clone());
+        states.push(initial_state.clone());
+        states_queue.push_back((initial_state, 0));
         existing_sets.insert(initial_set, 0);
 
         // For each set of items I in C
-        while let Some(state) = states_queue.pop_front() {
+        while let Some((mut state, state_idx)) = states_queue.pop_front() {
             // For each grammar symbol X
             let symbols = state.items.iter().flat_map(|item| &item.rhs.body).dedup();
             for sy in symbols {
-                // Transitions for current state.
-                // let transitions = BTreeMap::new();
-
-                // Compute GOTO(I, X) and check if it's in C.
+                // Compute GOTO(I, X).
                 let goto_closure = self.close_goto(&state.items, &sy);
+                if goto_closure.is_empty() {
+                    continue;
+                }
 
                 // Check if GOTO(I, X) set already exists.
                 match existing_sets.get(&goto_closure) {
-                    // If so, make transitions based off existing vector index.
-                    Some(state_idx) => {}
-                    // Else, push new state and assign transitions.
+                    Some(&dest_idx) => {
+                        // If so, make transitions based off existing vector index.
+                        state.transitions.insert(sy, dest_idx);
+                    }
                     None => {
-                        // let new_state = LR0State {
-                        // items: goto_closure,
-                        // };
+                        // Else, push new state to vec and queue.
+                        let new_state = LR0State {
+                            items: goto_closure.clone(),
+                            transitions: BTreeMap::new(),
+                        };
+                        states.push(new_state.clone());
+                        let new_idx = states.len() - 1;
+
+                        // Create transition on current symbol to new state.
+                        state.transitions.insert(sy, new_idx);
+
+                        // Push state to queue to close on later.
+                        states_queue.push_back((new_state, new_idx));
+                        existing_sets.insert(goto_closure, new_idx);
                     }
                 };
-
-                // Push state to queue to close on later.
-                // states_queue.push_back(new_state);
             }
+
+            *states.get_mut(state_idx).unwrap() = state;
         }
 
-        LR0Automaton { states }
+        LR0Automaton { states, start: 0 }
     }
 
     /// Compute the closure of items for the given item set.
@@ -187,7 +205,7 @@ struct Item<'a, T: 'a, N: 'a, A: 'a> {
     pub lhs: &'a N,
     pub rhs: &'a Rhs<T, N, A>,
 
-    /// Position of item, equal to index next symbol.
+    /// Position of item, equal to the index of the next symbol.
     pub pos: usize,
 }
 
@@ -278,6 +296,14 @@ mod test {
 
     use Nonterminal::*;
     use Terminal::*;
+
+    #[test]
+    fn test_lr0_automaton() {
+        let GrammarUtil { grammar, .. } = create_grammar();
+        let automaton = grammar.lr0_automaton();
+
+        assert_eq!(automaton.states.len(), 12);
+    }
 
     #[test]
     fn test_item_closure() {
