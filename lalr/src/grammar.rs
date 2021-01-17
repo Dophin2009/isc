@@ -1,7 +1,5 @@
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, BTreeSet},
-};
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::error::{Error, Result};
 

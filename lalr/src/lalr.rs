@@ -1,7 +1,6 @@
 use crate::{Grammar, Rhs, Symbol};
 
 use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
-use std::fmt::Debug;
 
 use itertools::Itertools;
 
