@@ -1,4 +1,5 @@
 #![deny(rust_2018_idioms)]
+#![deny(future_incompatible)]
 #![feature(proc_macro_diagnostic)]
 
 use std::collections::HashMap;
