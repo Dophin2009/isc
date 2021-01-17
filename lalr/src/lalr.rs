@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 /// An LR(0) state machine.
 #[derive(Debug)]
-struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
+pub struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
     /// The states of the machine and their transitions to other states.
     pub states: Vec<LR0State<'a, T, N, A>>,
     /// Index of the starting state.
@@ -16,7 +16,7 @@ struct LR0Automaton<'a, T: 'a, N: 'a, A: 'a> {
 
 /// A state in the LR(0) automaton, containing a set of items.
 #[derive(Debug)]
-struct LR0State<'a, T: 'a, N: 'a, A: 'a> {
+pub struct LR0State<'a, T: 'a, N: 'a, A: 'a> {
     /// Set of items represented by this state.
     pub items: ItemSet<'a, T, N, A>,
     pub transitions: BTreeMap<&'a Symbol<T, N>, usize>,
@@ -43,7 +43,7 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
 
 impl<T, N, A> Grammar<T, N, A> {
     /// Compute the LR(0) item set.
-    fn lr0_automaton<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
+    pub fn lr0_automaton<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
     where
         T: Ord,
         N: Ord,
@@ -119,7 +119,7 @@ impl<T, N, A> Grammar<T, N, A> {
     /// Compute the closure of items for the given item set.
     ///
     /// TODO: Find better, non-recursive way to write this?
-    fn item_closure<'a>(&'a self, set: &mut ItemSet<'a, T, N, A>)
+    pub fn item_closure<'a>(&'a self, set: &mut ItemSet<'a, T, N, A>)
     where
         N: Ord,
         Item<'a, T, N, A>: Ord,
@@ -159,7 +159,7 @@ impl<T, N, A> Grammar<T, N, A> {
 
     /// Compute the GOTO(I, X) where I is a set of items and X is a grammar symbol, returning the
     /// set of all items [A -> aX.B] such that [A -> a.XB] is in I.
-    fn close_goto<'a>(
+    pub fn close_goto<'a>(
         &'a self,
         set: &ItemSet<'a, T, N, A>,
         x: &'a Symbol<T, N>,
@@ -201,7 +201,7 @@ impl<T, N, A> Grammar<T, N, A> {
 }
 
 #[derive(Debug)]
-struct Item<'a, T: 'a, N: 'a, A: 'a> {
+pub struct Item<'a, T: 'a, N: 'a, A: 'a> {
     pub lhs: &'a N,
     pub rhs: &'a Rhs<T, N, A>,
 
@@ -213,7 +213,7 @@ comparators!(Item('a, T, N, A), (T, N), (lhs, rhs, pos));
 
 impl<'a, T: 'a, N: 'a, A: 'a> Item<'a, T, N, A> {
     /// Retrieves B for A -> a.Bb, or None if A -> a.
-    fn next_symbol(&self) -> Option<&'a Symbol<T, N>> {
+    pub fn next_symbol(&self) -> Option<&'a Symbol<T, N>> {
         self.rhs.body.get(self.pos)
     }
 }
@@ -229,7 +229,7 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for Item<'a, T, N, A> {
 }
 
 #[derive(Debug)]
-struct ItemSet<'a, T: 'a, N: 'a, A: 'a> {
+pub struct ItemSet<'a, T: 'a, N: 'a, A: 'a> {
     pub items: BTreeSet<Item<'a, T, N, A>>,
 }
 
@@ -239,30 +239,30 @@ impl<'a, T: 'a, N: 'a, A: 'a> ItemSet<'a, T, N, A>
 where
     Item<'a, T, N, A>: Ord,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             items: BTreeSet::new(),
         }
     }
 
-    fn insert(&mut self, item: Item<'a, T, N, A>) -> bool {
+    pub fn insert(&mut self, item: Item<'a, T, N, A>) -> bool {
         self.items.insert(item)
     }
 
-    fn append(&mut self, set: &mut Self) {
+    pub fn append(&mut self, set: &mut Self) {
         self.items.append(&mut set.items);
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.items.len()
     }
 
     /// Iterate through the items in this ItemSet.
-    fn iter(&self) -> btree_set::Iter<Item<'a, T, N, A>> {
+    pub fn iter(&self) -> btree_set::Iter<Item<'a, T, N, A>> {
         self.items.iter()
     }
 }
