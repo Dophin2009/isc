@@ -36,6 +36,7 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
 #[derive(Debug)]
 pub struct LR1Table<'a, T: 'a, N: 'a, A: 'a> {
     pub states: Vec<LR1State<'a, T, N, A>>,
+    pub initial: usize,
 }
 
 /// State in an LR(1) automaton.
@@ -66,7 +67,7 @@ impl<'a, T: 'a, N: 'a, A: 'a> LR1State<'a, T, N, A> {
     ///
     /// If `sy` is [`None`], it is interpreted as the endmarker terminal.
     pub fn set_action(
-        &'a mut self,
+        &mut self,
         sy: Option<&'a T>,
         action: LR1Action<'a, T, N, A>,
     ) -> Result<(), LRConflict<'a, T, N, A>>
@@ -134,6 +135,7 @@ impl<'a, T: 'a, N: 'a, A: 'a> LR1State<'a, T, N, A> {
 }
 
 impl<T, N, A> Grammar<T, N, A> {
+    /// Construct an LR(1) parse table for the grammar.
     pub fn lr1_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>>
     where
         T: Ord,
@@ -144,6 +146,7 @@ impl<T, N, A> Grammar<T, N, A> {
 
         // New states in the LR(1) table.
         let mut states = Vec::new();
+
         for lr0_state in lr0_automaton.states {
             let mut lr1_state = LR1State {
                 actions: BTreeMap::new(),
@@ -168,10 +171,20 @@ impl<T, N, A> Grammar<T, N, A> {
             for item in lr0_state.items {
                 // If [A -> α.] is in I_i, then set ACTION[i, a] to "reduce A -> α" for all a in
                 // FOLLOW(A), unless A is S'.
-                if *item.lhs != self.start && item.pos == item.rhs.body.len() {
-                    let (follow_set, endmarker) = follow_sets.get(item.lhs).unwrap();
-                    for sy in follow_set {
-                        lr1_state.set_action(Some(sy), LR1Action::Reduce(item.lhs, item.rhs))?;
+                if item.pos == item.rhs.body.len() {
+                    if *item.lhs != self.start {
+                        let (follow_set, endmarker) = follow_sets.get(item.lhs).unwrap();
+                        for sy in follow_set {
+                            lr1_state
+                                .set_action(Some(sy), LR1Action::Reduce(item.lhs, item.rhs))?;
+                        }
+
+                        if *endmarker {
+                            lr1_state.set_action(None, LR1Action::Reduce(item.lhs, item.rhs))?;
+                        }
+                    } else {
+                        // If [S' -> S.] is in I_i, then set ACTION[i, $] to "accept".
+                        lr1_state.set_action(None, LR1Action::Accept)?;
                     }
                 }
             }
@@ -179,7 +192,12 @@ impl<T, N, A> Grammar<T, N, A> {
             states.push(lr1_state);
         }
 
-        Ok(LR1Table { states })
+        Ok(LR1Table {
+            states,
+            // The initial state of the parser is the one constructed from the set of items
+            // containing [S' -> .S].
+            initial: lr0_automaton.start,
+        })
     }
 
     /// Compute the LR(0) item set.
@@ -454,6 +472,21 @@ mod test {
 
     use Nonterminal::*;
     use Terminal::*;
+
+    #[test]
+    fn test_lr1_table() {
+        let GrammarUtil { grammar, .. } = create_grammar();
+        let table = grammar.lr1_table().unwrap();
+
+        assert_eq!(table.states.len(), 12);
+
+        let initial_state = table.states.first().unwrap();
+        assert!(initial_state.endmarker.is_none());
+
+        assert_eq!(*initial_state.goto.get(&E).unwrap(), 1);
+        assert_eq!(*initial_state.goto.get(&T).unwrap(), 2);
+        assert_eq!(*initial_state.goto.get(&F).unwrap(), 3);
+    }
 
     #[test]
     fn test_lr0_automaton() {
