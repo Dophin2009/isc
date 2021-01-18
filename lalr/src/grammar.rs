@@ -184,7 +184,7 @@ where
         while changed {
             changed = false;
             for (lhs, rhs_set) in &self.rules {
-                let mut first = map.remove(lhs).unwrap();
+                let mut first = map.get(lhs).unwrap().clone();
                 for rhs in rhs_set {
                     if rhs.body.is_empty() {
                         first.1 = true
