@@ -53,11 +53,15 @@ where
 impl<'a, T, M, I> Iterator for LexerStream<T, M, I>
 where
     M: LexerDFAMatcher<T>,
-    I: Iterator<Item = char>,
+    I: Iterator<Item = char> + std::fmt::Debug,
 {
     type Item = LexerItem<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.input.peek().is_none() {
+            return None;
+        }
+
         let token_op = self.matcher.tokenize(&mut self.input);
         match token_op {
             // If a token was returned, return the token and the remaining input.

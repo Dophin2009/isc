@@ -104,7 +104,7 @@ fn main() {
     let chars = INPUT_STR.chars();
     let tokens = lexer.stream(chars);
 
-    for t in tokens.take(10) {
+    for t in tokens {
         print!("{:?} ", t.token);
     }
 }
