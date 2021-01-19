@@ -1,6 +1,8 @@
+use crate::grammar::FirstSets;
 use crate::{Grammar, Rhs, Symbol};
 
 use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
+use std::iter::FromIterator;
 
 use itertools::Itertools;
 
@@ -31,6 +33,11 @@ impl<'a, T: 'a, N: 'a, A: 'a> Clone for LR0State<'a, T, N, A> {
             transitions: self.transitions.clone(),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct LR1Parser<'a, T: 'a, N: 'a, A: 'a> {
+    table: LR1Table<'a, T, N, A>,
 }
 
 #[derive(Debug)]
@@ -134,13 +141,142 @@ impl<'a, T: 'a, N: 'a, A: 'a> LR1State<'a, T, N, A> {
     }
 }
 
-impl<T, N, A> Grammar<T, N, A> {
-    /// Construct an LR(1) parse table for the grammar.
-    pub fn lr1_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>>
-    where
-        T: Ord,
-        N: Ord,
-    {
+impl<T, N, A> Grammar<T, N, A>
+where
+    T: Ord,
+    N: Ord,
+{
+    /// Construct an LALR(1) parse table for the grammar.
+    ///
+    /// Implements **Algorithm 4.63** to efficiently compute the kernels of the LALR(1) collection
+    /// of item sets for a grammar.
+    pub fn lalr1_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>> {
+        // Compute the LR(0) item set.
+        let mut lr0_automaton = self.lr0_automaton();
+
+        // Compute the first sets.
+        let first_sets = self.first_sets();
+
+        // Remove non-kernel items.
+        for state in lr0_automaton.states.iter_mut() {
+            state.items = state
+                .items
+                .iter()
+                // Kernel items include the initial item, S' -> .S, and all items whose dots are
+                // not at the left end.
+                .filter(|item| *item.lhs == self.start || item.pos != 0)
+                .cloned()
+                .collect();
+        }
+
+        for kernel in lr0_automaton.states {
+            for item in kernel.items {}
+        }
+
+        Ok(LR1Table {
+            states: Vec::new(),
+            initial: 0,
+        })
+    }
+
+    pub fn lr1_closure<'a>(
+        &'a self,
+        items: &mut BTreeSet<(Item<'a, T, N, A>, Option<&'a T>)>,
+        first_sets: &FirstSets<'a, T, N>,
+    ) {
+        let mut added = BTreeSet::new();
+        // For each item [A -> α.Bβ, a] in I
+        for (item, lookahead) in items.iter() {
+            // For each production B -> γ in G'
+            let next_symbol = match item.next_symbol() {
+                Some(sy) => match sy {
+                    Symbol::Nonterminal(ref n) => n,
+                    Symbol::Terminal(_) => continue,
+                },
+                None => continue,
+            };
+            for rhs in self.rules.get(next_symbol).unwrap() {
+                // For each terminal t in FIRST(βa).
+                // TODO: Memoize this.
+
+                // Extract β from rhs.
+                let beta = &rhs.body[(item.pos + 1)..];
+                let mut first_set = (BTreeSet::new(), false);
+
+                // Flag to determine when to stop computing FIRST.
+                let mut beta_nullable = true;
+                for sy in beta {
+                    if !beta_nullable {
+                        break;
+                    }
+
+                    match sy {
+                        // For nonterminal n, add FIRST(n) to the total set.
+                        Symbol::Nonterminal(ref n) => {
+                            let (to_add, nullable) = first_sets.get(n).unwrap();
+                            first_set.0.extend(to_add);
+
+                            // No ε, so break from loop to stop adding to FIRST set.
+                            // Also do not add the lookahead to FIRST.
+                            if !nullable {
+                                beta_nullable = false;
+                            }
+                        }
+                        // For terminal t, add t to the FIRST set.
+                        // Stop looping and do not add the lookahead to FIRST.
+                        Symbol::Terminal(ref t) => {
+                            first_set.0.insert(t);
+                            beta_nullable = false;
+                        }
+                    }
+                }
+
+                // Only add lookahead a to first if β was nullable.
+                if beta_nullable {
+                    match lookahead {
+                        // If lookahead is not $, add it.
+                        Some(t) => {
+                            first_set.0.insert(t);
+                        }
+                        // Otherwise, set endmarker flag to true.
+                        None => {
+                            first_set.1 = true;
+                        }
+                    }
+                }
+
+                for t in first_set.0 {
+                    added.insert((
+                        Item {
+                            lhs: next_symbol,
+                            rhs,
+                            pos: 0,
+                        },
+                        Some(t),
+                    ));
+                }
+
+                if first_set.1 {
+                    added.insert((
+                        Item {
+                            lhs: next_symbol,
+                            rhs,
+                            pos: 0,
+                        },
+                        None,
+                    ));
+                }
+            }
+        }
+
+        if !added.is_empty() {
+            items.extend(added);
+            self.lr1_closure(items, first_sets);
+        }
+    }
+
+    /// Construct an SLR parse table for the grammar.
+    pub fn slr_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>> {
         let lr0_automaton = self.lr0_automaton();
         let follow_sets = self.follow_sets(None);
 
@@ -201,11 +337,7 @@ impl<T, N, A> Grammar<T, N, A> {
     }
 
     /// Compute the LR(0) item set.
-    pub fn lr0_automaton<'a>(&'a self) -> LR0Automaton<'a, T, N, A>
-    where
-        T: Ord,
-        N: Ord,
-    {
+    pub fn lr0_automaton<'a>(&'a self) -> LR0Automaton<'a, T, N, A> {
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = ItemSet::new();
         initial_set.insert(Item {
@@ -323,7 +455,6 @@ impl<T, N, A> Grammar<T, N, A> {
     ) -> ItemSet<'a, T, N, A>
     where
         T: PartialEq,
-        N: Ord,
         Item<'a, T, N, A>: Ord,
     {
         // Collection of all new items.
@@ -441,6 +572,21 @@ impl<'a, T: 'a, N: 'a, A: 'a> IntoIterator for ItemSet<'a, T, N, A> {
     }
 }
 
+impl<'a, T: 'a, N: 'a, A: 'a> FromIterator<Item<'a, T, N, A>> for ItemSet<'a, T, N, A>
+where
+    T: Ord,
+    N: Ord,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = Item<'a, T, N, A>>,
+    {
+        let mut items = BTreeSet::new();
+        items.extend(iter);
+        Self { items }
+    }
+}
+
 /// A conflict encountered when constructing an LR(1) parse table.
 #[derive(Debug, Clone)]
 pub enum LRConflict<'a, T: 'a, N: 'a, A: 'a> {
@@ -474,9 +620,9 @@ mod test {
     use Terminal::*;
 
     #[test]
-    fn test_lr1_table() {
+    fn test_slr_table() {
         let GrammarUtil { grammar, .. } = create_grammar();
-        let table = grammar.lr1_table().unwrap();
+        let table = grammar.slr_table().unwrap();
 
         assert_eq!(table.states.len(), 12);
 
