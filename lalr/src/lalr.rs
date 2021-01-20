@@ -234,11 +234,13 @@ where
                 },
                 None => continue,
             };
+
+            // rhs = γ
             for rhs in self.rules.get(next_symbol).unwrap() {
                 // For each terminal t in FIRST(βa).
                 // TODO: Memoize this.
 
-                // Extract β from rhs.
+                // Extract β from item rhs.
                 let beta = &rhs.body[(item.pos + 1)..];
                 let mut first_set = BTreeSet::new();
 
@@ -639,7 +641,76 @@ pub enum LRConflict<'a, T: 'a, N: 'a, A: 'a> {
 }
 
 #[cfg(test)]
-mod test {
+mod test_lalr1 {
+    use super::*;
+    use crate::{
+        Grammar, Rhs,
+        Symbol::{Nonterminal as NT, Terminal as TT},
+    };
+
+    use std::collections::BTreeMap;
+
+    use Nonterminal::*;
+    use Terminal::*;
+
+    #[test]
+    fn test_lr1_closure() {
+        let mut rules = BTreeMap::new();
+
+        // E -> S
+        let start_rhs = Rhs::noop(vec![NT(S)]);
+        rules.insert(E, vec![start_rhs.clone()]);
+
+        // S -> L = R
+        //    | R
+        let l_eq_r = Rhs::noop(vec![NT(L), TT(Equ), NT(R)]);
+        let r = Rhs::noop(vec![NT(R)]);
+        rules.insert(S, vec![l_eq_r, r]);
+
+        // L -> * R
+        //    | id
+        let deref_r = Rhs::noop(vec![TT(Deref), NT(R)]);
+        let id = Rhs::noop(vec![TT(Id)]);
+        rules.insert(L, vec![deref_r, id]);
+
+        // R -> L
+        let l = Rhs::noop(vec![NT(L)]);
+        rules.insert(R, vec![l]);
+
+        let grammar = Grammar::new(E, rules).unwrap();
+
+        // Compute CLOSURE({[E -> ·S, #]})
+        let mut initial_set = BTreeSet::new();
+        initial_set.insert((
+            Item {
+                lhs: &E,
+                rhs: &start_rhs,
+                pos: 0,
+            },
+            LR1Lookahead::NonSymbol,
+        ));
+
+        grammar.lr1_closure(&mut initial_set, &grammar.first_sets());
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    enum Nonterminal {
+        E,
+        S,
+        L,
+        R,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    enum Terminal {
+        Equ,
+        Deref,
+        Id,
+    }
+}
+
+#[cfg(test)]
+mod test_lr0 {
     use super::*;
     use crate::{
         Grammar, Rhs,
