@@ -8,7 +8,7 @@ where
     N: Ord,
 {
     /// Construct an SLR(1) parse table for the grammar.
-    pub fn slr1_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>> {
+    pub fn slr1_table<'g>(&'g self) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
         let lr0_automaton = self.lr0_automaton();
         let follow_sets = self.follow_sets(None);
 
@@ -70,32 +70,32 @@ where
 }
 
 #[derive(Debug)]
-pub struct LR1Parser<'a, T: 'a, N: 'a, A: 'a> {
-    table: LR1Table<'a, T, N, A>,
+pub struct LR1Parser<'g, T: 'g, N: 'g, A: 'g> {
+    table: LR1Table<'g, T, N, A>,
 }
 
 #[derive(Debug)]
-pub struct LR1Table<'a, T: 'a, N: 'a, A: 'a> {
-    pub states: Vec<LR1State<'a, T, N, A>>,
+pub struct LR1Table<'g, T: 'g, N: 'g, A: 'g> {
+    pub states: Vec<LR1State<'g, T, N, A>>,
     pub initial: usize,
 }
 
 /// State in an LR(1) automaton.
 #[derive(Debug)]
-pub struct LR1State<'a, T: 'a, N: 'a, A: 'a> {
+pub struct LR1State<'g, T: 'g, N: 'g, A: 'g> {
     /// Map of actions to be taken on terminals. Terminals with no action have no map entry.
-    pub actions: BTreeMap<&'a T, LR1Action<'a, T, N, A>>,
+    pub actions: BTreeMap<&'g T, LR1Action<'g, T, N, A>>,
     /// Action to taken when lookahead is endmarker symbol.
-    pub endmarker: Option<LR1Action<'a, T, N, A>>,
+    pub endmarker: Option<LR1Action<'g, T, N, A>>,
     /// Map of GOTO transitions to other states. Nonterminals with no GOTO have no map entry.
-    pub goto: BTreeMap<&'a N, usize>,
+    pub goto: BTreeMap<&'g N, usize>,
 }
 
 #[derive(Debug)]
 /// LR(1) action to be taken for some terminal.
-pub enum LR1Action<'a, T: 'a, N: 'a, A: 'a> {
+pub enum LR1Action<'g, T: 'g, N: 'g, A: 'g> {
     /// Reduce a production.
-    Reduce(&'a N, &'a Rhs<T, N, A>),
+    Reduce(&'g N, &'g Rhs<T, N, A>),
     /// Shift to some state.
     Shift(usize),
     /// Accept the input.
@@ -104,33 +104,33 @@ pub enum LR1Action<'a, T: 'a, N: 'a, A: 'a> {
 
 /// A conflict encountered when constructing an LR(1) parse table.
 #[derive(Debug, Clone)]
-pub enum LRConflict<'a, T: 'a, N: 'a, A: 'a> {
+pub enum LRConflict<'g, T: 'g, N: 'g, A: 'g> {
     /// Shift-reduce conflict
     ShiftReduce {
         /// Shift action involved in the conflict.
         /// 0: Terminal to shift on; endmarker terminal if [`None`].
         /// 1: Destination state of the shift.
-        shift: (Option<&'a T>, usize),
+        shift: (Option<&'g T>, usize),
         /// Reduce rule involved in the conflict.
-        reduce: (&'a N, &'a Rhs<T, N, A>),
+        reduce: (&'g N, &'g Rhs<T, N, A>),
     },
     /// Reduce-reduce conflict
     ReduceReduce {
-        r1: (&'a N, &'a Rhs<T, N, A>),
-        r2: (&'a N, &'a Rhs<T, N, A>),
+        r1: (&'g N, &'g Rhs<T, N, A>),
+        r2: (&'g N, &'g Rhs<T, N, A>),
     },
 }
 
-impl<'a, T: 'a, N: 'a, A: 'a> LR1State<'a, T, N, A> {
+impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
     /// Insert an action for a symbol, returning an [`LRConflict`] error some action already
     /// exists for that symbol.
     ///
     /// If `sy` is [`None`], it is interpreted as the endmarker terminal.
     pub fn set_action(
         &mut self,
-        sy: Option<&'a T>,
-        action: LR1Action<'a, T, N, A>,
-    ) -> Result<(), LRConflict<'a, T, N, A>>
+        sy: Option<&'g T>,
+        action: LR1Action<'g, T, N, A>,
+    ) -> Result<(), LRConflict<'g, T, N, A>>
     where
         T: Ord,
     {
@@ -166,10 +166,10 @@ impl<'a, T: 'a, N: 'a, A: 'a> LR1State<'a, T, N, A> {
     }
 
     fn determine_conflict(
-        a1: &LR1Action<'a, T, N, A>,
-        a2: &LR1Action<'a, T, N, A>,
-        sy: Option<&'a T>,
-    ) -> Option<LRConflict<'a, T, N, A>> {
+        a1: &LR1Action<'g, T, N, A>,
+        a2: &LR1Action<'g, T, N, A>,
+        sy: Option<&'g T>,
+    ) -> Option<LRConflict<'g, T, N, A>> {
         match *a1 {
             LR1Action::Reduce(n1, rhs1) => match *a2 {
                 LR1Action::Reduce(n2, rhs2) => Some(LRConflict::ReduceReduce {

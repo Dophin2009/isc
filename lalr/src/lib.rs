@@ -31,7 +31,7 @@ mod comparator {
 
 mod error;
 mod grammar;
-mod lalr;
+// mod lalr;
 mod lr0;
 mod lr1;
 

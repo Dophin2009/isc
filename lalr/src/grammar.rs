@@ -39,11 +39,11 @@ pub enum Symbol<T, N> {
 
 /// Map of FIRST sets for the nonterminals in a grammar. The boolean flag indicates whether or not
 /// the FIRST set contains ε.
-pub type FirstSets<'a, T, N> = BTreeMap<&'a N, (BTreeSet<&'a T>, bool)>;
+pub type FirstSets<'g, T, N> = BTreeMap<&'g N, (BTreeSet<&'g T>, bool)>;
 
 /// Map of the FOLLOW sets for the nonterminals in a grammar. The boolean flag indicates whether or
 /// not the FOLLOW set contains $, the endmarker symbol.
-pub type FollowSets<'a, T, N> = BTreeMap<&'a N, (BTreeSet<&'a T>, bool)>;
+pub type FollowSets<'g, T, N> = BTreeMap<&'g N, (BTreeSet<&'g T>, bool)>;
 
 impl<T, N, A> Grammar<T, N, A>
 where
@@ -83,12 +83,12 @@ where
     /// Compute FOLLOW sets for the nonterminals in the grammar.
     ///
     /// Partly from [`goffrie/lalr`](https://github.com/goffrie/lalr/blob/master/src/lib.rs).
-    pub fn follow_sets<'a>(
-        &'a self,
-        first_sets: Option<&'a FirstSets<'a, T, N>>,
-    ) -> FollowSets<'a, T, N> {
+    pub fn follow_sets<'g>(
+        &'g self,
+        first_sets: Option<&'g FirstSets<'g, T, N>>,
+    ) -> FollowSets<'g, T, N> {
         // Compute the FIRST sets if they're not given.
-        let first_sets: Cow<'a, _> = match first_sets {
+        let first_sets: Cow<'g, _> = match first_sets {
             Some(sets) => Cow::Borrowed(sets),
             None => {
                 let sets = self.first_sets();
@@ -172,7 +172,7 @@ where
     }
 
     /// Compute the FIRST sets for the nonterminals in the grammar.
-    pub fn first_sets<'a>(&'a self) -> FirstSets<'a, T, N> {
+    pub fn first_sets<'g>(&'g self) -> FirstSets<'g, T, N> {
         // Map of FIRST sets, with flag indicating whether or not the set contains ε.
         let mut map: BTreeMap<_, _> = self
             .rules
