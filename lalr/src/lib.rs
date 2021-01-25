@@ -29,7 +29,6 @@ mod comparator {
     }
 }
 
-mod common;
 mod error;
 mod grammar;
 mod lalr;
