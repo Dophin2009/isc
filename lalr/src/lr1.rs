@@ -9,7 +9,7 @@ where
     N: Ord,
 {
     /// Construct an SLR(1) parse table for the grammar.
-    pub fn slr_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>> {
+    pub fn slr1_table<'a>(&'a self) -> Result<LR1Table<'a, T, N, A>, LRConflict<'a, T, N, A>> {
         let lr0_automaton = self.lr0_automaton();
         let follow_sets = self.follow_sets(None);
 

@@ -1,4 +1,3 @@
-use crate::common::{LR1Action, LR1State, LR1Table, LRConflict};
 use crate::{Grammar, Rhs, Symbol};
 
 use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
@@ -49,7 +48,7 @@ where
             rhs: &self.rules.get(&self.start).unwrap()[0],
             pos: 0,
         });
-        self.item_closure(&mut initial_set);
+        self.lr0_closure(&mut initial_set);
         let initial_state = LR0State {
             items: initial_set.clone(),
             transitions: BTreeMap::new(),
@@ -73,7 +72,7 @@ where
             let symbols = state.items.iter().flat_map(|item| &item.rhs.body).dedup();
             for sy in symbols {
                 // Compute GOTO(I, X).
-                let goto_closure = self.close_goto(&state.items, &sy);
+                let goto_closure = self.lr0_goto(&state.items, &sy);
                 if goto_closure.is_empty() {
                     continue;
                 }
@@ -112,7 +111,7 @@ where
     /// Compute the closure of items for the given item set.
     ///
     /// TODO: Find better, non-recursive way to write this?
-    pub fn item_closure<'a>(&'a self, set: &mut ItemSet<'a, T, N, A>)
+    pub fn lr0_closure<'a>(&'a self, set: &mut ItemSet<'a, T, N, A>)
     where
         N: Ord,
         Item<'a, T, N, A>: Ord,
@@ -143,7 +142,7 @@ where
 
         if !added.is_empty() {
             // Compute closure of items to be added to original set.
-            self.item_closure(&mut added);
+            self.lr0_closure(&mut added);
 
             // Post-order insertion of new items.
             set.append(&mut added);
@@ -152,7 +151,7 @@ where
 
     /// Compute the GOTO(I, X) where I is a set of items and X is a grammar symbol, returning the
     /// set of all items [A -> aX.B] such that [A -> a.XB] is in I.
-    pub fn close_goto<'a>(
+    pub fn lr0_goto<'a>(
         &'a self,
         set: &ItemSet<'a, T, N, A>,
         x: &'a Symbol<T, N>,
@@ -182,7 +181,7 @@ where
                 rhs: item.rhs,
                 pos: item.pos + 1,
             });
-            self.item_closure(&mut new_set);
+            self.lr0_closure(&mut new_set);
 
             // Add to total new item collection.
             closure.append(&mut new_set);
@@ -305,9 +304,9 @@ mod test {
     use Terminal::*;
 
     #[test]
-    fn test_slr_table() {
+    fn test_slr1_table() {
         let GrammarUtil { grammar, .. } = create_grammar();
-        let table = grammar.slr_table().unwrap();
+        let table = grammar.slr1_table().unwrap();
 
         assert_eq!(table.states.len(), 12);
 
@@ -328,7 +327,7 @@ mod test {
     }
 
     #[test]
-    fn test_item_closure() {
+    fn test_lr0_closure() {
         let GrammarUtil {
             start_rhs,
             e_plus_t,
@@ -381,13 +380,13 @@ mod test {
             pos: 0,
         });
 
-        grammar.item_closure(&mut set);
+        grammar.lr0_closure(&mut set);
 
         assert_eq!(set, expected);
     }
 
     #[test]
-    fn test_close_goto() {
+    fn test_lr0_goto() {
         let GrammarUtil {
             start_rhs,
             e_plus_t,
@@ -411,7 +410,7 @@ mod test {
             pos: 1,
         });
 
-        let closure = grammar.close_goto(&set, &TT(Plus));
+        let closure = grammar.lr0_goto(&set, &TT(Plus));
 
         let mut expected = ItemSet::new();
         expected.insert(Item {
