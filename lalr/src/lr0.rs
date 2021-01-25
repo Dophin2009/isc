@@ -18,7 +18,7 @@ pub struct LR0Automaton<'g, T: 'g, N: 'g, A: 'g> {
 #[derive(Debug)]
 pub struct LR0State<'g, T: 'g, N: 'g, A: 'g> {
     /// Set of items represented by this state.
-    pub items: ItemSet<'g, T, N, A>,
+    pub items: LR0ItemSet<'g, T, N, A>,
     pub transitions: BTreeMap<&'g Symbol<T, N>, usize>,
 }
 
@@ -42,8 +42,8 @@ where
     /// Compute the LR(0) item set.
     pub fn lr0_automaton<'g>(&'g self) -> LR0Automaton<'g, T, N, A> {
         // Initialize item set to closure of {[S' -> S]}.
-        let mut initial_set = ItemSet::new();
-        initial_set.insert(Item {
+        let mut initial_set = LR0ItemSet::new();
+        initial_set.insert(LR0Item {
             lhs: &self.start,
             rhs: &self.rules.get(&self.start).unwrap()[0],
             pos: 0,
@@ -111,12 +111,12 @@ where
     /// Compute the closure of items for the given item set.
     ///
     /// TODO: Find better, non-recursive way to write this?
-    pub fn lr0_closure<'g>(&'g self, set: &mut ItemSet<'g, T, N, A>)
+    pub fn lr0_closure<'g>(&'g self, set: &mut LR0ItemSet<'g, T, N, A>)
     where
         N: Ord,
-        Item<'g, T, N, A>: Ord,
+        LR0Item<'g, T, N, A>: Ord,
     {
-        let mut added = ItemSet::new();
+        let mut added = LR0ItemSet::new();
         for item in set.iter() {
             // Add each item B -> .y for each item A -> a.Bb
             let next_symbol = match item.next_symbol() {
@@ -129,7 +129,7 @@ where
 
             // Shouldn't panic as long as Grammar created with Grammar::new?
             for production in self.rules.get(next_symbol).unwrap() {
-                let new_item = Item {
+                let new_item = LR0Item {
                     lhs: next_symbol,
                     rhs: &production,
                     pos: 0,
@@ -153,15 +153,15 @@ where
     /// set of all items [A -> aX.B] such that [A -> a.XB] is in I.
     pub fn lr0_goto<'g>(
         &'g self,
-        set: &ItemSet<'g, T, N, A>,
+        set: &LR0ItemSet<'g, T, N, A>,
         x: &'g Symbol<T, N>,
-    ) -> ItemSet<'g, T, N, A>
+    ) -> LR0ItemSet<'g, T, N, A>
     where
         T: PartialEq,
-        Item<'g, T, N, A>: Ord,
+        LR0Item<'g, T, N, A>: Ord,
     {
         // Collection of all new items.
-        let mut closure = ItemSet::new();
+        let mut closure = LR0ItemSet::new();
         for item in set.iter() {
             // Get the symbol after the .
             let next_symbol = match item.next_symbol() {
@@ -175,8 +175,8 @@ where
             }
 
             // Compute closure for [A -> aX.B]
-            let mut new_set = ItemSet::new();
-            new_set.insert(Item {
+            let mut new_set = LR0ItemSet::new();
+            new_set.insert(LR0Item {
                 lhs: item.lhs,
                 rhs: item.rhs,
                 pos: item.pos + 1,
@@ -192,7 +192,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct Item<'g, T: 'g, N: 'g, A: 'g> {
+pub struct LR0Item<'g, T: 'g, N: 'g, A: 'g> {
     pub lhs: &'g N,
     pub rhs: &'g Rhs<T, N, A>,
 
@@ -200,16 +200,16 @@ pub struct Item<'g, T: 'g, N: 'g, A: 'g> {
     pub pos: usize,
 }
 
-comparators!(Item('g, T, N, A), (T, N), (lhs, rhs, pos));
+comparators!(LR0Item('g, T, N, A), (T, N), (lhs, rhs, pos));
 
-impl<'g, T: 'g, N: 'g, A: 'g> Item<'g, T, N, A> {
+impl<'g, T: 'g, N: 'g, A: 'g> LR0Item<'g, T, N, A> {
     /// Retrieves B for A -> a.Bb, or None if A -> a.
     pub fn next_symbol(&self) -> Option<&'g Symbol<T, N>> {
         self.rhs.body.get(self.pos)
     }
 }
 
-impl<'g, T: 'g, N: 'g, A: 'g> Clone for Item<'g, T, N, A> {
+impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR0Item<'g, T, N, A> {
     fn clone(&self) -> Self {
         Self {
             lhs: self.lhs,
@@ -220,15 +220,15 @@ impl<'g, T: 'g, N: 'g, A: 'g> Clone for Item<'g, T, N, A> {
 }
 
 #[derive(Debug)]
-pub struct ItemSet<'g, T: 'g, N: 'g, A: 'g> {
-    pub items: BTreeSet<Item<'g, T, N, A>>,
+pub struct LR0ItemSet<'g, T: 'g, N: 'g, A: 'g> {
+    pub items: BTreeSet<LR0Item<'g, T, N, A>>,
 }
 
-comparators!(ItemSet('g, T, N, A), (T, N), (items));
+comparators!(LR0ItemSet('g, T, N, A), (T, N), (items));
 
-impl<'g, T: 'g, N: 'g, A: 'g> ItemSet<'g, T, N, A>
+impl<'g, T: 'g, N: 'g, A: 'g> LR0ItemSet<'g, T, N, A>
 where
-    Item<'g, T, N, A>: Ord,
+    LR0Item<'g, T, N, A>: Ord,
 {
     pub fn new() -> Self {
         Self {
@@ -236,7 +236,7 @@ where
         }
     }
 
-    pub fn insert(&mut self, item: Item<'g, T, N, A>) -> bool {
+    pub fn insert(&mut self, item: LR0Item<'g, T, N, A>) -> bool {
         self.items.insert(item)
     }
 
@@ -252,13 +252,13 @@ where
         self.items.len()
     }
 
-    /// Iterate through the items in this ItemSet.
-    pub fn iter(&self) -> btree_set::Iter<Item<'g, T, N, A>> {
+    /// Iterate through the items in this LR0ItemSet.
+    pub fn iter(&self) -> btree_set::Iter<LR0Item<'g, T, N, A>> {
         self.items.iter()
     }
 }
 
-impl<'g, T: 'g, N: 'g, A: 'g> Clone for ItemSet<'g, T, N, A> {
+impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR0ItemSet<'g, T, N, A> {
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
@@ -266,8 +266,8 @@ impl<'g, T: 'g, N: 'g, A: 'g> Clone for ItemSet<'g, T, N, A> {
     }
 }
 
-impl<'g, T: 'g, N: 'g, A: 'g> IntoIterator for ItemSet<'g, T, N, A> {
-    type Item = Item<'g, T, N, A>;
+impl<'g, T: 'g, N: 'g, A: 'g> IntoIterator for LR0ItemSet<'g, T, N, A> {
+    type Item = LR0Item<'g, T, N, A>;
     type IntoIter = std::collections::btree_set::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -275,14 +275,14 @@ impl<'g, T: 'g, N: 'g, A: 'g> IntoIterator for ItemSet<'g, T, N, A> {
     }
 }
 
-impl<'g, T: 'g, N: 'g, A: 'g> FromIterator<Item<'g, T, N, A>> for ItemSet<'g, T, N, A>
+impl<'g, T: 'g, N: 'g, A: 'g> FromIterator<LR0Item<'g, T, N, A>> for LR0ItemSet<'g, T, N, A>
 where
     T: Ord,
     N: Ord,
 {
     fn from_iter<I>(iter: I) -> Self
     where
-        I: IntoIterator<Item = Item<'g, T, N, A>>,
+        I: IntoIterator<Item = LR0Item<'g, T, N, A>>,
     {
         let mut items = BTreeSet::new();
         items.extend(iter);
@@ -340,41 +340,41 @@ mod test {
         } = create_grammar();
 
         // Initial set of {[S -> .E]}
-        let mut set = ItemSet::new();
+        let mut set = LR0ItemSet::new();
 
-        set.insert(Item {
+        set.insert(LR0Item {
             lhs: &S,
             rhs: &start_rhs,
             pos: 0,
         });
 
         let mut expected = set.clone();
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &E,
             rhs: &e_plus_t,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &E,
             rhs: &t,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &T,
             rhs: &t_times_f,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &T,
             rhs: &f,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &F,
             rhs: &paren_e,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &F,
             rhs: &id,
             pos: 0,
@@ -398,13 +398,13 @@ mod test {
             grammar,
         } = create_grammar();
 
-        let mut set = ItemSet::new();
-        set.insert(Item {
+        let mut set = LR0ItemSet::new();
+        set.insert(LR0Item {
             lhs: &S,
             rhs: &start_rhs,
             pos: 1,
         });
-        set.insert(Item {
+        set.insert(LR0Item {
             lhs: &E,
             rhs: &e_plus_t,
             pos: 1,
@@ -412,28 +412,28 @@ mod test {
 
         let closure = grammar.lr0_goto(&set, &TT(Plus));
 
-        let mut expected = ItemSet::new();
-        expected.insert(Item {
+        let mut expected = LR0ItemSet::new();
+        expected.insert(LR0Item {
             lhs: &E,
             rhs: &e_plus_t,
             pos: 2,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &T,
             rhs: &t_times_f,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &T,
             rhs: &f,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &F,
             rhs: &paren_e,
             pos: 0,
         });
-        expected.insert(Item {
+        expected.insert(LR0Item {
             lhs: &F,
             rhs: &id,
             pos: 0,
