@@ -573,6 +573,62 @@ where
 }
 
 #[cfg(test)]
+mod test_grammar_4_55 {
+    use super::*;
+    use crate::{
+        Grammar, Rhs,
+        Symbol::{Nonterminal as NT, Terminal as TT},
+    };
+
+    use std::collections::BTreeMap;
+
+    use Nonterminal::*;
+    use Terminal::*;
+
+    #[test]
+    fn test_lr1_table() {
+        let grammar = create_grammar();
+
+        let table = grammar.lr1_table().unwrap();
+
+        assert_eq!(10, table.states.len());
+    }
+
+    fn create_grammar() -> Grammar<Terminal, Nonterminal, ()> {
+        let mut rules = BTreeMap::new();
+
+        // E -> S
+        let start_rhs = Rhs::noop(vec![NT(S)]);
+        rules.insert(E, vec![start_rhs]);
+
+        // S -> C C
+        let cc = Rhs::noop(vec![NT(C), NT(C)]);
+        rules.insert(S, vec![cc]);
+
+        // C -> x C
+        //    | y
+        let x_c = Rhs::noop(vec![TT(X), NT(C)]);
+        let y = Rhs::noop(vec![TT(Y)]);
+        rules.insert(C, vec![x_c, y]);
+
+        return Grammar::new(E, rules).unwrap();
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    enum Nonterminal {
+        E,
+        S,
+        C,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    enum Terminal {
+        X,
+        Y,
+    }
+}
+
+#[cfg(test)]
 mod test_grammar_4_49 {
     use super::*;
     use crate::{
