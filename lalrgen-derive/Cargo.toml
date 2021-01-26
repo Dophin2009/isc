@@ -1,0 +1,15 @@
+[package]
+name = "lalrgen-derive"
+version = "0.1.0"
+authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
+edition = "2018"
+
+[lib]
+name = "lalrgen_derive"
+proc-macro = true
+
+[dependencies]
+lazy_static = "1.4.0"
+proc-macro2 = "1.0.18"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
