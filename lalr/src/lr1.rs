@@ -108,6 +108,7 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
         a2: &LR1Action<'g, T, N, A>,
         sy: Option<&'g T>,
     ) -> Option<LRConflict<'g, T, N, A>> {
+        // TODO: check for same action; don't error on those
         match *a1 {
             LR1Action::Reduce(n1, rhs1) => match *a2 {
                 LR1Action::Reduce(n2, rhs2) => Some(LRConflict::ReduceReduce {
@@ -268,11 +269,152 @@ impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR1AutomatonState<'g, T, N, A> {
     }
 }
 
+#[derive(Debug, Clone)]
+struct LR1ItemCoreSet<'g, T: 'g, N: 'g, A: 'g> {
+    items: BTreeSet<LR1ItemCore<'g, T, N, A>>,
+}
+
+comparators!(LR1ItemCoreSet('g, T, N, A), (T, N), (items));
+
+impl<'g, T, N, A> From<LR1ItemSet<'g, T, N, A>> for LR1ItemCoreSet<'g, T, N, A>
+where
+    T: Ord,
+    N: Ord,
+{
+    fn from(set: LR1ItemSet<'g, T, N, A>) -> Self {
+        Self {
+            items: set.items.into_iter().map_into().collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct LR1ItemCore<'g, T: 'g, N: 'g, A: 'g> {
+    lhs: &'g N,
+    rhs: &'g Rhs<T, N, A>,
+    pos: usize,
+}
+
+comparators!(LR1ItemCore('g, T, N, A), (T, N), (lhs, rhs, pos));
+
+impl<'g, T, N, A> From<LR1Item<'g, T, N, A>> for LR1ItemCore<'g, T, N, A> {
+    fn from(item: LR1Item<'g, T, N, A>) -> Self {
+        Self {
+            lhs: item.lhs,
+            rhs: item.rhs,
+            pos: item.pos,
+        }
+    }
+}
+
 impl<T, N, A> Grammar<T, N, A>
 where
     T: Ord,
     N: Ord,
 {
+    #[inline]
+    pub fn lalr1_table_by_lr1<'g>(
+        &'g self,
+    ) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
+        // Construct C = the collection of sets of LR(1) items.
+        let lr1_automaton = self.lr1_automaton();
+        let lr1_states = &lr1_automaton.states;
+
+        // For each core present among the set of LR(1) items, find all sets having that core, and
+        // replace these sets by their union.
+
+        // Vector of LR(1) states and the set of indexes to the original LR(1) item sets in
+        // lr1_states.
+        let mut states: Vec<(LR1State<'g, T, N, A>, BTreeSet<usize>)> = Vec::new();
+        // Mapping of item core sets to indexes in the LR(1) state vector.
+        let mut union_map: BTreeMap<LR1ItemCoreSet<'g, T, N, A>, usize> = BTreeMap::new();
+        // Mapping of original LR(1) item set indexes (in lr1_states) to new LR(1) merged states
+        // indexes (in states).
+        let mut state_mapping = BTreeMap::new();
+
+        // Group indexes of duplicates (by item cores).
+        for (i, state) in lr1_states.iter().enumerate() {
+            let items = &state.items;
+
+            // Check for item core set in map.
+            let item_cores: LR1ItemCoreSet<'g, T, N, A> = items.clone().into();
+            match union_map.get(&item_cores) {
+                // If already exists, then
+                Some(state_idx) => {
+                    let (_, indexes) = states.get_mut(*state_idx).unwrap();
+                    indexes.insert(i);
+                    state_mapping.insert(i, *state_idx);
+                }
+                None => {
+                    let new_state = LR1State {
+                        actions: BTreeMap::new(),
+                        endmarker: None,
+                        goto: BTreeMap::new(),
+                    };
+                    let mut indexes = BTreeSet::new();
+                    indexes.insert(i);
+
+                    states.push((new_state, indexes));
+
+                    let state_idx = states.len() - 1;
+                    union_map.insert(item_cores, state_idx);
+                    state_mapping.insert(i, state_idx);
+                }
+            };
+        }
+
+        // item_cores : the LR(1) item core sets
+        // state_idx  : index of corresponding new LR(1) state in `states`
+        // state      : LR(1) state in `states` at index `state_idx`
+        // indexes    : vector of indexes to original LR(1) item sets in `lr1_states`
+        for (state, indexes) in states.iter_mut() {
+            // Collect the associated automaton states.
+            let associated_states: Vec<_> = indexes
+                .iter()
+                .map(|idx| lr1_states.get(*idx).unwrap())
+                .collect();
+
+            // Union the item sets for the current core/new LR(1) state.
+            let item_union: BTreeSet<_> = associated_states
+                .iter()
+                .flat_map(|assoc| assoc.items.clone())
+                .collect();
+
+            let transitions: BTreeMap<_, _> = associated_states
+                .iter()
+                .flat_map(|assoc| &assoc.transitions)
+                .collect();
+
+            for (sy, dest) in transitions {
+                let new_dest = state_mapping.get(dest).unwrap();
+                match *sy {
+                    Symbol::Terminal(ref t) => {
+                        state.set_action(Some(t), LR1Action::Shift(*new_dest))?;
+                    }
+                    Symbol::Nonterminal(ref n) => {
+                        state.goto.insert(n, *new_dest);
+                    }
+                }
+            }
+
+            for item in item_union {
+                if item.pos == item.rhs.body.len() {
+                    if *item.lhs != self.start {
+                        state.set_action(item.lookahead, LR1Action::Reduce(item.lhs, item.rhs))?;
+                    } else if item.lookahead.is_none() {
+                        state.set_action(None, LR1Action::Accept)?;
+                    }
+                }
+            }
+        }
+
+        Ok(LR1Table {
+            states: states.into_iter().map(|x| x.0).collect(),
+            // TODO: Not sure if this is actually correct
+            initial: *state_mapping.get(&lr1_automaton.start).unwrap(),
+        })
+    }
+
     #[inline]
     pub fn lr1_table<'g>(&'g self) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
         let lr1_automaton = self.lr1_automaton();
@@ -584,6 +726,14 @@ mod test_grammar_4_55 {
 
     use Nonterminal::*;
     use Terminal::*;
+
+    #[test]
+    fn test_lalr1_table_by_lr1() {
+        let grammar = create_grammar();
+        let table = grammar.lalr1_table_by_lr1().unwrap();
+
+        assert_eq!(7, table.states.len());
+    }
 
     #[test]
     fn test_lr1_table() {
