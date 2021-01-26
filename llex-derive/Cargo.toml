@@ -10,7 +10,6 @@ name = "llex_derive"
 proc-macro = true
 
 [dependencies]
-lazy_static = "1.4.0"
 proc-macro2 = "1.0.18"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }

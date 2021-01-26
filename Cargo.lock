@@ -122,17 +122,10 @@ dependencies = [
 name = "lalrgen-derive"
 version = "0.1.0"
 dependencies = [
- "lazy_static",
  "proc-macro2",
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
@@ -144,7 +137,6 @@ checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
 name = "llex"
 version = "0.1.0"
 dependencies = [
- "lazy_static",
  "llex-derive",
  "proc-macro2",
  "quote",
@@ -157,7 +149,6 @@ name = "llex-derive"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "lazy_static",
  "proc-macro2",
  "quote",
  "regexp2",
