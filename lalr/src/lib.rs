@@ -29,11 +29,11 @@ mod comparator {
     }
 }
 
-mod error;
-mod grammar;
-// mod lalr;
-mod lr0;
-mod lr1;
+pub mod error;
+pub mod grammar;
+pub mod lr0;
+pub mod lr1;
 
 pub use error::{Error, Result};
 pub use grammar::*;
+pub use lr1::LR1Parser;

@@ -7,11 +7,6 @@ use std::iter::FromIterator;
 use itertools::Itertools;
 
 #[derive(Debug)]
-pub struct LR1Parser<'g, T: 'g, N: 'g, A: 'g> {
-    table: LR1Table<'g, T, N, A>,
-}
-
-#[derive(Debug)]
 pub struct LR1Table<'g, T: 'g, N: 'g, A: 'g> {
     pub states: Vec<LR1State<'g, T, N, A>>,
     pub initial: usize,
