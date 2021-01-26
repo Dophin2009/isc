@@ -14,12 +14,14 @@ pub struct LexerItem<T> {
 }
 
 impl<T> LexerItem<T> {
+    #[inline]
     pub fn new(token: T) -> Self {
         Self { token }
     }
 }
 
 impl<T> From<T> for LexerItem<T> {
+    #[inline]
     fn from(token: T) -> Self {
         LexerItem::new(token)
     }
@@ -41,6 +43,7 @@ where
     M: LexerDFAMatcher<T>,
     I: Iterator<Item = char>,
 {
+    #[inline]
     pub fn new(matcher: M, input: I) -> Self {
         Self {
             matcher,
@@ -57,6 +60,7 @@ where
 {
     type Item = LexerItem<T>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.input.peek()?;
 

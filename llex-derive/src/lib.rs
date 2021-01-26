@@ -56,6 +56,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
             let fn_name = format_ident!("action_{}", dfa_state);
             quote! {
                 #[allow(unused)]
+                #[inline]
                 fn #fn_name(#span_id: &str) -> std::option::Option<#return_type> {
                     #action
                 }
@@ -78,11 +79,13 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         }
 
         impl #struct_name {
+            #[inline]
             #struct_vis fn new() -> Self {
                 let dfa = #dfa_rebuilt;
                 Self { dfa }
             }
 
+            #[inline]
             #fn_vis fn #fn_name<'a, I>(&self, input: I) -> ::llex::LexerStream<#return_type, &#struct_name, I>
             where
                 I: std::iter::Iterator<Item = char>,
@@ -92,6 +95,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         }
 
         impl ::llex::stream::LexerDFAMatcher<#return_type> for #struct_name {
+            #[inline]
             fn tokenize<'a, I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
             where
                 I: std::iter::Iterator<Item = char>,
@@ -119,6 +123,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         }
 
         impl ::llex::stream::LexerDFAMatcher<#return_type> for &#struct_name {
+            #[inline]
             fn tokenize<I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
             where
                 I: std::iter::Iterator<Item = char>,
@@ -145,6 +150,7 @@ struct Lexer {
 }
 
 impl Parse for Lexer {
+    #[inline]
     fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
         macro_rules! token {
             ($x:tt) => {
@@ -223,6 +229,7 @@ struct Rule {
 }
 
 impl Rule {
+    #[inline]
     fn new(regexp: LitStr, action: Expr) -> Self {
         Self { regexp, action }
     }
@@ -231,6 +238,7 @@ impl Rule {
 const INVALID_REGEXP_ERROR: &str = "invalid regular expression";
 
 // Parse the rules into a single NFA and a map of final states to action expressions.
+#[inline]
 fn parse_combined_nfa(rules: &[Rule]) -> (NFA<CharClass>, HashMap<usize, (&Expr, usize)>) {
     let nfa_parser = NFAParser::new();
     // Parse regular expression strings into NFAs.
