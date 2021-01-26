@@ -26,6 +26,7 @@ pub struct LR0State<'g, T: 'g, N: 'g, A: 'g> {
 comparators!(LR0State('g, T, N, A), (T, N), (items));
 
 impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR0State<'g, T, N, A> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
@@ -40,6 +41,7 @@ where
     N: Ord,
 {
     /// Compute the LR(0) item set.
+    #[inline]
     pub fn lr0_automaton<'g>(&'g self) -> LR0Automaton<'g, T, N, A> {
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = LR0ItemSet::new();
@@ -111,6 +113,7 @@ where
     /// Compute the closure of items for the given item set.
     ///
     /// TODO: Find better, non-recursive way to write this?
+    #[inline]
     pub fn lr0_closure<'g>(&'g self, set: &mut LR0ItemSet<'g, T, N, A>)
     where
         N: Ord,
@@ -151,6 +154,7 @@ where
 
     /// Compute the GOTO(I, X) where I is a set of items and X is a grammar symbol, returning the
     /// set of all items [A -> aX.B] such that [A -> a.XB] is in I.
+    #[inline]
     pub fn lr0_goto<'g>(
         &'g self,
         set: &LR0ItemSet<'g, T, N, A>,
@@ -204,12 +208,14 @@ comparators!(LR0Item('g, T, N, A), (T, N), (lhs, rhs, pos));
 
 impl<'g, T: 'g, N: 'g, A: 'g> LR0Item<'g, T, N, A> {
     /// Retrieves B for A -> a.Bb, or None if A -> a.
+    #[inline]
     pub fn next_symbol(&self) -> Option<&'g Symbol<T, N>> {
         self.rhs.body.get(self.pos)
     }
 }
 
 impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR0Item<'g, T, N, A> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             lhs: self.lhs,
@@ -230,35 +236,42 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR0ItemSet<'g, T, N, A>
 where
     LR0Item<'g, T, N, A>: Ord,
 {
+    #[inline]
     pub fn new() -> Self {
         Self {
             items: BTreeSet::new(),
         }
     }
 
+    #[inline]
     pub fn insert(&mut self, item: LR0Item<'g, T, N, A>) -> bool {
         self.items.insert(item)
     }
 
+    #[inline]
     pub fn append(&mut self, set: &mut Self) {
         self.items.append(&mut set.items);
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
     /// Iterate through the items in this LR0ItemSet.
+    #[inline]
     pub fn iter(&self) -> btree_set::Iter<LR0Item<'g, T, N, A>> {
         self.items.iter()
     }
 }
 
 impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR0ItemSet<'g, T, N, A> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
@@ -270,6 +283,7 @@ impl<'g, T: 'g, N: 'g, A: 'g> IntoIterator for LR0ItemSet<'g, T, N, A> {
     type Item = LR0Item<'g, T, N, A>;
     type IntoIter = std::collections::btree_set::IntoIter<Self::Item>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.items.into_iter()
     }
@@ -280,6 +294,7 @@ where
     T: Ord,
     N: Ord,
 {
+    #[inline]
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = LR0Item<'g, T, N, A>>,

@@ -20,12 +20,14 @@ pub struct Rhs<T, N, A> {
 comparators!(Rhs(T, N, A), (T, N), (body));
 
 impl<T, N, A> Rhs<T, N, A> {
+    #[inline]
     pub fn new(body: Vec<Symbol<T, N>>, assoc: A) -> Self {
         Self { body, assoc }
     }
 }
 
 impl<T, N> Rhs<T, N, ()> {
+    #[inline]
     pub fn noop(body: Vec<Symbol<T, N>>) -> Self {
         Self { body, assoc: () }
     }
@@ -54,6 +56,7 @@ where
     ///
     /// Returns [`Err`] if the starting nonterminal has no grammar rules, or rule bodies reference
     /// nonterminals that have no rules of their own.
+    #[inline]
     pub fn new(start: N, rules: BTreeMap<N, Vec<Rhs<T, N, A>>>) -> Result<Self> {
         // Check that all nonterminals used in rule bodies have their own rules.
         // Vectors of Rhs may be empty to indicate A -> e.
@@ -83,6 +86,7 @@ where
     /// Compute FOLLOW sets for the nonterminals in the grammar.
     ///
     /// Partly from [`goffrie/lalr`](https://github.com/goffrie/lalr/blob/master/src/lib.rs).
+    #[inline]
     pub fn follow_sets<'g>(
         &'g self,
         first_sets: Option<&'g FirstSets<'g, T, N>>,
@@ -172,6 +176,7 @@ where
     }
 
     /// Compute the FIRST sets for the nonterminals in the grammar.
+    #[inline]
     pub fn first_sets<'g>(&'g self) -> FirstSets<'g, T, N> {
         // Map of FIRST sets, with flag indicating whether or not the set contains ε.
         let mut map: BTreeMap<_, _> = self

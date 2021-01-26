@@ -60,6 +60,7 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
     /// exists for that symbol.
     ///
     /// If `sy` is [`None`], it is interpreted as the endmarker terminal.
+    #[inline]
     pub fn set_action(
         &mut self,
         sy: Option<&'g T>,
@@ -99,6 +100,7 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
         }
     }
 
+    #[inline]
     fn determine_conflict(
         a1: &LR1Action<'g, T, N, A>,
         a2: &LR1Action<'g, T, N, A>,
@@ -142,12 +144,14 @@ comparators!(LR1Item('g, T, N, A), (T, N), (lhs, rhs, pos, lookahead));
 
 impl<'g, T: 'g, N: 'g, A: 'g> LR1Item<'g, T, N, A> {
     /// Retrieves B for A -> a.Bb, or None if A -> a.
+    #[inline]
     pub fn next_symbol(&self) -> Option<&'g Symbol<T, N>> {
         self.rhs.body.get(self.pos)
     }
 }
 
 impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR1Item<'g, T, N, A> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             lhs: self.lhs,
@@ -169,35 +173,42 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1ItemSet<'g, T, N, A>
 where
     LR1Item<'g, T, N, A>: Ord,
 {
+    #[inline]
     pub fn new() -> Self {
         Self {
             items: BTreeSet::new(),
         }
     }
 
+    #[inline]
     pub fn insert(&mut self, item: LR1Item<'g, T, N, A>) -> bool {
         self.items.insert(item)
     }
 
+    #[inline]
     pub fn append(&mut self, set: &mut Self) {
         self.items.append(&mut set.items);
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
     /// Iterate through the items in this LR1ItemSet.
+    #[inline]
     pub fn iter(&self) -> btree_set::Iter<LR1Item<'g, T, N, A>> {
         self.items.iter()
     }
 }
 
 impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR1ItemSet<'g, T, N, A> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
@@ -209,6 +220,7 @@ impl<'g, T: 'g, N: 'g, A: 'g> IntoIterator for LR1ItemSet<'g, T, N, A> {
     type Item = LR1Item<'g, T, N, A>;
     type IntoIter = std::collections::btree_set::IntoIter<Self::Item>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.items.into_iter()
     }
@@ -219,6 +231,7 @@ where
     T: Ord,
     N: Ord,
 {
+    #[inline]
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = LR1Item<'g, T, N, A>>,
@@ -234,6 +247,7 @@ where
     T: Ord,
     N: Ord,
 {
+    #[inline]
     pub fn lr1_goto<'g>(
         &'g self,
         set: &LR1ItemSet<'g, T, N, A>,
@@ -264,6 +278,7 @@ where
     }
 
     /// Compute the LR(1) closure set for the given LR(1) item set.
+    #[inline]
     pub fn lr1_closure<'g>(
         &'g self,
         set: &mut LR1ItemSet<'g, T, N, A>,
@@ -357,6 +372,7 @@ where
     }
 
     /// Construct an SLR(1) parse table for the grammar.
+    #[inline]
     pub fn slr1_table<'g>(&'g self) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
         let lr0_automaton = self.lr0_automaton();
         let follow_sets = self.follow_sets(None);
