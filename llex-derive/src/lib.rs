@@ -107,7 +107,10 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
                 // Step through DFA to the find the longest match.
                 let (m, final_state) = match self.dfa.find_mut(input) {
                     std::option::Option::Some(m) => m,
-                    std::option::Option::None => return std::option::Option::Some(#error_variant),
+                    std::option::Option::None => {
+                        input.next();
+                        return std::option::Option::Some(#error_variant);
+                    },
                 };
 
                 // Execute the action expression corresponding to the final state.
