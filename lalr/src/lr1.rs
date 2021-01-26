@@ -1,7 +1,9 @@
 use crate::grammar::{FirstSets, Grammar, Rhs, Symbol};
 
-use std::collections::{btree_set, BTreeMap, BTreeSet};
+use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
 use std::iter::FromIterator;
+
+use itertools::Itertools;
 
 #[derive(Debug)]
 pub struct LR1Parser<'g, T: 'g, N: 'g, A: 'g> {
@@ -242,11 +244,97 @@ where
     }
 }
 
+#[derive(Debug)]
+pub struct LR1Automaton<'g, T: 'g, N: 'g, A: 'g> {
+    pub states: Vec<LR1AutomatonState<'g, T, N, A>>,
+    pub start: usize,
+}
+
+#[derive(Debug)]
+pub struct LR1AutomatonState<'g, T: 'g, N: 'g, A: 'g> {
+    pub items: LR1ItemSet<'g, T, N, A>,
+    pub transitions: BTreeMap<&'g Symbol<T, N>, usize>,
+}
+
+comparators!(LR1AutomatonState('g, T, N, A), (T, N), (items));
+
+impl<'g, T: 'g, N: 'g, A: 'g> Clone for LR1AutomatonState<'g, T, N, A> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+            transitions: self.transitions.clone(),
+        }
+    }
+}
+
 impl<T, N, A> Grammar<T, N, A>
 where
     T: Ord,
     N: Ord,
 {
+    #[inline]
+    pub fn lr1_automaton<'g>(&'g self) -> LR1Automaton<'g, T, N, A> {
+        // Initialize item set to closure of {[S' -> S]}.
+        let mut initial_set = LR1ItemSet::new();
+        initial_set.insert(LR1Item {
+            lhs: &self.start,
+            rhs: &self.rules.get(&self.start).unwrap()[0],
+            pos: 0,
+            lookahead: None,
+        });
+
+        let first_sets = self.first_sets();
+        self.lr1_closure(&mut initial_set, &first_sets);
+
+        let initial_state = LR1AutomatonState {
+            items: initial_set.clone(),
+            transitions: BTreeMap::new(),
+        };
+
+        let mut states = Vec::new();
+        let mut states_queue = VecDeque::new();
+        let mut existing_sets = BTreeMap::new();
+
+        states.push(initial_state.clone());
+        states_queue.push_back((initial_state, 0));
+        existing_sets.insert(initial_set, 0);
+
+        while let Some((mut state, state_idx)) = states_queue.pop_front() {
+            let symbols = state.items.iter().flat_map(|item| &item.rhs.body).dedup();
+            for sy in symbols {
+                // Compute GOTO(I, X)
+                let goto_closure = self.lr1_goto(&state.items, &sy, &first_sets);
+                if goto_closure.is_empty() {
+                    continue;
+                }
+
+                // Check if GOTO(I, X) set already exists.
+                match existing_sets.get(&goto_closure) {
+                    Some(&dest_idx) => {
+                        state.transitions.insert(sy, dest_idx);
+                    }
+                    None => {
+                        let new_state = LR1AutomatonState {
+                            items: goto_closure.clone(),
+                            transitions: BTreeMap::new(),
+                        };
+                        states.push(new_state.clone());
+                        let new_idx = states.len() - 1;
+
+                        state.transitions.insert(sy, new_idx);
+                        states_queue.push_back((new_state, new_idx));
+                        existing_sets.insert(goto_closure, new_idx);
+                    }
+                };
+            }
+
+            *states.get_mut(state_idx).unwrap() = state;
+        }
+
+        LR1Automaton { states, start: 0 }
+    }
+
     #[inline]
     pub fn lr1_goto<'g>(
         &'g self,
