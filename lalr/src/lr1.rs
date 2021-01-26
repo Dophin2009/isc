@@ -274,6 +274,56 @@ where
     N: Ord,
 {
     #[inline]
+    pub fn lr1_table<'g>(&'g self) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
+        let lr1_automaton = self.lr1_automaton();
+
+        let mut states = Vec::new();
+
+        for automaton_state in lr1_automaton.states {
+            let mut lr1_state = LR1State {
+                actions: BTreeMap::new(),
+                endmarker: None,
+                goto: BTreeMap::new(),
+            };
+
+            for (sy, dest) in automaton_state.transitions {
+                match *sy {
+                    // If [A -> α·aβ, b] is in I_i and GOTO(I_i, a) = I_j and a is a terminal, then
+                    // set ACTION[i, a] to "shift j".
+                    Symbol::Terminal(ref t) => {
+                        lr1_state.set_action(Some(t), LR1Action::Shift(dest))?;
+                    }
+                    // If GOTO(I_i, A) = I_j, then GOTO[i, A] = j.
+                    Symbol::Nonterminal(ref n) => {
+                        lr1_state.goto.insert(n, dest);
+                    }
+                }
+            }
+
+            for item in automaton_state.items {
+                // If [A -> α·, a] is in I_i, A != S', then set ACTION[i, a] to "reduce A ->
+                // α".
+                if item.pos == item.rhs.body.len() {
+                    if *item.lhs != self.start {
+                        lr1_state
+                            .set_action(item.lookahead, LR1Action::Reduce(item.lhs, item.rhs))?;
+                    } else if item.lookahead.is_none() {
+                        // If [S' -> S·, $] is in I_i, then set ACTION[i, $] to "accept".
+                        lr1_state.set_action(None, LR1Action::Accept)?;
+                    }
+                }
+            }
+
+            states.push(lr1_state);
+        }
+
+        Ok(LR1Table {
+            states,
+            initial: lr1_automaton.start,
+        })
+    }
+
+    #[inline]
     pub fn lr1_automaton<'g>(&'g self) -> LR1Automaton<'g, T, N, A> {
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = LR1ItemSet::new();
@@ -523,7 +573,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod test_grammar_4_49 {
     use super::*;
     use crate::{
         Grammar, Rhs,
