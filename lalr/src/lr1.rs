@@ -716,7 +716,6 @@ where
 
 #[cfg(test)]
 mod test_grammar_4_55 {
-    use super::*;
     use crate::{
         Grammar, Rhs,
         Symbol::{Nonterminal as NT, Terminal as TT},
