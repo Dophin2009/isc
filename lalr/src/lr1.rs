@@ -234,6 +234,36 @@ where
     T: Ord,
     N: Ord,
 {
+    pub fn lr1_goto<'g>(
+        &'g self,
+        set: &LR1ItemSet<'g, T, N, A>,
+        x: &'g Symbol<T, N>,
+        first_sets: &FirstSets<'g, T, N>,
+    ) -> LR1ItemSet<'g, T, N, A> {
+        let mut new_set = LR1ItemSet::new();
+
+        // For each item [A -> α·Xβ, a] in I, add item [A -> aX·β, a] to set J.
+        for item in set.iter() {
+            let post_dot = match item.next_symbol() {
+                Some(sy) => sy,
+                None => continue,
+            };
+
+            if *post_dot != *x {
+                continue;
+            }
+
+            new_set.insert(LR1Item {
+                pos: item.pos + 1,
+                ..*item
+            });
+        }
+
+        self.lr1_closure(&mut new_set, first_sets);
+        return new_set;
+    }
+
+    /// Compute the LR(1) closure set for the given LR(1) item set.
     pub fn lr1_closure<'g>(
         &'g self,
         set: &mut LR1ItemSet<'g, T, N, A>,
@@ -437,7 +467,8 @@ mod test {
         });
 
         grammar.lr1_closure(&mut initial_set, &grammar.first_sets());
-        println!("{:#?}", initial_set);
+
+        assert_eq!(8, initial_set.items.len());
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
