@@ -1,11 +1,10 @@
-Independent study
+Independent Study
 =================
 
 This repository contains the materials for my high school independent study
 course on programming language compilers. 
 
 The goal is to write a basic compiler for a basic, unnamed language.
-
 
 Components
 ==========
@@ -14,23 +13,18 @@ The following components have been / are being implemented:
 
     automata :  implementation of nondeterminstic and deterministic finite
                 automata
-
     lalr     :  generation of SLR(1), LR(1), and LALR(1) parse tables from
                 context-free grammars
-
     lalrgen  :  parser generator as a procedural macro
-
     llex     :  lexical analyzer generator as a procedural macro
-
     regexp   :  implementation of limited regular expressions
-
     regexp2  :  better implementation of regular expressions with support for
                 character classes and other operators
 
+See subdirectories for more information and examples.
 
 Building
 ========
 
-Rust (nightly) is required to build the above components.
-
-See `Makefile` for other targets and requirements.
+Rust (nightly) is required to build the above components.  See `Makefile` for
+other targets and requirements.
