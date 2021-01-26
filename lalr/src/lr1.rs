@@ -1,10 +1,8 @@
 use crate::grammar::{FirstSets, Grammar, Rhs, Symbol};
 
+use std::cmp;
+use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
 use std::iter::FromIterator;
-use std::{
-    cmp,
-    collections::{btree_set, BTreeMap, BTreeSet, VecDeque},
-};
 
 use itertools::Itertools;
 
@@ -138,43 +136,38 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
         N: Ord,
         F: Fn(&N, &Rhs<T, N, A>, Option<&T>) -> i32,
     {
+        use LR1ConflictResolution::*;
         // TODO: check for same action; don't error on those
         match *a1 {
             LR1Action::Reduce(n1, rhs1) => match *a2 {
                 LR1Action::Reduce(n2, rhs2) => {
                     if n1 == n2 && rhs1 == rhs2 {
-                        LR1ConflictResolution::Keep
+                        Keep
                     } else {
                         match priority_of(n1, rhs1, sy).cmp(&priority_of(n2, rhs2, sy)) {
                             // Existing has greater priority than new: keep
-                            cmp::Ordering::Greater => LR1ConflictResolution::Keep,
+                            cmp::Ordering::Greater => Keep,
                             // Existing has lower priority than new: override
-                            cmp::Ordering::Less => LR1ConflictResolution::Override,
+                            cmp::Ordering::Less => Override,
                             // Equal priority: conflict
-                            cmp::Ordering::Equal => {
-                                LR1ConflictResolution::Conflict(LR1Conflict::ReduceReduce {
-                                    r1: (n1, rhs1),
-                                    r2: (n2, rhs2),
-                                })
-                            }
+                            cmp::Ordering::Equal => Conflict(LR1Conflict::ReduceReduce {
+                                r1: (n1, rhs1),
+                                r2: (n2, rhs2),
+                            }),
                         }
                     }
                 }
-                LR1Action::Shift(dest2) => {
-                    LR1ConflictResolution::Conflict(LR1Conflict::ShiftReduce {
-                        shift: (sy, dest2),
-                        reduce: (n1, rhs1),
-                    })
-                }
+                LR1Action::Shift(dest2) => Conflict(LR1Conflict::ShiftReduce {
+                    shift: (sy, dest2),
+                    reduce: (n1, rhs1),
+                }),
                 _ => unreachable!(),
             },
             LR1Action::Shift(dest1) => match *a2 {
-                LR1Action::Reduce(n2, rhs2) => {
-                    LR1ConflictResolution::Conflict(LR1Conflict::ShiftReduce {
-                        shift: (sy, dest1),
-                        reduce: (n2, rhs2),
-                    })
-                }
+                LR1Action::Reduce(n2, rhs2) => Conflict(LR1Conflict::ShiftReduce {
+                    shift: (sy, dest1),
+                    reduce: (n2, rhs2),
+                }),
                 _ => unreachable!(),
             },
             _ => unreachable!(),
