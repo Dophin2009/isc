@@ -1,7 +1,10 @@
 use crate::grammar::{FirstSets, Grammar, Rhs, Symbol};
 
-use std::collections::{btree_set, BTreeMap, BTreeSet, VecDeque};
 use std::iter::FromIterator;
+use std::{
+    cmp,
+    collections::{btree_set, BTreeMap, BTreeSet, VecDeque},
+};
 
 use itertools::Itertools;
 
@@ -40,7 +43,7 @@ pub enum LR1Action<'g, T: 'g, N: 'g, A: 'g> {
 
 /// A conflict encountered when constructing an LR(1) parse table.
 #[derive(Debug, Clone)]
-pub enum LRConflict<'g, T: 'g, N: 'g, A: 'g> {
+pub enum LR1Conflict<'g, T: 'g, N: 'g, A: 'g> {
     /// Shift-reduce conflict
     ShiftReduce {
         /// Shift action involved in the conflict.
@@ -57,19 +60,29 @@ pub enum LRConflict<'g, T: 'g, N: 'g, A: 'g> {
     },
 }
 
+#[derive(Debug)]
+enum LR1ConflictResolution<'g, T: 'g, N: 'g, A: 'g> {
+    Conflict(LR1Conflict<'g, T, N, A>),
+    Override,
+    Keep,
+}
+
 impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
-    /// Insert an action for a symbol, returning an [`LRConflict`] error some action already
+    /// Insert an action for a symbol, returning an [`LR1Conflict`] error some action already
     /// exists for that symbol.
     ///
     /// If `sy` is [`None`], it is interpreted as the endmarker terminal.
     #[inline]
-    pub fn set_action(
+    pub fn set_action<F>(
         &mut self,
         sy: Option<&'g T>,
         action: LR1Action<'g, T, N, A>,
-    ) -> Result<(), LRConflict<'g, T, N, A>>
+        priority_of: &F,
+    ) -> Result<(), LR1Conflict<'g, T, N, A>>
     where
         T: Ord,
+        N: Ord,
+        F: Fn(&N, &Rhs<T, N, A>, Option<&T>) -> i32,
     {
         match sy {
             Some(sy) => {
@@ -78,9 +91,14 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
                 match self.actions.get(sy) {
                     Some(existing) => {
                         // Only reduce-reduce and shift-reduce should occur.
-                        let conflict =
-                            Self::determine_conflict(existing, &action, Some(sy)).unwrap();
-                        Err(conflict)
+                        match Self::determine_conflict(existing, &action, Some(sy), priority_of) {
+                            LR1ConflictResolution::Conflict(conflict) => Err(conflict),
+                            LR1ConflictResolution::Override => {
+                                self.actions.insert(sy, action);
+                                Ok(())
+                            }
+                            LR1ConflictResolution::Keep => Ok(()),
+                        }
                     }
                     None => {
                         self.actions.insert(sy, action);
@@ -91,8 +109,14 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
             // sy is endmarker terminal.
             None => match &self.endmarker {
                 Some(existing) => {
-                    let conflict = Self::determine_conflict(&existing, &action, None).unwrap();
-                    Err(conflict)
+                    match Self::determine_conflict(&existing, &action, None, priority_of) {
+                        LR1ConflictResolution::Conflict(conflict) => Err(conflict),
+                        LR1ConflictResolution::Override => {
+                            self.endmarker = Some(action);
+                            Ok(())
+                        }
+                        LR1ConflictResolution::Keep => Ok(()),
+                    }
                 }
                 None => {
                     self.endmarker = Some(action);
@@ -103,32 +127,57 @@ impl<'g, T: 'g, N: 'g, A: 'g> LR1State<'g, T, N, A> {
     }
 
     #[inline]
-    fn determine_conflict(
+    fn determine_conflict<F>(
         a1: &LR1Action<'g, T, N, A>,
         a2: &LR1Action<'g, T, N, A>,
         sy: Option<&'g T>,
-    ) -> Option<LRConflict<'g, T, N, A>> {
+        priority_of: &F,
+    ) -> LR1ConflictResolution<'g, T, N, A>
+    where
+        T: Ord,
+        N: Ord,
+        F: Fn(&N, &Rhs<T, N, A>, Option<&T>) -> i32,
+    {
         // TODO: check for same action; don't error on those
         match *a1 {
             LR1Action::Reduce(n1, rhs1) => match *a2 {
-                LR1Action::Reduce(n2, rhs2) => Some(LRConflict::ReduceReduce {
-                    r1: (n1, rhs1),
-                    r2: (n2, rhs2),
-                }),
-                LR1Action::Shift(dest2) => Some(LRConflict::ShiftReduce {
-                    shift: (sy, dest2),
-                    reduce: (n1, rhs1),
-                }),
-                _ => None,
+                LR1Action::Reduce(n2, rhs2) => {
+                    if n1 == n2 && rhs1 == rhs2 {
+                        LR1ConflictResolution::Keep
+                    } else {
+                        match priority_of(n1, rhs1, sy).cmp(&priority_of(n2, rhs2, sy)) {
+                            // Existing has greater priority than new: keep
+                            cmp::Ordering::Greater => LR1ConflictResolution::Keep,
+                            // Existing has lower priority than new: override
+                            cmp::Ordering::Less => LR1ConflictResolution::Override,
+                            // Equal priority: conflict
+                            cmp::Ordering::Equal => {
+                                LR1ConflictResolution::Conflict(LR1Conflict::ReduceReduce {
+                                    r1: (n1, rhs1),
+                                    r2: (n2, rhs2),
+                                })
+                            }
+                        }
+                    }
+                }
+                LR1Action::Shift(dest2) => {
+                    LR1ConflictResolution::Conflict(LR1Conflict::ShiftReduce {
+                        shift: (sy, dest2),
+                        reduce: (n1, rhs1),
+                    })
+                }
+                _ => unreachable!(),
             },
             LR1Action::Shift(dest1) => match *a2 {
-                LR1Action::Reduce(n2, rhs2) => Some(LRConflict::ShiftReduce {
-                    shift: (sy, dest1),
-                    reduce: (n2, rhs2),
-                }),
-                _ => None,
+                LR1Action::Reduce(n2, rhs2) => {
+                    LR1ConflictResolution::Conflict(LR1Conflict::ShiftReduce {
+                        shift: (sy, dest1),
+                        reduce: (n2, rhs2),
+                    })
+                }
+                _ => unreachable!(),
             },
-            _ => None,
+            _ => unreachable!(),
         }
     }
 }
@@ -313,9 +362,13 @@ where
     N: Ord,
 {
     #[inline]
-    pub fn lalr1_table_by_lr1<'g>(
+    pub fn lalr1_table_by_lr1<'g, F>(
         &'g self,
-    ) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
+        priority_of: &F,
+    ) -> Result<LR1Table<'g, T, N, A>, LR1Conflict<'g, T, N, A>>
+    where
+        F: Fn(&N, &Rhs<T, N, A>, Option<&T>) -> i32,
+    {
         // Construct C = the collection of sets of LR(1) items.
         let lr1_automaton = self.lr1_automaton();
         let lr1_states = &lr1_automaton.states;
@@ -389,7 +442,7 @@ where
                 let new_dest = state_mapping.get(dest).unwrap();
                 match *sy {
                     Symbol::Terminal(ref t) => {
-                        state.set_action(Some(t), LR1Action::Shift(*new_dest))?;
+                        state.set_action(Some(t), LR1Action::Shift(*new_dest), priority_of)?;
                     }
                     Symbol::Nonterminal(ref n) => {
                         state.goto.insert(n, *new_dest);
@@ -400,9 +453,13 @@ where
             for item in item_union {
                 if item.pos == item.rhs.body.len() {
                     if *item.lhs != self.start {
-                        state.set_action(item.lookahead, LR1Action::Reduce(item.lhs, item.rhs))?;
+                        state.set_action(
+                            item.lookahead,
+                            LR1Action::Reduce(item.lhs, item.rhs),
+                            priority_of,
+                        )?;
                     } else if item.lookahead.is_none() {
-                        state.set_action(None, LR1Action::Accept)?;
+                        state.set_action(None, LR1Action::Accept, priority_of)?;
                     }
                 }
             }
@@ -416,7 +473,13 @@ where
     }
 
     #[inline]
-    pub fn lr1_table<'g>(&'g self) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
+    pub fn lr1_table<'g, F>(
+        &'g self,
+        priority_of: &F,
+    ) -> Result<LR1Table<'g, T, N, A>, LR1Conflict<'g, T, N, A>>
+    where
+        F: Fn(&N, &Rhs<T, N, A>, Option<&T>) -> i32,
+    {
         let lr1_automaton = self.lr1_automaton();
 
         let mut states = Vec::new();
@@ -433,7 +496,7 @@ where
                     // If [A -> α·aβ, b] is in I_i and GOTO(I_i, a) = I_j and a is a terminal, then
                     // set ACTION[i, a] to "shift j".
                     Symbol::Terminal(ref t) => {
-                        lr1_state.set_action(Some(t), LR1Action::Shift(dest))?;
+                        lr1_state.set_action(Some(t), LR1Action::Shift(dest), priority_of)?;
                     }
                     // If GOTO(I_i, A) = I_j, then GOTO[i, A] = j.
                     Symbol::Nonterminal(ref n) => {
@@ -447,11 +510,14 @@ where
                 // α".
                 if item.pos == item.rhs.body.len() {
                     if *item.lhs != self.start {
-                        lr1_state
-                            .set_action(item.lookahead, LR1Action::Reduce(item.lhs, item.rhs))?;
+                        lr1_state.set_action(
+                            item.lookahead,
+                            LR1Action::Reduce(item.lhs, item.rhs),
+                            priority_of,
+                        )?;
                     } else if item.lookahead.is_none() {
                         // If [S' -> S·, $] is in I_i, then set ACTION[i, $] to "accept".
-                        lr1_state.set_action(None, LR1Action::Accept)?;
+                        lr1_state.set_action(None, LR1Action::Accept, priority_of)?;
                     }
                 }
             }
@@ -653,7 +719,13 @@ where
 
     /// Construct an SLR(1) parse table for the grammar.
     #[inline]
-    pub fn slr1_table<'g>(&'g self) -> Result<LR1Table<'g, T, N, A>, LRConflict<'g, T, N, A>> {
+    pub fn slr1_table<'g, F>(
+        &'g self,
+        priority_of: &F,
+    ) -> Result<LR1Table<'g, T, N, A>, LR1Conflict<'g, T, N, A>>
+    where
+        F: Fn(&N, &Rhs<T, N, A>, Option<&T>) -> i32,
+    {
         let lr0_automaton = self.lr0_automaton();
         let follow_sets = self.follow_sets(None);
 
@@ -672,7 +744,7 @@ where
                     // If [A -> α.aβ] is in I_i and GOTO(I_i, a) = I_j and a is a terminal, then
                     // set ACTION[i, a] to "shift j".
                     Symbol::Terminal(ref t) => {
-                        lr1_state.set_action(Some(t), LR1Action::Shift(dest))?;
+                        lr1_state.set_action(Some(t), LR1Action::Shift(dest), priority_of)?;
                     }
                     // If GOTO(I_i, A) = I_j for nonterminal A, then GOTO[i, A] = j.
                     Symbol::Nonterminal(ref n) => {
@@ -688,16 +760,23 @@ where
                     if *item.lhs != self.start {
                         let (follow_set, endmarker) = follow_sets.get(item.lhs).unwrap();
                         for sy in follow_set {
-                            lr1_state
-                                .set_action(Some(sy), LR1Action::Reduce(item.lhs, item.rhs))?;
+                            lr1_state.set_action(
+                                Some(sy),
+                                LR1Action::Reduce(item.lhs, item.rhs),
+                                priority_of,
+                            )?;
                         }
 
                         if *endmarker {
-                            lr1_state.set_action(None, LR1Action::Reduce(item.lhs, item.rhs))?;
+                            lr1_state.set_action(
+                                None,
+                                LR1Action::Reduce(item.lhs, item.rhs),
+                                priority_of,
+                            )?;
                         }
                     } else {
                         // If [S' -> S.] is in I_i, then set ACTION[i, $] to "accept".
-                        lr1_state.set_action(None, LR1Action::Accept)?;
+                        lr1_state.set_action(None, LR1Action::Accept, priority_of)?;
                     }
                 }
             }
@@ -729,7 +808,7 @@ mod test_grammar_4_55 {
     #[test]
     fn test_lalr1_table_by_lr1() {
         let grammar = create_grammar();
-        let table = grammar.lalr1_table_by_lr1().unwrap();
+        let table = grammar.lalr1_table_by_lr1(&|_, _, _| 0).unwrap();
 
         assert_eq!(7, table.states.len());
     }
@@ -738,7 +817,7 @@ mod test_grammar_4_55 {
     fn test_lr1_table() {
         let grammar = create_grammar();
 
-        let table = grammar.lr1_table().unwrap();
+        let table = grammar.lr1_table(&|_, _, _| 0).unwrap();
 
         assert_eq!(10, table.states.len());
     }

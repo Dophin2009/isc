@@ -321,7 +321,7 @@ mod test {
     #[test]
     fn test_slr1_table() {
         let GrammarUtil { grammar, .. } = create_grammar();
-        let table = grammar.slr1_table().unwrap();
+        let table = grammar.slr1_table(&|_, _, _| 0).unwrap();
 
         assert_eq!(table.states.len(), 12);
 
