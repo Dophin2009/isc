@@ -36,4 +36,3 @@ pub mod lr1;
 
 pub use error::{Error, Result};
 pub use grammar::*;
-pub use lr1::LR1Parser;
