@@ -5,4 +5,10 @@ authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-lalrgen-derive = { path "../lalrgen-derive" }
+lalrgen-derive = { path = "../lalrgen-derive" }
+
+[dev-dependencies]
+llex = { path = "../llex" }
+
+ordered-float = "2.0.1"
+utf8-chars = "1.0.0"
