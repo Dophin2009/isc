@@ -1,59 +1,123 @@
 use std::io;
 
-use llex::lexer;
-use ordered_float::NotNan;
 use utf8_chars::BufReadCharsExt;
 
-use Token::*;
+mod lexer {
+    use llex::lexer;
+    use ordered_float::NotNan;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Token {
-    Ident(String),
-    Integer(i64),
-    Float(NotNan<f64>),
+    use Token::*;
 
-    Equals,
-    Plus,
-    Minus,
-    Star,
-    Slash,
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum Token {
+        Ident(String),
+        Integer(i64),
+        Float(NotNan<f64>),
 
-    LParen,
-    RParen,
-    Semicolon,
+        Equals,
+        Plus,
+        Minus,
+        Star,
+        Slash,
 
-    Comment,
+        LParen,
+        RParen,
+        Semicolon,
 
-    Error,
+        Comment,
+
+        Error,
+    }
+
+    lexer! {
+        pub struct Lexer;
+        pub fn stream;
+        (text) -> Token, Token::Error;
+
+        r"\s" => None,
+        r"//[^\n]*" => Some(Comment),
+
+        r"[0-9]+" => {
+            let i = text.parse().unwrap();
+            Some(Integer(i))
+        }
+        r"[0-9]+\.([0-9])+" => {
+            let f = text.parse().unwrap();
+            Some(Float(NotNan::new(f).unwrap()))
+        }
+        r"[a-zA-Z_][a-zA-Z0-9_]*" => Some(Ident(text.to_string())),
+
+        r"=" => Some(Equals),
+        r"\+" => Some(Plus),
+        r"-" => Some(Minus),
+        r"\*" => Some(Star),
+        r"/" => Some(Slash),
+
+        r"\(" => Some(LParen),
+        r"\)" => Some(RParen),
+        r";" => Some(Semicolon),
+    }
 }
 
-lexer! {
-    pub struct Lexer;
-    pub fn stream;
-    (text) -> Token, Token::Error;
+mod parser {
+    use lalrgen::parser;
+    use ordered_float::NotNan;
 
-    r"\s" => None,
-    r"//[^\n]*" => Some(Comment),
-
-    r"[0-9]+" => {
-        let i = text.parse().unwrap();
-        Some(Integer(i))
+    #[derive(Debug)]
+    pub struct Program {
+        stmts: Vec<Statement>,
     }
-    r"[0-9]+\.([0-9])+" => {
-        let f = text.parse().unwrap();
-        Some(Float(NotNan::new(f).unwrap()))
+
+    #[derive(Debug)]
+    pub enum Statement {
+        Assign(Ident, Expr),
+        Print(Expr),
     }
-    r"[a-zA-Z_][a-zA-Z0-9_]*" => Some(Ident(text.to_string())),
 
-    r"=" => Some(Equals),
-    r"\+" => Some(Plus),
-    r"-" => Some(Minus),
-    r"\*" => Some(Star),
-    r"/" => Some(Slash),
+    #[derive(Debug)]
+    pub enum Expr {
+        Add(Box<Expr>, Box<Expr>),
+        Sub(Box<Expr>, Box<Expr>),
+        Multiply(Box<Expr>, Box<Expr>),
+        Divide(Box<Expr>, Box<Expr>),
+        Negative(Box<Expr>),
+        Var(Ident),
+        Integer(i64),
+        Float(NotNan<f64>),
+    }
 
-    r"\(" => Some(LParen),
-    r"\)" => Some(RParen),
-    r";" => Some(Semicolon),
+    #[derive(Debug)]
+    pub struct Ident(String);
+
+    parser! {
+        pub struct Parser;
+
+        Start: Program {
+            Program[prg] => {
+                prg
+            }
+        }
+
+        Program: Program {
+            Statements[stmts] => {
+                Program { stmts }
+            }
+        }
+
+        Statements: Vec<Expr> {
+            => vec![],
+            Statements[stmts] Statement[s] => {
+                stmts.push(s);
+                stmts
+            }
+        }
+
+        Statement: Expr {
+             Ident[ident] Token::Equals Expr[expr] Token::Semicolon => {
+                Statement::Assign(ident, expr)
+             }
+        }
+    }
 }
 
 fn main() {
