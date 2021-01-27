@@ -9,6 +9,9 @@ name = "lalrgen_derive"
 proc-macro = true
 
 [dependencies]
+lalr = { path = "../lalr" }
+
+itertools = "0.10.0"
 proc-macro2 = "1.0.18"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }

@@ -1,3 +1,5 @@
+use crate::lexer::Lexer;
+
 use std::io;
 
 use utf8_chars::BufReadCharsExt;
@@ -60,6 +62,8 @@ mod lexer {
 }
 
 mod parser {
+    use crate::lexer::Token;
+
     use lalrgen::parser;
     use ordered_float::NotNan;
 
@@ -92,7 +96,7 @@ mod parser {
     parser! {
         pub struct Parser;
 
-        Start: Program {
+        Start: Program = {
             Program[prg] => {
                 prg
             }
@@ -113,7 +117,7 @@ mod parser {
         }
 
         Statement: Expr {
-             Ident[ident] Token::Equals Expr[expr] Token::Semicolon => {
+             Ident(ident) Token::Equals Expr[expr] Token::Semicolon => {
                 Statement::Assign(ident, expr)
              }
         }
@@ -129,7 +133,7 @@ fn main() {
     let chars = stdin_lock.chars().map(|r| r.expect("invalid UTF-8 input"));
     let tokens = lexer.stream(chars);
 
-    for t in tokens {
-        println!("{:?}", t);
-    }
+    // for t in tokens {
+    // println!("{:?}", t);
+    // }
 }
