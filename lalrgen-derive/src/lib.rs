@@ -25,59 +25,101 @@ struct ProductionMeta {
 impl ProductionMeta {
     /// Generate the code for the associated closure, to be called on reduction on this production.
     fn action(&self) -> ReduceCode {
-        let pop_stmts = self.body.iter().rev().map(|sym_meta| match sym_meta {
-            SymbolMeta::Terminal { base, refname } => match refname {
-                TerminalRefname::Ignore => quote! {
-                    stack.pop().unwrap();
-                },
-                TerminalRefname::Destructure(ident, destructure_ty, fields) => {
-                    let var = match destructure_ty {
-                        DestructureType::Struct => quote! { #ident { #(#fields),* } },
-                        DestructureType::TupleStruct => quote! { #ident(#(#fields),*) },
-                    };
-                    quote! {
-                        let #ident(#(#fields),*) = {
-                            let popped = stack.pop().unwrap();
-                            // For terminals, payload is in the second position.
-                            let payload = popped.1.unwrap();
-                            match payload {
-                                #var => #(#fields,)* ,
-                                _ => std::unreachable!(),
-                            }
+        let mut pop_stmts = Vec::new();
+        // Parameter declarations in the action function signature.
+        let mut fn_params = Vec::new();
+        // Arguments to pass to the action function.
+        let mut fn_args = Vec::new();
+        // Destructure statements inside in the action function.
+        let mut fn_destructures = Vec::new();
+
+        for sym_meta in self.body.iter().rev() {
+            let pop_stmt;
+            match sym_meta {
+                SymbolMeta::Terminal { base, refname } => match refname {
+                    TerminalRefname::Ignore => {
+                        pop_stmt = quote! {
+                            // Pop from the stack but ignore.
+                            stack.pop().unwrap();
                         };
                     }
-                }
-            },
-            SymbolMeta::Nonterminal {
-                base,
-                ident,
-                refname,
-            } => match refname {
-                Some(refname) => {
-                    quote! {
-                        let #refname = {
-                            let popped = stack.pop().unwrap();
-                            // For nonterminals, payload is in the third position.
-                            let payload = popped.2.unwrap();
-                            match payload {
-                                PayloadNonterminal::#ident(x) => x,
-                                _ => std::unreachable!(),
-                            }
+                    TerminalRefname::Destructure(ident, destructure_ty, fields) => {
+                        // Use the first field as the variable for the stack popping.
+                        // TODO: Handle error properly.
+                        let first_field = fields.first().unwrap();
+                        pop_stmt = quote! {
+                            let #first_field = {
+                                let popped = stack.pop().unwrap();
+                                // For terminals, payload is in the second position.
+                                // Type is the token type.
+                                popped.1.unwrap()
+                            };
                         };
+
+                        let param_type = base.ty;
+                        fn_args.push(quote! { #first_field });
+                        fn_params.push(quote! { #first_field: #param_type });
+
+                        let destructure_var = match destructure_ty {
+                            DestructureType::Struct => quote! { #ident { #(#fields),* } },
+                            DestructureType::TupleStruct => quote! { #ident ( #(#fields),* ) },
+                        };
+                        fn_destructures.push(quote! {
+                            let ( #(#fields),* ) = match #first_field {
+                                #param_type::#destructure_var => ( #(#fields),* ),
+                                _ => std::unreachable!(),
+                            };
+                        });
                     }
-                }
-                None => quote! {
-                    stack.pop().unwrap();
                 },
-            },
-        });
+                SymbolMeta::Nonterminal {
+                    base,
+                    ident,
+                    refname,
+                } => match refname {
+                    Some(refname) => {
+                        pop_stmt = quote! {
+                            let #refname = {
+                                let popped = stack.pop().unwrap();
+                                // For nonterminals, payload is in the third position.
+                                let payload = popped.2.unwrap();
+                                match payload {
+                                    PayloadNonterminal::#ident(x) => x,
+                                    _ => std::unreachable!(),
+                                }
+                            };
+                        };
+
+                        let param_type = base.ty;
+                        fn_args.push(quote! { #refname });
+                        fn_params.push(quote! { #refname });
+                    }
+                    None => {
+                        pop_stmt = quote! {
+                            // Pop from the stack but ignore.
+                            stack.pop().unwrap();
+                        }
+                    }
+                },
+            };
+            pop_stmts.push(pop_stmt);
+        }
 
         let stack_pop = quote! {
             #(#pop_stmts)*
         };
 
-        let fn_call = quote! {};
-        let fn_decl = quote! {};
+        let fn_name = quote::format_ident!("action_{}", self.idx);
+        let fn_return_type = &self.return_type;
+        let fn_decl = quote! {
+            #[inline]
+            fn #fn_name( #(#fn_params),* ) -> Result<#fn_return_type, ()> {
+                #(#fn_destructures)*
+            }
+        };
+
+        let fn_call = quote! {#fn_name( #(#fn_args),* )?};
+
         ReduceCode {
             stack_pop,
             fn_call,
