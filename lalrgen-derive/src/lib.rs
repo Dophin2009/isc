@@ -50,11 +50,13 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     let mut terminals = HashMap::new();
     let mut terminals_count = 0usize;
 
-    // Process all rules and their productions to construct information about all terminals.
     let mut production_idx = 0;
-    for rule in rules {
+
+    // Process all rules and their productions to construct information about all terminals.
+    let mut rule_metas = Vec::new();
+    for rule in rules.into_iter() {
         let mut production_metas = Vec::new();
-        for production in rule.productions {
+        for production in rule.productions.into_iter() {
             // Keep sym_pos for disambiguation when popping from stack and destructuring.
             let mut body_meta = Vec::new();
             for (sym_pos, sym) in production.body.into_iter().enumerate() {
@@ -132,10 +134,70 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             production_metas.push(production_meta);
             production_idx += 1;
         }
+        rule_metas.push(RuleMeta {
+            lhs: rule.nonterminal,
+            productions: production_metas,
+        });
     }
 
+    let rule_inserts: Vec<_> = rule_metas
+        .into_iter()
+        .map(|rule| {
+            let lhs = grammar_nonterminals.get(&rule.lhs).unwrap().idx;
+
+            let rhs_set: Vec<_> = rule
+                .productions
+                .into_iter()
+                .map(|production| {
+                    let body_symbols: Vec<_> = production
+                        .body
+                        .into_iter()
+                        .map(|sym| {
+                            match sym {
+                                SymbolMeta::Terminal { nid, base, refname } => {
+                                    //
+                                    quote! {
+                                        ::lalrgen::lalr::Symbol::Terminal(#nid)
+                                    }
+                                }
+                                SymbolMeta::Nonterminal {
+                                    nid,
+                                    base,
+                                    ident,
+                                    refname,
+                                } => {
+                                    //
+                                    quote! {
+                                        ::lalrgen::lalr::Symbol::Nonterminal(#nid)
+                                    }
+                                }
+                            }
+                        })
+                        .collect();
+                    let body = quote! { vec![ #(#body_symbols),* ] };
+
+                    let assoc = quote! {
+                        ()
+                    };
+
+                    quote! {
+                        ::lalrgen::lalr::Rhs::new(#body, #assoc)
+                    }
+                })
+                .collect();
+
+            quote! {
+                rules.insert(#lhs, vec![ #(#rhs_set), *]);
+            }
+        })
+        .collect();
+
     let grammar_construction = quote! {
-        ::lalrgen::lalr::Grammar::new(0, ).unwrap()
+        let mut rules = std::collections::BTreeMap::new();
+
+        #(#rule_inserts)*
+
+        ::lalrgen::lalr::Grammar::new(0, rules).unwrap()
     };
 
     Ok(quote! {
@@ -158,9 +220,12 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             where
                 I: Iterator<Item = #terminal_type>,
             {
+                // TODO: Figure out better way than regerating table every time.
+                let table = self.grammar.lalr1_table_by_lr1(&|_, _, _| 0).unwrap();
+
                 let mut stack = Vec::new();
                 let mut current_state = 0;
-                stack.push((current_state));
+                stack.push((current_state,));
 
                 while true {
                     let top_state = stack.last().unwrap().0;
@@ -170,6 +235,11 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             }
         }
     })
+}
+
+struct RuleMeta {
+    lhs: Ident,
+    productions: Vec<ProductionMeta>,
 }
 
 struct ProductionMeta {
