@@ -118,6 +118,12 @@ mod parser {
                 Statement::Assign(ident, expr)
              }
         }
+
+        Expr: Expr {
+            Float(f) => {
+                Expr::Float(f)
+            }
+        }
     }
 }
 
