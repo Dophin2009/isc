@@ -74,7 +74,7 @@ mod parser {
 
     #[derive(Debug)]
     pub enum Statement {
-        Assign(Ident, Expr),
+        Assign(String, Expr),
         Print(Expr),
     }
 
@@ -85,18 +85,15 @@ mod parser {
         Multiply(Box<Expr>, Box<Expr>),
         Divide(Box<Expr>, Box<Expr>),
         Negative(Box<Expr>),
-        Var(Ident),
+        Var(String),
         Integer(i64),
         Float(NotNan<f64>),
     }
 
-    #[derive(Debug)]
-    pub struct Ident(String);
-
     parser! {
         pub struct Parser<Token>;
 
-        Start: Program = {
+        Start: Program {
             Program[prg] => {
                 prg
             }
