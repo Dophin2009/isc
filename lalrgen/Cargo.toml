@@ -5,6 +5,7 @@ authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
+lalr = { path = "../lalr" }
 lalrgen-derive = { path = "../lalrgen-derive" }
 
 [dev-dependencies]

@@ -9,7 +9,7 @@ use syn::{
 
 #[derive(Clone)]
 pub struct Parser {
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     pub name: Ident,
     pub terminal_type: Type,
     pub rules: Vec<Rule>,
@@ -33,18 +33,30 @@ pub struct Production {
 
 #[derive(Clone)]
 pub enum BodySymbol {
-    /// Tuple struct destructure
-    TupleStruct { ident: Ident, fields: Vec<Ident> },
+    /// Destructure is for terminals only.
+    Destructure {
+        ident: Ident,
+        ty: DestructureType,
+        fields: Vec<Ident>,
+    },
+    /// If refname is Some, then this is for a nonterminal.
+    /// Otherwise, it may be for either a terminal or a nonterminal.
     Symbol {
         ident: Ident,
         refname: Option<Ident>,
     },
 }
 
+#[derive(Clone)]
+pub enum DestructureType {
+    Struct,
+    TupleStruct,
+}
+
 impl BodySymbol {
     pub fn ident<'a>(&'a self) -> &'a Ident {
         match *self {
-            BodySymbol::TupleStruct { ref ident, .. } => ident,
+            BodySymbol::Destructure { ref ident, .. } => ident,
             BodySymbol::Symbol { ref ident, .. } => ident,
         }
     }
@@ -65,7 +77,7 @@ impl Parse for Parser {
     #[inline]
     #[must_use]
     fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
-        let visibility = input.parse()?;
+        let visibility = input.parse().ok();
         input.parse::<Token![struct]>()?;
         let name = input.parse()?;
 
@@ -160,19 +172,34 @@ impl Parse for BodySymbol {
     #[inline]
     #[must_use]
     fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+        #[inline]
+        fn extract_fields<'a>(input: ParseStream<'a>) -> syn::Result<Vec<Ident>> {
+            let fields = Punctuated::<Ident, Token![,]>::parse_terminated(input)?;
+            Ok(fields.into_pairs().map(|p| p.into_value()).collect())
+        }
+
         let ident = input.parse()?;
 
         let sym = if input.peek(Paren) {
-            // Tuple struct destructing
+            // Tuple struct destructing.
             let fields_input;
             syn::parenthesized!(fields_input in input);
-            let fields = Punctuated::<Ident, Token![,]>::parse_terminated(&fields_input)?;
-            Self::TupleStruct {
+            Self::Destructure {
                 ident,
-                fields: fields.into_pairs().map(|p| p.into_value()).collect(),
+                ty: DestructureType::TupleStruct,
+                fields: extract_fields(&fields_input)?,
+            }
+        } else if input.peek(Brace) {
+            // Struct destructing.
+            let fields_input;
+            syn::braced!(fields_input in input);
+            Self::Destructure {
+                ident,
+                ty: DestructureType::TupleStruct,
+                fields: extract_fields(&fields_input)?,
             }
         } else if input.peek(Bracket) {
-            // No destructuring, but refname
+            // No destructuring, but optional refname.
             let refname_input;
             syn::bracketed!(refname_input in input);
             let refname = refname_input.parse()?;

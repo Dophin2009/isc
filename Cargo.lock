@@ -112,6 +112,7 @@ dependencies = [
 name = "lalrgen"
 version = "0.1.0"
 dependencies = [
+ "lalr",
  "lalrgen-derive",
  "llex",
  "ordered-float",
