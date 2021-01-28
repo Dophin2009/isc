@@ -94,7 +94,7 @@ mod parser {
     pub struct Ident(String);
 
     parser! {
-        pub struct Parser;
+        pub struct Parser<Token>;
 
         Start: Program = {
             Program[prg] => {
@@ -117,7 +117,7 @@ mod parser {
         }
 
         Statement: Expr {
-             Ident(ident) Token::Equals Expr[expr] Token::Semicolon => {
+             Ident(ident) Equals Expr[expr] Semicolon => {
                 Statement::Assign(ident, expr)
              }
         }
