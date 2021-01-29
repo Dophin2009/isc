@@ -1,4 +1,5 @@
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 
 use std::io;
 
@@ -126,9 +127,10 @@ fn main() {
     let mut stdin_lock = stdin.lock();
 
     let chars = stdin_lock.chars().map(|r| r.expect("invalid UTF-8 input"));
-    let tokens = lexer.stream(chars);
+    let tokens = lexer.stream(chars).map(|item| item.token);
 
-    // for t in tokens {
-    // println!("{:?}", t);
-    // }
+    let parser = Parser::new();
+    let ast = parser.parse(tokens);
+
+    println!("{:#?}", ast);
 }

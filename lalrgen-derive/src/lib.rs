@@ -44,6 +44,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     let start_rule = rules
         .first()
         .ok_or_else(|| span_error(Span::call_site(), "no grammar rules are specified"))?;
+    let start_rule_lhs = start_rule.nonterminal.clone();
     let parser_return_type = start_rule.return_type.clone();
 
     // Keep track of all terminal types to assign a number for each terminal type.
@@ -251,15 +252,15 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         }
 
         impl #parser_name {
-            // #parser_visibility fn new() -> Self {
-                // let rules: std::collections::BTreeMap<usize, ::lalrgen::lalr::Rhs<usize, usize, ()>> = {
-                    // std::collections::BTreeMap::new()
-                // };
-                // let grammar = { #grammar_construction };
-                // Self {
-                    // grammar,
-                // }
-            // }
+            #parser_visibility fn new() -> Self {
+                let rules: std::collections::BTreeMap<usize, ::lalrgen::lalr::Rhs<usize, usize, ()>> = {
+                    std::collections::BTreeMap::new()
+                };
+                let grammar = { #grammar_construction };
+                Self {
+                    grammar,
+                }
+            }
 
             #parser_visibility fn parse<I>(&self, mut input: I) -> Result<#parser_return_type, ()>
             where
@@ -277,17 +278,29 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                 let mut current_state = 0;
                 stack.push((current_state, None, None));
 
+                let mut saved_input: Option<Option<(#terminal_type, usize)>> = None;
+
                 while true {
                     current_state = stack.last().unwrap().0;
 
-                    let next_token = input.next();
-                    let next_token_n = match next_token {
-                        Some(ref token) => match token {
-                            #(#terminal_map_branches),*,
-                            _ => std::unreachable!(),
+                    let (next_token, next_token_n) = match saved_input {
+                        Some(saved) => match saved {
+                            Some(tup) => (Some(tup.0), Some(tup.1)),
+                            None => (None, None),
                         }
-                        None => None,
+                        None => {
+                            let next_token = input.next();
+                            let next_token_n = match next_token {
+                                Some(ref token) => match token {
+                                    #(#terminal_map_branches),*,
+                                    _ => std::unreachable!("unrecognized token!"),
+                                }
+                                None => None,
+                            };
+                            (next_token, next_token_n)
+                        }
                     };
+                    saved_input = None;
 
                     let state = &table.states[current_state];
                     let get_action = match next_token_n {
@@ -298,10 +311,9 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                     match get_action {
                         Some(action) => match action {
                             ::lalrgen::lalr::lr1::LR1Action::Shift(dest_state) => {
+                                // Consume the token.
                                 // Shift the state onto the stack with the current token.
                                 stack.push((*dest_state, next_token, None));
-                                // Consume the token.
-                                // CODE MISSING!
                             }
                             ::lalrgen::lalr::lr1::LR1Action::Reduce(lhs, rhs) => {
                                 let payload = (rhs.assoc)(&mut stack)?;
@@ -309,6 +321,11 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                 let new_top = stack.last().unwrap().0;
                                 let next_state = table.states[new_top].goto.get(lhs).unwrap();
                                 stack.push((*next_state, None, Some(payload)));
+
+                                saved_input = Some(match next_token {
+                                    Some(next_token) => Some((next_token, next_token_n.unwrap())),
+                                    None => None,
+                                });
                             }
                             ::lalrgen::lalr::lr1::LR1Action::Accept => {
                                 // Parsing is done.
@@ -322,7 +339,11 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                     }
                 }
 
-                Err(())
+                let result = match stack.pop().unwrap().2.unwrap() {
+                    PayloadNonterminal::#start_rule_lhs(x) => x,
+                    _ => std::unreachable!(),
+                };
+                Ok(result)
             }
         }
     })
