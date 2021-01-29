@@ -1,11 +1,9 @@
 #![deny(rust_2018_idioms)]
 #![deny(future_incompatible)]
-#![feature(proc_macro_diagnostic)]
 
 use std::collections::HashMap;
 
-use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use regexp2::{
     automata::{
@@ -22,7 +20,15 @@ use syn::{
 };
 
 #[proc_macro]
-pub fn lexer(tok: TokenStream) -> TokenStream {
+pub fn lexer(tok: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let parsed = parse_macro_input!(tok as Lexer);
+    match lexer_(parsed) {
+        Ok(res) => res.into(),
+        Err(res) => res.into(),
+    }
+}
+
+fn lexer_(parsed: Lexer) -> Result<TokenStream, TokenStream> {
     let Lexer {
         struct_vis,
         struct_name,
@@ -32,9 +38,9 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         return_type,
         error_variant,
         rules,
-    } = parse_macro_input!(tok as Lexer);
+    } = parsed;
 
-    let (nfa, action_mapping) = parse_combined_nfa(&rules);
+    let (nfa, action_mapping) = parse_combined_nfa(&rules)?;
     let DFAFromNFA { dfa, nfa_mapping }: DFAFromNFA<_> = nfa.into();
 
     let dfa_rebuilt = dfa_rebuilt(&dfa);
@@ -72,7 +78,7 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         })
         .collect();
 
-    (quote! {
+    Ok(quote! {
         #[derive(Debug, Clone)]
         #struct_vis struct #struct_name {
             dfa: ::llex::stream::LexerDFA,
@@ -136,7 +142,6 @@ pub fn lexer(tok: TokenStream) -> TokenStream {
         }
 
     })
-    .into()
 }
 
 struct Lexer {
@@ -242,33 +247,30 @@ const INVALID_REGEXP_ERROR: &str = "invalid regular expression";
 
 // Parse the rules into a single NFA and a map of final states to action expressions.
 #[inline]
-fn parse_combined_nfa(rules: &[Rule]) -> (NFA<CharClass>, HashMap<usize, (&Expr, usize)>) {
+fn parse_combined_nfa(
+    rules: &[Rule],
+) -> Result<(NFA<CharClass>, HashMap<usize, (&Expr, usize)>), TokenStream> {
     let nfa_parser = NFAParser::new();
     // Parse regular expression strings into NFAs.
     let nfa_sub: Vec<_> = rules
         .iter()
-        .filter_map(
+        .map(
             |Rule { regexp, action }| match nfa_parser.parse(&regexp.value()) {
                 // Throw errors if failed to parse.
                 Ok(op) => match op {
-                    Some(n) => Some((n, action)),
+                    Some(n) => Ok(Some((n, action))),
                     // None returned means error.
-                    None => {
-                        regexp.span().unstable().error(INVALID_REGEXP_ERROR).emit();
-                        None
-                    }
+                    None => Err(span_error(regexp.span(), INVALID_REGEXP_ERROR)),
                 },
-                Err(e) => {
-                    regexp
-                        .span()
-                        .unstable()
-                        .error(format!("{}: {}", INVALID_REGEXP_ERROR, e))
-                        .emit();
-                    None
-                }
+                Err(e) => Err(span_error(
+                    regexp.span(),
+                    &format!("{}: {}", INVALID_REGEXP_ERROR, e),
+                )),
             },
         )
-        .collect();
+        .collect::<Result<_, _>>()?;
+
+    let nfa_sub: Vec<_> = nfa_sub.into_iter().filter_map(|nfa| nfa).collect();
 
     // Combine NFAs into a single NFA.
     let mut action_mapping = HashMap::new();
@@ -286,10 +288,10 @@ fn parse_combined_nfa(rules: &[Rule]) -> (NFA<CharClass>, HashMap<usize, (&Expr,
         offset += sub.total_states;
     }
 
-    (nfa, action_mapping)
+    Ok((nfa, action_mapping))
 }
 
-fn dfa_rebuilt(dfa: &DFA<CharClass>) -> TokenStream2 {
+fn dfa_rebuilt(dfa: &DFA<CharClass>) -> TokenStream {
     let initial_state = dfa.initial_state;
     let total_states = dfa.total_states;
     let final_states: Vec<_> = dfa.final_states.iter().collect();
@@ -323,4 +325,8 @@ fn dfa_rebuilt(dfa: &DFA<CharClass>) -> TokenStream2 {
             dfa
         }
     }
+}
+
+fn span_error(span: Span, message: &str) -> TokenStream {
+    syn::Error::new(span, message).to_compile_error()
 }
