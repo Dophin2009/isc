@@ -37,14 +37,20 @@ pub enum BodySymbol {
     Destructure {
         ident: Ident,
         ty: DestructureType,
-        fields: Vec<Ident>,
+        fields: Vec<Field>,
     },
     /// If refname is Some, then this is for a nonterminal.
     /// Otherwise, it may be for either a terminal or a nonterminal.
     Symbol {
         ident: Ident,
-        refname: Option<Ident>,
+        refname: Option<Field>,
     },
+}
+
+#[derive(Clone)]
+pub struct Field {
+    pub mut_token: Option<Token![mut]>,
+    pub ident: Ident,
 }
 
 #[derive(Clone)]
@@ -173,8 +179,8 @@ impl Parse for BodySymbol {
     #[must_use]
     fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
         #[inline]
-        fn extract_fields<'a>(input: ParseStream<'a>) -> syn::Result<Vec<Ident>> {
-            let fields = Punctuated::<Ident, Token![,]>::parse_terminated(input)?;
+        fn extract_fields<'a>(input: ParseStream<'a>) -> syn::Result<Vec<Field>> {
+            let fields = Punctuated::<Field, Token![,]>::parse_terminated(input)?;
             Ok(fields.into_pairs().map(|p| p.into_value()).collect())
         }
 
@@ -203,7 +209,10 @@ impl Parse for BodySymbol {
             let refname_input;
             syn::bracketed!(refname_input in input);
             let refname = refname_input.parse()?;
-            Self::Symbol { ident, refname }
+            Self::Symbol {
+                ident,
+                refname: Some(refname),
+            }
         } else {
             Self::Symbol {
                 ident,
@@ -215,6 +224,15 @@ impl Parse for BodySymbol {
     }
 }
 
+impl Parse for Field {
+    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+        let mut_token = input.parse()?;
+        let ident = input.parse()?;
+
+        Ok(Self { mut_token, ident })
+    }
+}
+
 impl Parse for Action {
     #[inline]
     #[must_use]
@@ -223,7 +241,11 @@ impl Parse for Action {
         let expr = input.parse()?;
 
         if trailing_comma {
-            input.parse::<Token![,]>()?;
+            if input.peek(Brace) {
+                input.parse::<Option<Token![,]>>()?;
+            } else {
+                input.parse::<Token![,]>()?;
+            }
         }
 
         Ok(Self { expr })

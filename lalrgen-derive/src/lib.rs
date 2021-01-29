@@ -1,10 +1,10 @@
+// Everything here is just absolute spaghetti.
 mod parse;
 
-use crate::parse::{Action, BodySymbol, DestructureType, Parser, Production, Rule};
+use crate::parse::{BodySymbol, DestructureType, Field, Parser};
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::HashMap;
 
-use lalr::{Grammar, Rhs, Symbol};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Expr, Ident, Type};
@@ -62,12 +62,14 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             for (sym_pos, sym) in production.body.into_iter().enumerate() {
                 let sym_meta = match sym {
                     BodySymbol::Destructure { ident, ty, fields } => {
+                        let refname = TerminalRefname::Destructure(ident.clone(), ty, fields);
                         let nid = match terminals.get(&ident) {
-                            Some(id) => *id,
+                            Some((id, _)) => *id,
                             None => {
-                                terminals.insert(ident.clone(), terminals_count);
+                                terminals.insert(ident.clone(), (terminals_count, refname.clone()));
+                                let nid = terminals_count;
                                 terminals_count += 1;
-                                terminals_count
+                                nid
                             }
                         };
                         SymbolMeta::Terminal {
@@ -76,7 +78,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                 ty: terminal_type.clone(),
                                 body_pos: sym_pos,
                             },
-                            refname: TerminalRefname::Destructure(ident, ty, fields),
+                            refname,
                         }
                     }
                     BodySymbol::Symbol { ident, refname } => {
@@ -95,19 +97,24 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                 }
                             }
                             None => {
-                                if let Some(refname) = refname {
+                                if let Some(_) = refname {
                                     return Err(span_error(
                                         ident.span(),
                                         "unrecognized nonterminal",
                                     ));
                                 }
 
+                                let refname = TerminalRefname::Ignore;
                                 let nid = match terminals.get(&ident) {
-                                    Some(id) => *id,
+                                    Some((id, _)) => *id,
                                     None => {
-                                        terminals.insert(ident.clone(), terminals_count);
+                                        terminals.insert(
+                                            ident.clone(),
+                                            (terminals_count, refname.clone()),
+                                        );
+                                        let nid = terminals_count;
                                         terminals_count += 1;
-                                        terminals_count
+                                        nid
                                     }
                                 };
                                 SymbolMeta::Terminal {
@@ -116,7 +123,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                         ty: terminal_type.clone(),
                                         body_pos: sym_pos,
                                     },
-                                    refname: TerminalRefname::Ignore,
+                                    refname,
                                 }
                             }
                         }
@@ -142,7 +149,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     }
 
     let assoc_fn_trait = quote! {
-        Fn(&mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>) -> Result<(), ()>
+        Fn(&mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>) -> Result<PayloadNonterminal, ()>
     };
     let rule_inserts: Vec<_> = rule_metas
         .into_iter()
@@ -181,13 +188,10 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                         .collect();
                     let body = quote! { vec![ #(#body_symbols),* ] };
 
-                    let ReduceCode { stack_pop, fn_decl, fn_call }= reduce_code;
+                    let assoc_code = reduce_code.code();
                     let assoc = quote! {
-                        Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| -> Result<(), ()> {
-                            #fn_decl
-                            #stack_pop
-                            let result = #fn_call;
-                            Ok(())
+                        Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| -> Result<PayloadNonterminal, ()> {
+                            #assoc_code
                         }) as Box<dyn #assoc_fn_trait>
                     };
 
@@ -216,6 +220,22 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         .map(|(ident, reference)| (ident, reference.return_type.clone()))
         .map(|(ident, ty)| quote! { #ident(#ty) })
         .collect();
+    let terminal_map_branches: Vec<_> = terminals
+        .into_iter()
+        .map(|(variant, (n, refname))| {
+            let variant = match refname {
+                TerminalRefname::Destructure(ident, ty, _) => {
+                    // Duplicate code but oh well
+                    match ty {
+                        DestructureType::Struct => quote! { #variant { .. } },
+                        DestructureType::TupleStruct => quote! { #variant( .. ) },
+                    }
+                }
+                TerminalRefname::Ignore => quote! { #variant },
+            };
+            quote! { #terminal_type::#variant => Some(#n) }
+        })
+        .collect();
 
     Ok(quote! {
         #parser_visibility struct #parser_name {
@@ -231,17 +251,17 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         }
 
         impl #parser_name {
-            #parser_visibility fn new() -> Self {
-                let rules: std::collections::BTreeMap<usize, ::lalrgen::lalr::Rhs<usize, usize, ()>> = {
-                    std::collections::BTreeMap::new()
-                };
-                let grammar = { #grammar_construction };
-                Self {
-                    grammar,
-                }
-            }
+            // #parser_visibility fn new() -> Self {
+                // let rules: std::collections::BTreeMap<usize, ::lalrgen::lalr::Rhs<usize, usize, ()>> = {
+                    // std::collections::BTreeMap::new()
+                // };
+                // let grammar = { #grammar_construction };
+                // Self {
+                    // grammar,
+                // }
+            // }
 
-            #parser_visibility fn parse<I>(&self, input: I) -> Result<#parser_return_type, ()>
+            #parser_visibility fn parse<I>(&self, mut input: I) -> Result<#parser_return_type, ()>
             where
                 I: Iterator<Item = #terminal_type>,
             {
@@ -252,12 +272,54 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                     Err(_) => panic!(),
                 };
 
+                // let mut stack: Vec<(usize, Option<()>, Option<()>)> = Vec::new();
                 let mut stack = Vec::new();
                 let mut current_state = 0;
-                stack.push((current_state,));
+                stack.push((current_state, None, None));
 
                 while true {
-                    let top_state = stack.last().unwrap().0;
+                    current_state = stack.last().unwrap().0;
+
+                    let next_token = input.next();
+                    let next_token_n = match next_token {
+                        Some(ref token) => match token {
+                            #(#terminal_map_branches),*,
+                            _ => std::unreachable!(),
+                        }
+                        None => None,
+                    };
+
+                    let state = &table.states[current_state];
+                    let get_action = match next_token_n {
+                        Some(n) => state.actions.get(&n),
+                        None => (&state.endmarker).as_ref(),
+                    };
+
+                    match get_action {
+                        Some(action) => match action {
+                            ::lalrgen::lalr::lr1::LR1Action::Shift(dest_state) => {
+                                // Shift the state onto the stack with the current token.
+                                stack.push((*dest_state, next_token, None));
+                                // Consume the token.
+                                // CODE MISSING!
+                            }
+                            ::lalrgen::lalr::lr1::LR1Action::Reduce(lhs, rhs) => {
+                                let payload = (rhs.assoc)(&mut stack)?;
+
+                                let new_top = stack.last().unwrap().0;
+                                let next_state = table.states[new_top].goto.get(lhs).unwrap();
+                                stack.push((*next_state, None, Some(payload)));
+                            }
+                            ::lalrgen::lalr::lr1::LR1Action::Accept => {
+                                // Parsing is done.
+                                break;
+                            }
+                        }
+                        None => {
+                            // TODO: Handle error
+                            panic!()
+                        }
+                    }
                 }
 
                 Err(())
@@ -266,11 +328,13 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     })
 }
 
+#[derive(Clone)]
 struct RuleMeta {
     lhs: Ident,
     productions: Vec<ProductionMeta>,
 }
 
+#[derive(Clone)]
 struct ProductionMeta {
     idx: usize,
     /// Type returned by the action function.
@@ -282,15 +346,37 @@ struct ProductionMeta {
     reduce_action: Expr,
 }
 
+#[derive(Clone)]
 struct ReduceCode {
     /// Code for popping off the stack and setting the correct values.
     stack_pop: TokenStream,
-    /// Code for calling the action function.
-    fn_call: TokenStream,
     /// Code for the action function declaration itself.
     fn_decl: TokenStream,
+    /// Code for calling the action function.
+    fn_call: TokenStream,
+    /// Code for returning from the action.
+    ret: TokenStream,
 }
 
+impl ReduceCode {
+    fn code(&self) -> TokenStream {
+        let Self {
+            stack_pop,
+            fn_decl,
+            fn_call,
+            ret,
+        } = self;
+
+        quote! {
+            #fn_decl
+            #stack_pop
+            #fn_call
+            #ret
+        }
+    }
+}
+
+#[derive(Clone)]
 enum SymbolMeta {
     Terminal {
         nid: usize,
@@ -301,10 +387,11 @@ enum SymbolMeta {
         nid: usize,
         base: SymbolMetaShared,
         ident: Ident,
-        refname: Option<Ident>,
+        refname: Option<Field>,
     },
 }
 
+#[derive(Clone)]
 struct SymbolMetaShared {
     /// Type of the payload associated with the symbol. For terminals, it is always the same as the
     /// return type for the Parser.
@@ -313,13 +400,15 @@ struct SymbolMetaShared {
     body_pos: usize,
 }
 
+#[derive(Clone)]
 enum TerminalRefname {
-    Destructure(Ident, DestructureType, Vec<Ident>),
+    Destructure(Ident, DestructureType, Vec<Field>),
     /// This symbol is simply ignored.
     Ignore,
 }
 
 // Information about nonterminals collected in initial pass through the nonterminals.
+#[derive(Clone)]
 struct NonterminalReference {
     /// Assign each nonterminal a numerical value that will be used when constructing the grammar
     /// and the parse table.
@@ -356,7 +445,7 @@ impl ProductionMeta {
                     TerminalRefname::Destructure(ident, destructure_ty, fields) => {
                         // Use the first field as the variable for the stack popping.
                         // TODO: Handle error properly.
-                        let first_field = fields.first().unwrap();
+                        let first_field = &fields.first().unwrap().ident;
                         pop_stmt = quote! {
                             let #first_field = {
                                 let popped = stack.pop().unwrap();
@@ -370,13 +459,28 @@ impl ProductionMeta {
                         fn_args.push(quote! { #first_field });
                         fn_params.push(quote! { #first_field: #param_type });
 
+                        let destructure_fields_l: Vec<_> = fields
+                            .iter()
+                            .map(|field| (field.mut_token, &field.ident))
+                            .map(|(mut_token, ident)| quote! { #mut_token #ident })
+                            .collect();
+                        let destructure_fields_r: Vec<_> = fields
+                            .iter()
+                            .map(|field| &field.ident)
+                            .map(|ident| quote! { #ident })
+                            .collect();
                         let destructure_var = match destructure_ty {
-                            DestructureType::Struct => quote! { #ident { #(#fields),* } },
-                            DestructureType::TupleStruct => quote! { #ident ( #(#fields),* ) },
+                            DestructureType::Struct => {
+                                quote! { #ident { #(#destructure_fields_r),* } }
+                            }
+                            DestructureType::TupleStruct => {
+                                quote! { #ident ( #(#destructure_fields_r),* ) }
+                            }
                         };
+
                         fn_destructures.push(quote! {
-                            let ( #(#fields),* ) = match #first_field {
-                                #param_type::#destructure_var => ( #(#fields),* ),
+                            let ( #(#destructure_fields_l),* ) = match #first_field {
+                                #param_type::#destructure_var => ( #(#destructure_fields_r),* ),
                                 _ => std::unreachable!(),
                             };
                         });
@@ -389,8 +493,9 @@ impl ProductionMeta {
                     refname,
                 } => match refname {
                     Some(refname) => {
+                        let refname_ident = &refname.ident;
                         pop_stmt = quote! {
-                            let #refname = {
+                            let #refname_ident = {
                                 let popped = stack.pop().unwrap();
                                 // For nonterminals, payload is in the third position.
                                 let payload = popped.2.unwrap();
@@ -402,8 +507,10 @@ impl ProductionMeta {
                         };
 
                         let param_type = base.ty.clone();
-                        fn_args.push(quote! { #refname });
-                        fn_params.push(quote! { #refname: #param_type });
+                        fn_args.push(quote! { #refname_ident });
+
+                        let refname_mut = refname.mut_token;
+                        fn_params.push(quote! { #refname_mut #refname_ident: #param_type });
                     }
                     None => {
                         pop_stmt = quote! {
@@ -432,12 +539,16 @@ impl ProductionMeta {
             }
         };
 
-        let fn_call = quote! {#fn_name( #(#fn_args),* )};
+        let fn_call = quote! { let result = #fn_name( #(#fn_args),* )?; };
+
+        let lhs_ident = &self.lhs_nonterminal;
+        let ret = quote! { Ok(PayloadNonterminal::#lhs_ident(result)) };
 
         ReduceCode {
             stack_pop,
-            fn_call,
             fn_decl,
+            fn_call,
+            ret,
         }
     }
 }

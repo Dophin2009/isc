@@ -103,7 +103,7 @@ mod parser {
 
         Statements: Vec<Statement> {
             => Ok(vec![]),
-            Statements[stmts] Statement[s] => {
+            Statements[mut stmts] Statement[s] => {
                 stmts.push(s);
                 Ok(stmts)
             }
