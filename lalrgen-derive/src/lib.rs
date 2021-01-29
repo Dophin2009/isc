@@ -186,7 +186,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                         .into_iter()
                         .map(|sym| {
                             match sym {
-                                SymbolMeta::Terminal { nid, base, refname } => {
+                                SymbolMeta::Terminal { nid, .. } => {
                                     //
                                     quote! {
                                         ::lalrgen::lalr::Symbol::Terminal(#nid)
@@ -194,9 +194,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                 }
                                 SymbolMeta::Nonterminal {
                                     nid,
-                                    base,
-                                    ident,
-                                    refname,
+                                    ..
                                 } => {
                                     //
                                     quote! {
@@ -244,7 +242,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         .into_iter()
         .map(|(variant, (n, refname))| {
             let variant = match refname {
-                TerminalRefname::Destructure(ident, ty, _) => {
+                TerminalRefname::Destructure(_, ty, _) => {
                     // Duplicate code but oh well
                     match ty {
                         DestructureType::Struct => quote! { #variant { .. } },

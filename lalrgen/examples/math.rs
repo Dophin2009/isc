@@ -1,9 +1,7 @@
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-use std::io::{self, BufRead, Write};
-
-use utf8_chars::BufReadCharsExt;
+use std::io::{self, Write};
 
 mod lexer {
     use llex::lexer;
@@ -148,11 +146,14 @@ fn main() -> io::Result<()> {
     let stdin = io::stdin();
 
     let mut buf = String::new();
-    while true {
+    loop {
         print!("> ");
         io::stdout().flush()?;
 
         stdin.read_line(&mut buf)?;
+        if buf.trim() == "quit" {
+            break;
+        }
 
         let chars = buf.chars();
         let tokens = lexer.stream(chars).map(|item| item.token);

@@ -59,15 +59,6 @@ pub enum DestructureType {
     TupleStruct,
 }
 
-impl BodySymbol {
-    pub fn ident<'a>(&'a self) -> &'a Ident {
-        match *self {
-            BodySymbol::Destructure { ref ident, .. } => ident,
-            BodySymbol::Symbol { ref ident, .. } => ident,
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Action {
     pub expr: Expr,
