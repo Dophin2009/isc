@@ -46,46 +46,46 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     let mut grammar_terminals = HashMap::new();
     let mut terminal_idx = 0usize;
 
+    // Assign each production a unique index.
     let mut production_idx = 0;
 
     // Process all rules and their productions to construct information about all terminals.
-    let mut rule_metas = Vec::new();
-    for rule in rules.into_iter() {
-        let mut production_metas = Vec::new();
-        for production in rule.productions.into_iter() {
-            // Keep sym_pos for disambiguation when popping from stack and destructuring.
-            let mut body_meta = Vec::new();
-            for (sym_pos, sym) in production.body.into_iter().enumerate() {
-                let sym_meta = symbol_meta(
-                    sym,
-                    sym_pos,
-                    &terminal_type,
-                    &grammar_nonterminals,
-                    &mut grammar_terminals,
-                    &mut terminal_idx,
-                )?;
-                body_meta.push(sym_meta);
-            }
+    let rule_metas: Vec<_> = rules
+        .into_iter()
+        .map(|rule| -> Result<_, TokenStream> {
+            let rule_nonterminal = rule.nonterminal.clone();
+            let rule_return_type = rule.return_type.clone();
+            let production_metas = rule
+                .productions
+                .into_iter()
+                .map(|production| -> Result<_, TokenStream> {
+                    production_meta(
+                        production,
+                        &rule_nonterminal,
+                        &rule_return_type,
+                        &terminal_type,
+                        &grammar_nonterminals,
+                        &mut grammar_terminals,
+                        &mut terminal_idx,
+                        &mut production_idx,
+                    )
+                })
+                .collect::<Result<_, _>>()?;
+            Ok(RuleMeta {
+                lhs: rule_nonterminal,
+                productions: production_metas,
+            })
+        })
+        .collect::<Result<_, _>>()?;
 
-            let production_meta = ProductionMeta {
-                idx: production_idx,
-                return_type: rule.return_type.clone(),
-                lhs_nonterminal: rule.nonterminal.clone(),
-                body: body_meta,
-                reduce_action: production.action.expr,
-            };
-            production_metas.push(production_meta);
-            production_idx += 1;
-        }
-        rule_metas.push(RuleMeta {
-            lhs: rule.nonterminal,
-            productions: production_metas,
-        });
-    }
-
+    // Trait for the associated code function.
     let assoc_fn_trait = quote! {
-        Fn(&mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>) -> Result<PayloadNonterminal, ()>
+        Fn(&mut Vec<(usize,
+                     Option<#terminal_type>,
+                     Option<PayloadNonterminal>
+                    )>) -> Result<PayloadNonterminal, ()>
     };
+
     let rule_inserts: Vec<_> = rule_metas
         .into_iter()
         .map(|rule| {
@@ -395,6 +395,45 @@ fn symbol_meta(
         }
     };
     Ok(meta)
+}
+
+#[inline]
+fn production_meta(
+    production: Production,
+    lhs_nonterminal: &Ident,
+    return_type: &Type,
+    terminal_type: &Type,
+    grammar_nonterminals: &HashMap<Ident, NonterminalReference>,
+    grammar_terminals: &mut HashMap<Ident, (usize, TerminalRefname)>,
+    terminal_idx: &mut usize,
+    production_idx: &mut usize,
+) -> Result<ProductionMeta, TokenStream> {
+    // Keep sym_pos for disambiguation when popping from stack and destructuring.
+    let body_meta = production
+        .body
+        .into_iter()
+        .enumerate()
+        .map(|(sym_pos, sym)| {
+            symbol_meta(
+                sym,
+                sym_pos,
+                &terminal_type,
+                &grammar_nonterminals,
+                grammar_terminals,
+                terminal_idx,
+            )
+        })
+        .collect::<Result<_, _>>()?;
+
+    let idx = *production_idx;
+    *production_idx += 1;
+    Ok(ProductionMeta {
+        idx,
+        return_type: return_type.clone(),
+        lhs_nonterminal: lhs_nonterminal.clone(),
+        body: body_meta,
+        reduce_action: production.action.expr,
+    })
 }
 
 #[derive(Clone)]
