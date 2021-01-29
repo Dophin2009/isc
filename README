@@ -26,5 +26,5 @@ See subdirectories for more information and examples.
 Building
 ========
 
-Rust (nightly) is required to build the above components.  See `Makefile` for
-other targets and requirements.
+Rust is required to build the above components.  See `Makefile` for other
+targets and requirements.
