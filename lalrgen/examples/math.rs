@@ -94,35 +94,27 @@ mod parser {
         pub struct Parser<Token>;
 
         Start: Program {
-            Program[prg] => {
-                prg
-            }
+            Program[prg] => Ok(prg),
         }
 
         Program: Program {
-            Statements[stmts] => {
-                Program { stmts }
-            }
+            Statements[stmts] => Ok(Program { stmts }),
         }
 
-        Statements: Vec<Expr> {
-            => vec![],
+        Statements: Vec<Statement> {
+            => Ok(vec![]),
             Statements[stmts] Statement[s] => {
                 stmts.push(s);
-                stmts
+                Ok(stmts)
             }
         }
 
-        Statement: Expr {
-             Ident(ident) Equals Expr[expr] Semicolon => {
-                Statement::Assign(ident, expr)
-             }
+        Statement: Statement {
+             Ident(ident) Equals Expr[expr] Semicolon => Ok(Statement::Assign(ident, expr)),
         }
 
         Expr: Expr {
-            Float(f) => {
-                Expr::Float(f)
-            }
+            Float(f) => Ok(Expr::Float(f)),
         }
     }
 }

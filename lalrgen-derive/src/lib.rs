@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use lalr::{Grammar, Rhs, Symbol};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{Ident, Type};
+use syn::{Expr, Ident, Type};
 
 #[proc_macro]
 pub fn parser(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -95,10 +95,10 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                 }
                             }
                             None => {
-                                if refname.is_some() {
+                                if let Some(refname) = refname {
                                     return Err(span_error(
-                                        refname.unwrap().span(),
-                                        "[refname] can only be used for nonterminals",
+                                        ident.span(),
+                                        "unrecognized nonterminal",
                                     ));
                                 }
 
@@ -130,6 +130,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                 return_type: rule.return_type.clone(),
                 lhs_nonterminal: rule.nonterminal.clone(),
                 body: body_meta,
+                reduce_action: production.action.expr,
             };
             production_metas.push(production_meta);
             production_idx += 1;
@@ -140,6 +141,9 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         });
     }
 
+    let assoc_fn_trait = quote! {
+        Fn(&mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>) -> Result<(), ()>
+    };
     let rule_inserts: Vec<_> = rule_metas
         .into_iter()
         .map(|rule| {
@@ -179,11 +183,12 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
 
                     let ReduceCode { stack_pop, fn_decl, fn_call }= reduce_code;
                     let assoc = quote! {
-                        Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| {
+                        Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| -> Result<(), ()> {
                             #fn_decl
                             #stack_pop
-                            #fn_call
-                        })
+                            let result = #fn_call;
+                            Ok(())
+                        }) as Box<dyn #assoc_fn_trait>
                     };
 
                     quote! {
@@ -206,13 +211,23 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         ::lalrgen::lalr::Grammar::new(0, rules).unwrap()
     };
 
+    let payload_enum_variants: Vec<_> = grammar_nonterminals
+        .iter()
+        .map(|(ident, reference)| (ident, reference.return_type.clone()))
+        .map(|(ident, ty)| quote! { #ident(#ty) })
+        .collect();
+
     Ok(quote! {
         #parser_visibility struct #parser_name {
             grammar: ::lalrgen::lalr::Grammar<
                 usize,
                 usize,
-                Box<Fn(&mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>)>
+                Box<dyn #assoc_fn_trait>
             >,
+        }
+
+        enum PayloadNonterminal {
+            #(#payload_enum_variants),*
         }
 
         impl #parser_name {
@@ -231,7 +246,11 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                 I: Iterator<Item = #terminal_type>,
             {
                 // TODO: Figure out better way than regerating table every time.
-                let table = self.grammar.lalr1_table_by_lr1(&|_, _, _| 0).unwrap();
+                let table = match self.grammar.lalr1_table_by_lr1(&|_, _, _| 0) {
+                    Ok(t) => t,
+                    // TODO: Handle error
+                    Err(_) => panic!(),
+                };
 
                 let mut stack = Vec::new();
                 let mut current_state = 0;
@@ -239,9 +258,9 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
 
                 while true {
                     let top_state = stack.last().unwrap().0;
-
                 }
 
+                Err(())
             }
         }
     })
@@ -260,6 +279,7 @@ struct ProductionMeta {
     lhs_nonterminal: Ident,
     /// Metadata for each symbol in the body.
     body: Vec<SymbolMeta>,
+    reduce_action: Expr,
 }
 
 struct ReduceCode {
@@ -402,14 +422,17 @@ impl ProductionMeta {
 
         let fn_name = quote::format_ident!("reduce_{}", self.idx);
         let fn_return_type = &self.return_type;
+        let fn_body = self.reduce_action.clone();
         let fn_decl = quote! {
             #[inline]
             fn #fn_name( #(#fn_params),* ) -> Result<#fn_return_type, ()> {
                 #(#fn_destructures)*
+
+                #fn_body
             }
         };
 
-        let fn_call = quote! {#fn_name( #(#fn_args),* )?};
+        let fn_call = quote! {#fn_name( #(#fn_args),* )};
 
         ReduceCode {
             stack_pop,

@@ -195,7 +195,7 @@ impl Parse for BodySymbol {
             syn::braced!(fields_input in input);
             Self::Destructure {
                 ident,
-                ty: DestructureType::TupleStruct,
+                ty: DestructureType::Struct,
                 fields: extract_fields(&fields_input)?,
             }
         } else if input.peek(Bracket) {
