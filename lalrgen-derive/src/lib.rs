@@ -1,7 +1,7 @@
 // Everything here is just absolute spaghetti.
 mod parse;
 
-use crate::parse::{BodySymbol, DestructureType, Field, Parser};
+use crate::parse::{Action, BodySymbol, DestructureType, Field, Parser, Production, Rule};
 
 use std::collections::HashMap;
 
@@ -23,8 +23,35 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         visibility: parser_visibility,
         name: parser_name,
         terminal_type,
-        rules,
+        mut rules,
     } = p;
+
+    // Get starting nonterminal. The return type of the parse method is the return type of the
+    // first nonterminal.
+    let start_rule = rules
+        .first()
+        .ok_or_else(|| span_error(Span::call_site(), "no grammar rules are specified"))?
+        .clone();
+    let start_rule_lhs = start_rule.nonterminal.clone();
+    let parser_return_type = start_rule.return_type.clone();
+
+    let actual_start_rule = Rule {
+        nonterminal: Ident::new("__SPAGHETTI__START", Span::call_site()),
+        return_type: start_rule.return_type.clone(),
+        productions: vec![Production {
+            body: vec![BodySymbol::Symbol {
+                ident: start_rule_lhs.clone(),
+                refname: Some(Field {
+                    mut_token: None,
+                    ident: Ident::new("ast", Span::call_site()),
+                }),
+            }],
+            action: Action {
+                expr: Expr::Verbatim(quote! { Ok(ast) }),
+            },
+        }],
+    };
+    rules.insert(0, actual_start_rule);
 
     // Collect nonterminals into a set to check against later.
     let grammar_nonterminals: HashMap<_, _> = rules
@@ -38,14 +65,6 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             (rule.nonterminal.clone(), reference)
         })
         .collect();
-
-    // Get starting nonterminal. The return type of the parse method is the return type of the
-    // first nonterminal.
-    let start_rule = rules
-        .first()
-        .ok_or_else(|| span_error(Span::call_site(), "no grammar rules are specified"))?;
-    let start_rule_lhs = start_rule.nonterminal.clone();
-    let parser_return_type = start_rule.return_type.clone();
 
     // Keep track of all terminal types to assign a number for each terminal type.
     let mut terminals = HashMap::new();
@@ -247,6 +266,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             >,
         }
 
+        #[derive(Debug)]
         enum PayloadNonterminal {
             #(#payload_enum_variants),*
         }
@@ -339,10 +359,12 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                     }
                 }
 
-                let result = match stack.pop().unwrap().2.unwrap() {
+                let final_payload = stack.pop().unwrap().2.unwrap();
+                let result = match final_payload {
                     PayloadNonterminal::#start_rule_lhs(x) => x,
                     _ => std::unreachable!(),
                 };
+
                 Ok(result)
             }
         }

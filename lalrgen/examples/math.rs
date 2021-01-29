@@ -1,7 +1,7 @@
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-use std::io;
+use std::io::{self, BufRead};
 
 use utf8_chars::BufReadCharsExt;
 
@@ -13,6 +13,8 @@ mod lexer {
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Token {
+        Let,
+
         Ident(String),
         Integer(i64),
         Float(NotNan<f64>),
@@ -39,6 +41,8 @@ mod lexer {
 
         r"\s" => None,
         r"//[^\n]*" => Some(Comment),
+
+        r"let" => Some(Let),
 
         r"[0-9]+" => {
             let i = text.parse().unwrap();
@@ -94,10 +98,6 @@ mod parser {
     parser! {
         pub struct Parser<Token>;
 
-        Start: Program {
-            Program[prg] => Ok(prg),
-        }
-
         Program: Program {
             Statements[stmts] => Ok(Program { stmts }),
         }
@@ -111,26 +111,32 @@ mod parser {
         }
 
         Statement: Statement {
-             Ident(ident) Equals Expr[expr] Semicolon => Ok(Statement::Assign(ident, expr)),
+             Let Ident(ident) Equals Expr[expr] Semicolon => Ok(Statement::Assign(ident, expr)),
         }
 
         Expr: Expr {
             Float(f) => Ok(Expr::Float(f)),
+            Integer(i) => Ok(Expr::Integer(i)),
         }
     }
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     let lexer = Lexer::new();
+    let parser = Parser::new();
 
     let stdin = io::stdin();
     let mut stdin_lock = stdin.lock();
 
-    let chars = stdin_lock.chars().map(|r| r.expect("invalid UTF-8 input"));
-    let tokens = lexer.stream(chars).map(|item| item.token);
+    for line in stdin_lock.lines() {
+        let line = line?;
+        let chars = line.chars();
 
-    let parser = Parser::new();
-    let ast = parser.parse(tokens);
+        let tokens = lexer.stream(chars).map(|item| item.token);
 
-    println!("{:#?}", ast);
+        let ast = parser.parse(tokens).unwrap();
+        println!("{:#?}", ast);
+    }
+
+    Ok(())
 }
