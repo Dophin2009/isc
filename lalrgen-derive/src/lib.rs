@@ -176,10 +176,13 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         .map(|rule| {
             let lhs = grammar_nonterminals.get(&rule.lhs).unwrap().idx;
 
+            let productions_count = rule.productions.len();
             let rhs_set: Vec<_> = rule
                 .productions
                 .into_iter()
-                .map(|production| {
+                .enumerate()
+                .map(|(priority, production)| {
+                    let priority = (productions_count - priority) as i32;
                     let reduce_code = production.reduce_code();
                     let body_symbols: Vec<_> = production
                         .body
@@ -208,9 +211,9 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
 
                     let assoc_code = reduce_code.code();
                     let assoc = quote! {
-                        Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| -> Result<PayloadNonterminal, ()> {
+                        (Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| -> Result<PayloadNonterminal, ()> {
                             #assoc_code
-                        }) as Box<dyn #assoc_fn_trait>
+                        }) as Box<dyn #assoc_fn_trait>, #priority)
                     };
 
                     quote! {
@@ -260,7 +263,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             grammar: ::lalrgen::lalr::Grammar<
                 usize,
                 usize,
-                Box<dyn #assoc_fn_trait>
+                (Box<dyn #assoc_fn_trait>, i32)
             >,
         }
 
@@ -271,9 +274,6 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
 
         impl #parser_name {
             #parser_visibility fn new() -> Self {
-                let rules: std::collections::BTreeMap<usize, ::lalrgen::lalr::Rhs<usize, usize, ()>> = {
-                    std::collections::BTreeMap::new()
-                };
                 let grammar = { #grammar_construction };
                 Self {
                     grammar,
@@ -285,13 +285,14 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                 I: Iterator<Item = #terminal_type>,
             {
                 // TODO: Figure out better way than regerating table every time.
-                let table = match self.grammar.lalr1_table_by_lr1(&|_, _, _| 0) {
+                let table = match self.grammar.lalr1_table_by_lr1(&|_, rhs, _| rhs.assoc.1) {
                     Ok(t) => t,
                     // TODO: Handle error
-                    Err(_) => panic!("lr conflict!"),
+                    Err(err) => {
+                        std::panic!("lr1 conflict!");
+                    },
                 };
 
-                // let mut stack: Vec<(usize, Option<()>, Option<()>)> = Vec::new();
                 let mut stack = Vec::new();
                 let mut current_state = 0;
                 stack.push((current_state, None, None));
@@ -334,7 +335,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                                 stack.push((*dest_state, next_token, None));
                             }
                             ::lalrgen::lalr::lr1::LR1Action::Reduce(lhs, rhs) => {
-                                let payload = (rhs.assoc)(&mut stack)?;
+                                let payload = (rhs.assoc.0)(&mut stack)?;
 
                                 let new_top = stack.last().unwrap().0;
                                 let next_state = table.states[new_top].goto.get(lhs).unwrap();
