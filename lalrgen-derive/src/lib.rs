@@ -18,6 +18,7 @@ pub fn parser(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 }
 
+#[inline]
 fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     let Parser {
         visibility: parser_visibility,
@@ -30,45 +31,20 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     // first nonterminal.
     let start_rule = rules
         .first()
-        .ok_or_else(|| span_error(Span::call_site(), "no grammar rules are specified"))?
-        .clone();
+        .ok_or_else(|| span_error(Span::call_site(), "no grammar rules are specified"))?;
     let start_rule_lhs = start_rule.nonterminal.clone();
     let parser_return_type = start_rule.return_type.clone();
 
-    let actual_start_rule = Rule {
-        nonterminal: Ident::new("__SPAGHETTI__START", Span::call_site()),
-        return_type: start_rule.return_type.clone(),
-        productions: vec![Production {
-            body: vec![BodySymbol::Symbol {
-                ident: start_rule_lhs.clone(),
-                refname: Some(Field {
-                    mut_token: None,
-                    ident: Ident::new("ast", Span::call_site()),
-                }),
-            }],
-            action: Action {
-                expr: Expr::Verbatim(quote! { Ok(ast) }),
-            },
-        }],
-    };
-    rules.insert(0, actual_start_rule);
+    // Create S' -> S start rule.
+    let actual_start = actual_start_rule(&start_rule);
+    rules.insert(0, actual_start);
 
     // Collect nonterminals into a set to check against later.
-    let grammar_nonterminals: HashMap<_, _> = rules
-        .iter()
-        .enumerate()
-        .map(|(i, rule)| {
-            let reference = NonterminalReference {
-                idx: i,
-                return_type: rule.return_type.clone(),
-            };
-            (rule.nonterminal.clone(), reference)
-        })
-        .collect();
+    let grammar_nonterminals = nonterminal_references(&rules);
 
     // Keep track of all terminal types to assign a number for each terminal type.
-    let mut terminals = HashMap::new();
-    let mut terminals_count = 0usize;
+    let mut grammar_terminals = HashMap::new();
+    let mut terminal_idx = 0usize;
 
     let mut production_idx = 0;
 
@@ -80,75 +56,14 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             // Keep sym_pos for disambiguation when popping from stack and destructuring.
             let mut body_meta = Vec::new();
             for (sym_pos, sym) in production.body.into_iter().enumerate() {
-                let sym_meta = match sym {
-                    BodySymbol::Destructure { ident, ty, fields } => {
-                        let refname = TerminalRefname::Destructure(ident.clone(), ty, fields);
-                        let nid = match terminals.get(&ident) {
-                            Some((id, _)) => *id,
-                            None => {
-                                terminals.insert(ident.clone(), (terminals_count, refname.clone()));
-                                let nid = terminals_count;
-                                terminals_count += 1;
-                                nid
-                            }
-                        };
-                        SymbolMeta::Terminal {
-                            nid,
-                            base: SymbolMetaShared {
-                                ty: terminal_type.clone(),
-                                body_pos: sym_pos,
-                            },
-                            refname,
-                        }
-                    }
-                    BodySymbol::Symbol { ident, refname } => {
-                        // Check if this is referencing a nonterminal or a terminal.
-                        match grammar_nonterminals.get(&ident) {
-                            Some(nonterminal_ref) => {
-                                // This is a nonterminal.
-                                SymbolMeta::Nonterminal {
-                                    nid: nonterminal_ref.idx,
-                                    base: SymbolMetaShared {
-                                        ty: nonterminal_ref.return_type.clone(),
-                                        body_pos: sym_pos,
-                                    },
-                                    ident,
-                                    refname,
-                                }
-                            }
-                            None => {
-                                if let Some(_) = refname {
-                                    return Err(span_error(
-                                        ident.span(),
-                                        "unrecognized nonterminal",
-                                    ));
-                                }
-
-                                let refname = TerminalRefname::Ignore;
-                                let nid = match terminals.get(&ident) {
-                                    Some((id, _)) => *id,
-                                    None => {
-                                        terminals.insert(
-                                            ident.clone(),
-                                            (terminals_count, refname.clone()),
-                                        );
-                                        let nid = terminals_count;
-                                        terminals_count += 1;
-                                        nid
-                                    }
-                                };
-                                SymbolMeta::Terminal {
-                                    nid,
-                                    base: SymbolMetaShared {
-                                        ty: terminal_type.clone(),
-                                        body_pos: sym_pos,
-                                    },
-                                    refname,
-                                }
-                            }
-                        }
-                    }
-                };
+                let sym_meta = symbol_meta(
+                    sym,
+                    sym_pos,
+                    &terminal_type,
+                    &grammar_nonterminals,
+                    &mut grammar_terminals,
+                    &mut terminal_idx,
+                )?;
                 body_meta.push(sym_meta);
             }
 
@@ -241,7 +156,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
         .map(|(ident, reference)| (ident, reference.return_type.clone()))
         .map(|(ident, ty)| quote! { #ident(#ty) })
         .collect();
-    let terminal_map_branches: Vec<_> = terminals
+    let terminal_map_branches: Vec<_> = grammar_terminals
         .into_iter()
         .map(|(variant, (n, refname))| {
             let variant = match refname {
@@ -368,6 +283,118 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
             }
         }
     })
+}
+
+#[inline]
+fn actual_start_rule(original_start: &Rule) -> Rule {
+    Rule {
+        nonterminal: Ident::new("__SPAGHETTI__START__", Span::call_site()),
+        return_type: original_start.return_type.clone(),
+        productions: vec![Production {
+            body: vec![BodySymbol::Symbol {
+                ident: original_start.nonterminal.clone(),
+                refname: Some(Field {
+                    mut_token: None,
+                    ident: Ident::new("ast", Span::call_site()),
+                }),
+            }],
+            action: Action {
+                expr: Expr::Verbatim(quote! { Ok(ast) }),
+            },
+            explicit_priority: Some(0),
+        }],
+    }
+}
+
+#[inline]
+fn nonterminal_references(rules: &Vec<Rule>) -> HashMap<Ident, NonterminalReference> {
+    rules
+        .iter()
+        .enumerate()
+        .map(|(i, rule)| {
+            let reference = NonterminalReference {
+                idx: i,
+                return_type: rule.return_type.clone(),
+            };
+            (rule.nonterminal.clone(), reference)
+        })
+        .collect()
+}
+
+#[inline]
+fn symbol_meta(
+    sym: BodySymbol,
+    pos: usize,
+    terminal_type: &Type,
+    grammar_nonterminals: &HashMap<Ident, NonterminalReference>,
+    grammar_terminals: &mut HashMap<Ident, (usize, TerminalRefname)>,
+    terminal_idx: &mut usize,
+) -> Result<SymbolMeta, TokenStream> {
+    let meta = match sym {
+        BodySymbol::Destructure { ident, ty, fields } => {
+            let refname = TerminalRefname::Destructure(ident.clone(), ty, fields);
+            let nid = match grammar_terminals.get(&ident) {
+                Some((id, _)) => *id,
+                None => {
+                    grammar_terminals.insert(ident.clone(), (*terminal_idx, refname.clone()));
+                    let nid = *terminal_idx;
+                    *terminal_idx += 1;
+                    nid
+                }
+            };
+            SymbolMeta::Terminal {
+                nid,
+                base: SymbolMetaShared {
+                    ty: terminal_type.clone(),
+                    body_pos: pos,
+                },
+                refname,
+            }
+        }
+        BodySymbol::Symbol { ident, refname } => {
+            // Check if this is referencing a nonterminal or a terminal.
+            match grammar_nonterminals.get(&ident) {
+                Some(nonterminal_ref) => {
+                    // This is a nonterminal.
+                    SymbolMeta::Nonterminal {
+                        nid: nonterminal_ref.idx,
+                        base: SymbolMetaShared {
+                            ty: nonterminal_ref.return_type.clone(),
+                            body_pos: pos,
+                        },
+                        ident,
+                        refname,
+                    }
+                }
+                None => {
+                    if let Some(_) = refname {
+                        return Err(span_error(ident.span(), "unrecognized nonterminal"));
+                    }
+
+                    let refname = TerminalRefname::Ignore;
+                    let nid = match grammar_terminals.get(&ident) {
+                        Some((id, _)) => *id,
+                        None => {
+                            grammar_terminals
+                                .insert(ident.clone(), (*terminal_idx, refname.clone()));
+                            let nid = *terminal_idx;
+                            *terminal_idx += 1;
+                            nid
+                        }
+                    };
+                    SymbolMeta::Terminal {
+                        nid,
+                        base: SymbolMetaShared {
+                            ty: terminal_type.clone(),
+                            body_pos: pos,
+                        },
+                        refname,
+                    }
+                }
+            }
+        }
+    };
+    Ok(meta)
 }
 
 #[derive(Clone)]

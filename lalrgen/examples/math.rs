@@ -103,39 +103,40 @@ mod parser {
         pub struct Parser<Token>;
 
         Program: Program {
-            Statements[stmts] => Ok(Program { stmts }),
+            Statements[stmts]                   =>  Ok(Program { stmts }),
         }
 
         Statements: Vec<Statement> {
-            => Ok(vec![]),
-            Statements[mut stmts] Statement[s] => {
-                stmts.push(s);
-                Ok(stmts)
-            }
+                                                =>  Ok(vec![]),
+            Statements[mut stmts] Statement[s]  =>  {
+                                                        stmts.push(s);
+                                                        Ok(stmts)
+                                                    }
         }
 
         Statement: Statement {
-             Ident(ident) Equals Expr[expr] Semicolon => Ok(Statement::Assign(ident, expr)),
+             Ident(ident) Equals Expr[expr] Semicolon
+                                                => Ok(Statement::Assign(ident, expr)),
         }
 
         Expr: Expr {
-            Expr[a] BinOp[op] Expr[b] => Ok(Expr::BinOp(op, Box::new(a), Box::new(b))),
-            UnOp[op] Expr[a] => Ok(Expr::UnOp(op, Box::new(a))),
-            Float(f) => Ok(Expr::Float(f)),
-            Integer(i) => Ok(Expr::Integer(i)),
-            Ident(ident) => Ok(Expr::Var(ident)),
+            // Expr[a] BinOp[op] Expr[b]           =>  Ok(Expr::BinOp(op, Box::new(a), Box::new(b))),
+            // UnOp[op] Expr[a]                    =>  Ok(Expr::UnOp(op, Box::new(a))),
+            Float(f)                            =>  Ok(Expr::Float(f)),
+            Integer(i)                          =>  Ok(Expr::Integer(i)),
+            Ident(ident)                        =>  Ok(Expr::Var(ident)),
         }
 
-        UnOp: UnOp {
-            Minus => Ok(UnOp::Negative),
-        }
+        // UnOp: UnOp {
+            // Minus                               =>  Ok(UnOp::Negative),
+        // }
 
-        BinOp: BinOp {
-            Plus => Ok(BinOp::Add),
-            Minus => Ok(BinOp::Sub),
-            Star => Ok(BinOp::Multiply),
-            Slash => Ok(BinOp::Divide),
-        }
+        // BinOp: BinOp {
+            // Plus                                =>  Ok(BinOp::Add),
+            // Minus                               =>  Ok(BinOp::Sub),
+            // Star                                =>  Ok(BinOp::Multiply),
+            // Slash                               =>  Ok(BinOp::Divide),
+        // }
     }
 }
 
