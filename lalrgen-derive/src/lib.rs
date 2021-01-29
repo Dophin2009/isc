@@ -149,6 +149,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                 .productions
                 .into_iter()
                 .map(|production| {
+                    let reduce_code = production.reduce_code();
                     let body_symbols: Vec<_> = production
                         .body
                         .into_iter()
@@ -176,8 +177,13 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                         .collect();
                     let body = quote! { vec![ #(#body_symbols),* ] };
 
+                    let ReduceCode { stack_pop, fn_decl, fn_call }= reduce_code;
                     let assoc = quote! {
-                        ()
+                        Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| {
+                            #fn_decl
+                            #stack_pop
+                            #fn_call
+                        })
                     };
 
                     quote! {
@@ -202,7 +208,11 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
 
     Ok(quote! {
         #parser_visibility struct #parser_name {
-            grammar: ::lalrgen::lalr::Grammar<usize, usize, ()>,
+            grammar: ::lalrgen::lalr::Grammar<
+                usize,
+                usize,
+                Box<Fn(&mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>)>
+            >,
         }
 
         impl #parser_name {
@@ -300,7 +310,7 @@ struct NonterminalReference {
 
 impl ProductionMeta {
     /// Generate the code for the associated closure, to be called on reduction on this production.
-    fn action(&self) -> ReduceCode {
+    fn reduce_code(&self) -> ReduceCode {
         let mut pop_stmts = Vec::new();
         // Parameter declarations in the action function signature.
         let mut fn_params = Vec::new();
@@ -373,7 +383,7 @@ impl ProductionMeta {
 
                         let param_type = base.ty.clone();
                         fn_args.push(quote! { #refname });
-                        fn_params.push(quote! { #refname });
+                        fn_params.push(quote! { #refname: #param_type });
                     }
                     None => {
                         pop_stmt = quote! {
@@ -390,7 +400,7 @@ impl ProductionMeta {
             #(#pop_stmts)*
         };
 
-        let fn_name = quote::format_ident!("action_{}", self.idx);
+        let fn_name = quote::format_ident!("reduce_{}", self.idx);
         let fn_return_type = &self.return_type;
         let fn_decl = quote! {
             #[inline]
