@@ -290,7 +290,7 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
                 let table = match self.grammar.lalr1_table_by_lr1(&|_, _, _| 0) {
                     Ok(t) => t,
                     // TODO: Handle error
-                    Err(_) => panic!(),
+                    Err(_) => panic!("lr conflict!"),
                 };
 
                 // let mut stack: Vec<(usize, Option<()>, Option<()>)> = Vec::new();

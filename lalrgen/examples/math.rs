@@ -1,7 +1,7 @@
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 
 use utf8_chars::BufReadCharsExt;
 
@@ -13,8 +13,6 @@ mod lexer {
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Token {
-        Let,
-
         Ident(String),
         Integer(i64),
         Float(NotNan<f64>),
@@ -41,8 +39,6 @@ mod lexer {
 
         r"\s" => None,
         r"//[^\n]*" => Some(Comment),
-
-        r"let" => Some(Let),
 
         r"[0-9]+" => {
             let i = text.parse().unwrap();
@@ -85,14 +81,24 @@ mod parser {
 
     #[derive(Debug)]
     pub enum Expr {
-        Add(Box<Expr>, Box<Expr>),
-        Sub(Box<Expr>, Box<Expr>),
-        Multiply(Box<Expr>, Box<Expr>),
-        Divide(Box<Expr>, Box<Expr>),
-        Negative(Box<Expr>),
+        UnOp(UnOp, Box<Expr>),
+        BinOp(BinOp, Box<Expr>, Box<Expr>),
         Var(String),
         Integer(i64),
         Float(NotNan<f64>),
+    }
+
+    #[derive(Debug)]
+    pub enum UnOp {
+        Negative,
+    }
+
+    #[derive(Debug)]
+    pub enum BinOp {
+        Add,
+        Sub,
+        Multiply,
+        Divide,
     }
 
     parser! {
@@ -111,12 +117,26 @@ mod parser {
         }
 
         Statement: Statement {
-             Let Ident(ident) Equals Expr[expr] Semicolon => Ok(Statement::Assign(ident, expr)),
+             Ident(ident) Equals Expr[expr] Semicolon => Ok(Statement::Assign(ident, expr)),
         }
 
         Expr: Expr {
+            Expr[a] BinOp[op] Expr[b] => Ok(Expr::BinOp(op, Box::new(a), Box::new(b))),
+            UnOp[op] Expr[a] => Ok(Expr::UnOp(op, Box::new(a))),
             Float(f) => Ok(Expr::Float(f)),
             Integer(i) => Ok(Expr::Integer(i)),
+            Ident(ident) => Ok(Expr::Var(ident)),
+        }
+
+        UnOp: UnOp {
+            Minus => Ok(UnOp::Negative),
+        }
+
+        BinOp: BinOp {
+            Plus => Ok(BinOp::Add),
+            Minus => Ok(BinOp::Sub),
+            Star => Ok(BinOp::Multiply),
+            Slash => Ok(BinOp::Divide),
         }
     }
 }
@@ -126,12 +146,15 @@ fn main() -> io::Result<()> {
     let parser = Parser::new();
 
     let stdin = io::stdin();
-    let mut stdin_lock = stdin.lock();
 
-    for line in stdin_lock.lines() {
-        let line = line?;
-        let chars = line.chars();
+    let mut buf = String::new();
+    while true {
+        print!("> ");
+        io::stdout().flush()?;
 
+        stdin.read_line(&mut buf)?;
+
+        let chars = buf.chars();
         let tokens = lexer.stream(chars).map(|item| item.token);
 
         let ast = parser.parse(tokens).unwrap();
