@@ -72,8 +72,7 @@ impl ToTokens for Action {
 
 impl Parse for Parser {
     #[inline]
-    #[must_use]
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let visibility = input.parse().ok();
         input.parse::<Token![struct]>()?;
         let name = input.parse()?;
@@ -104,8 +103,7 @@ impl Parse for Parser {
 
 impl Parse for Rule {
     #[inline]
-    #[must_use]
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         //  nonterminal : return_type {
         //      symbol[ref] symbol[ref] .. => {
         //          ..
@@ -149,8 +147,7 @@ impl Parse for Rule {
 
 impl Parse for Production {
     #[inline]
-    #[must_use]
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut body = Vec::new();
         while !input.peek(Token![=>]) {
             let symbol = input.parse()?;
@@ -167,10 +164,9 @@ impl Parse for Production {
 
 impl Parse for BodySymbol {
     #[inline]
-    #[must_use]
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         #[inline]
-        fn extract_fields<'a>(input: ParseStream<'a>) -> syn::Result<Vec<Field>> {
+        fn extract_fields(input: ParseStream<'_>) -> syn::Result<Vec<Field>> {
             let fields = Punctuated::<Field, Token![,]>::parse_terminated(input)?;
             Ok(fields.into_pairs().map(|p| p.into_value()).collect())
         }
@@ -216,7 +212,7 @@ impl Parse for BodySymbol {
 }
 
 impl Parse for Field {
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut_token = input.parse()?;
         let ident = input.parse()?;
 
@@ -226,8 +222,7 @@ impl Parse for Field {
 
 impl Parse for Action {
     #[inline]
-    #[must_use]
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let trailing_comma = !input.peek(Brace);
         let expr = input.parse()?;
 

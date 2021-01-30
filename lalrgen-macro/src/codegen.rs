@@ -9,8 +9,9 @@ use quote::quote;
 use syn::{Ident, Type, Visibility};
 
 #[inline]
-pub(crate) fn codegen<'g>(
-    table: LR1Table<'g, usize, usize, (i32, TokenStream)>,
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn codegen(
+    table: LR1Table<'_, usize, usize, (i32, TokenStream)>,
     parser_visibility: Option<Visibility>,
     parser_name: Ident,
     parser_return_type: Type,
@@ -178,7 +179,7 @@ fn map_token_decl(
     grammar_terminals: &HashMap<Ident, (usize, TerminalRefname)>,
 ) -> TokenStream {
     let terminal_map_branches: Vec<_> = grammar_terminals
-        .into_iter()
+        .iter()
         .map(|(variant, (n, refname))| {
             let variant = match refname {
                 TerminalRefname::Destructure(_, ty, _) => {
@@ -205,7 +206,7 @@ fn map_token_decl(
 }
 
 #[inline]
-fn get_goto_decl<'g>(table: &LR1Table<'g, usize, usize, (i32, TokenStream)>) -> TokenStream {
+fn get_goto_decl(table: &LR1Table<'_, usize, usize, (i32, TokenStream)>) -> TokenStream {
     let get_goto_branches: Vec<_> = table
         .states
         .iter()
@@ -235,7 +236,7 @@ fn get_goto_decl<'g>(table: &LR1Table<'g, usize, usize, (i32, TokenStream)>) -> 
 }
 
 #[inline]
-fn tokenize_action<'g>(action: &LR1Action<'g, usize, usize, (i32, TokenStream)>) -> TokenStream {
+fn tokenize_action(action: &LR1Action<'_, usize, usize, (i32, TokenStream)>) -> TokenStream {
     match action {
         LR1Action::Shift(dest) => quote! { shift(&mut stack, #dest, next_token); },
         LR1Action::Reduce(lhs, rhs) => {

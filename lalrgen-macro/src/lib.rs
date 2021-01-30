@@ -113,7 +113,7 @@ fn actual_start_rule(original_start: &Rule) -> Rule {
 }
 
 #[inline]
-fn nonterminal_references(rules: &Vec<Rule>) -> HashMap<Ident, NonterminalReference> {
+fn nonterminal_references(rules: &[Rule]) -> HashMap<Ident, NonterminalReference> {
     rules
         .iter()
         .enumerate()
@@ -173,7 +173,7 @@ fn symbol_meta(
                     }
                 }
                 None => {
-                    if let Some(_) = refname {
+                    if refname.is_some() {
                         return Err(span_error(ident.span(), "unrecognized nonterminal"));
                     }
 
@@ -204,6 +204,7 @@ fn symbol_meta(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn production_meta(
     production: Production,
     lhs_nonterminal: &Ident,
