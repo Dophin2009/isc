@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 lalr = { path = "../lalr" }
-lalrgen-derive = { path = "../lalrgen-derive" }
+lalrgen-macro = { path = "../lalrgen-macro" }
 
 [dev-dependencies]
 llex = { path = "../llex" }

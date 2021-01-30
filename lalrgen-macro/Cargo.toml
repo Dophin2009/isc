@@ -1,11 +1,11 @@
 [package]
-name = "lalrgen-derive"
+name = "lalrgen-macro"
 version = "0.1.0"
 authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
 [lib]
-name = "lalrgen_derive"
+name = "lalrgen_macro"
 proc-macro = true
 
 [dependencies]
