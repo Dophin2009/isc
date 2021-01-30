@@ -159,7 +159,7 @@ struct Lexer {
 
 impl Parse for Lexer {
     #[inline]
-    fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         macro_rules! token {
             ($x:tt) => {
                 input.parse::<Token![$x]>()?
@@ -247,6 +247,7 @@ const INVALID_REGEXP_ERROR: &str = "invalid regular expression";
 
 // Parse the rules into a single NFA and a map of final states to action expressions.
 #[inline]
+#[allow(clippy::type_complexity)]
 fn parse_combined_nfa(
     rules: &[Rule],
 ) -> Result<(NFA<CharClass>, HashMap<usize, (&Expr, usize)>), TokenStream> {
