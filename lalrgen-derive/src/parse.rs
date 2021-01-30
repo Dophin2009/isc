@@ -4,7 +4,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::{Brace, Bracket, Paren},
-    Expr, Ident, LitInt, Token, Type, Visibility,
+    Expr, Ident, Token, Type, Visibility,
 };
 
 #[derive(Clone)]
@@ -29,8 +29,6 @@ pub struct Rule {
 pub struct Production {
     pub body: Vec<BodySymbol>,
     pub action: Action,
-    /// Explicitly assigned priority value.
-    pub explicit_priority: Option<i32>,
 }
 
 #[derive(Clone)]
@@ -154,29 +152,16 @@ impl Parse for Production {
     #[must_use]
     fn parse<'a>(input: ParseStream<'a>) -> syn::Result<Self> {
         let mut body = Vec::new();
-        while !input.peek(Token![=>]) && !input.peek(Brace) {
+        while !input.peek(Token![=>]) {
             let symbol = input.parse()?;
             body.push(symbol);
         }
-
-        let explicit_priority = if input.peek(Brace) {
-            let priority_input;
-            syn::braced!(priority_input in input);
-            let priority_lit: LitInt = priority_input.parse()?;
-            Some(priority_lit.base10_parse()?)
-        } else {
-            None
-        };
 
         input.parse::<Token![=>]>()?;
 
         let action = input.parse()?;
 
-        Ok(Self {
-            body,
-            action,
-            explicit_priority,
-        })
+        Ok(Self { body, action })
     }
 }
 

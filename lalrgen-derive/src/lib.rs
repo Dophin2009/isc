@@ -3,11 +3,15 @@ mod parse;
 
 use crate::parse::{Action, BodySymbol, DestructureType, Field, Parser, Production, Rule};
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
+use lalr::{
+    lr1::{LR1Action, LR1Table},
+    Grammar, Rhs, Symbol,
+};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{Expr, Ident, Type};
+use syn::{Expr, Ident, Type, Visibility};
 
 #[proc_macro]
 pub fn parser(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -53,236 +57,41 @@ fn parser_(p: Parser) -> Result<TokenStream, TokenStream> {
     let rule_metas: Vec<_> = rules
         .into_iter()
         .map(|rule| -> Result<_, TokenStream> {
-            let rule_nonterminal = rule.nonterminal.clone();
-            let rule_return_type = rule.return_type.clone();
-            let production_metas = rule
-                .productions
-                .into_iter()
-                .map(|production| -> Result<_, TokenStream> {
-                    production_meta(
-                        production,
-                        &rule_nonterminal,
-                        &rule_return_type,
-                        &terminal_type,
-                        &grammar_nonterminals,
-                        &mut grammar_terminals,
-                        &mut terminal_idx,
-                        &mut production_idx,
-                    )
-                })
-                .collect::<Result<_, _>>()?;
-            Ok(RuleMeta {
-                lhs: rule_nonterminal,
-                productions: production_metas,
-            })
+            rule_meta(
+                rule,
+                &terminal_type,
+                &grammar_nonterminals,
+                &mut grammar_terminals,
+                &mut terminal_idx,
+                &mut production_idx,
+            )
         })
         .collect::<Result<_, _>>()?;
 
-    // Trait for the associated code function.
-    let assoc_fn_trait = quote! {
-        Fn(&mut Vec<(usize,
-                     Option<#terminal_type>,
-                     Option<PayloadNonterminal>
-                    )>) -> Result<PayloadNonterminal, ()>
+    // Construct grammar.
+    let grammar = match grammar(rule_metas, &grammar_nonterminals) {
+        Ok(g) => g,
+        // TODO: Handle error
+        Err(_) => panic!(),
     };
 
-    let rule_inserts: Vec<_> = rule_metas
-        .into_iter()
-        .map(|rule| {
-            let lhs = grammar_nonterminals.get(&rule.lhs).unwrap().idx;
-
-            let productions_count = rule.productions.len();
-            let rhs_set: Vec<_> = rule
-                .productions
-                .into_iter()
-                .enumerate()
-                .map(|(priority, production)| {
-                    let priority = (productions_count - priority) as i32;
-                    let reduce_code = production.reduce_code();
-                    let body_symbols: Vec<_> = production
-                        .body
-                        .into_iter()
-                        .map(|sym| {
-                            match sym {
-                                SymbolMeta::Terminal { nid, .. } => {
-                                    //
-                                    quote! {
-                                        ::lalrgen::lalr::Symbol::Terminal(#nid)
-                                    }
-                                }
-                                SymbolMeta::Nonterminal {
-                                    nid,
-                                    ..
-                                } => {
-                                    //
-                                    quote! {
-                                        ::lalrgen::lalr::Symbol::Nonterminal(#nid)
-                                    }
-                                }
-                            }
-                        })
-                        .collect();
-                    let body = quote! { vec![ #(#body_symbols),* ] };
-
-                    let assoc_code = reduce_code.code();
-                    let assoc = quote! {
-                        (Box::new(|stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>| -> Result<PayloadNonterminal, ()> {
-                            #assoc_code
-                        }) as Box<dyn #assoc_fn_trait>, #priority)
-                    };
-
-                    quote! {
-                        ::lalrgen::lalr::Rhs::new(#body, #assoc)
-                    }
-                })
-                .collect();
-
-            quote! {
-                rules.insert(#lhs, vec![ #(#rhs_set), *]);
-            }
-        })
-        .collect();
-
-    let grammar_construction = quote! {
-        let mut rules = std::collections::BTreeMap::new();
-
-        #(#rule_inserts)*
-
-        ::lalrgen::lalr::Grammar::new(0, rules).unwrap()
+    let table = match grammar.lalr1_table_by_lr1(&|_, rhs, _| rhs.assoc.0) {
+        Ok(t) => t,
+        // TODO: Handle error
+        Err(_) => panic!("LR1 conflict"),
     };
 
-    let payload_enum_variants: Vec<_> = grammar_nonterminals
-        .iter()
-        .map(|(ident, reference)| (ident, reference.return_type.clone()))
-        .map(|(ident, ty)| quote! { #ident(#ty) })
-        .collect();
-    let terminal_map_branches: Vec<_> = grammar_terminals
-        .into_iter()
-        .map(|(variant, (n, refname))| {
-            let variant = match refname {
-                TerminalRefname::Destructure(_, ty, _) => {
-                    // Duplicate code but oh well
-                    match ty {
-                        DestructureType::Struct => quote! { #variant { .. } },
-                        DestructureType::TupleStruct => quote! { #variant( .. ) },
-                    }
-                }
-                TerminalRefname::Ignore => quote! { #variant },
-            };
-            quote! { #terminal_type::#variant => Some(#n) }
-        })
-        .collect();
-
-    Ok(quote! {
-        #parser_visibility struct #parser_name {
-            grammar: ::lalrgen::lalr::Grammar<
-                usize,
-                usize,
-                (Box<dyn #assoc_fn_trait>, i32)
-            >,
-        }
-
-        #[derive(Debug)]
-        enum PayloadNonterminal {
-            #(#payload_enum_variants),*
-        }
-
-        impl #parser_name {
-            #parser_visibility fn new() -> Self {
-                let grammar = { #grammar_construction };
-                Self {
-                    grammar,
-                }
-            }
-
-            #parser_visibility fn parse<I>(&self, mut input: I) -> Result<#parser_return_type, ()>
-            where
-                I: Iterator<Item = #terminal_type>,
-            {
-                // TODO: Figure out better way than regerating table every time.
-                let table = match self.grammar.lalr1_table_by_lr1(&|_, rhs, _| rhs.assoc.1) {
-                    Ok(t) => t,
-                    // TODO: Handle error
-                    Err(err) => {
-                        std::panic!("lr1 conflict!");
-                    },
-                };
-
-                let mut stack = Vec::new();
-                let mut current_state = 0;
-                stack.push((current_state, None, None));
-
-                let mut saved_input: Option<Option<(#terminal_type, usize)>> = None;
-
-                while true {
-                    current_state = stack.last().unwrap().0;
-
-                    let (next_token, next_token_n) = match saved_input {
-                        Some(saved) => match saved {
-                            Some(tup) => (Some(tup.0), Some(tup.1)),
-                            None => (None, None),
-                        }
-                        None => {
-                            let next_token = input.next();
-                            let next_token_n = match next_token {
-                                Some(ref token) => match token {
-                                    #(#terminal_map_branches),*,
-                                    _ => std::unreachable!("unrecognized token!"),
-                                }
-                                None => None,
-                            };
-                            (next_token, next_token_n)
-                        }
-                    };
-                    saved_input = None;
-
-                    let state = &table.states[current_state];
-                    let get_action = match next_token_n {
-                        Some(n) => state.actions.get(&n),
-                        None => (&state.endmarker).as_ref(),
-                    };
-
-                    match get_action {
-                        Some(action) => match action {
-                            ::lalrgen::lalr::lr1::LR1Action::Shift(dest_state) => {
-                                // Consume the token.
-                                // Shift the state onto the stack with the current token.
-                                stack.push((*dest_state, next_token, None));
-                            }
-                            ::lalrgen::lalr::lr1::LR1Action::Reduce(lhs, rhs) => {
-                                let payload = (rhs.assoc.0)(&mut stack)?;
-
-                                let new_top = stack.last().unwrap().0;
-                                let next_state = table.states[new_top].goto.get(lhs).unwrap();
-                                stack.push((*next_state, None, Some(payload)));
-
-                                saved_input = Some(match next_token {
-                                    Some(next_token) => Some((next_token, next_token_n.unwrap())),
-                                    None => None,
-                                });
-                            }
-                            ::lalrgen::lalr::lr1::LR1Action::Accept => {
-                                // Parsing is done.
-                                break;
-                            }
-                        }
-                        None => {
-                            // TODO: Handle error
-                            panic!()
-                        }
-                    }
-                }
-
-                let final_payload = stack.pop().unwrap().2.unwrap();
-                let result = match final_payload {
-                    PayloadNonterminal::#start_rule_lhs(x) => x,
-                    _ => std::unreachable!(),
-                };
-
-                Ok(result)
-            }
-        }
-    })
+    let code = codegen(
+        table,
+        parser_visibility,
+        parser_name,
+        parser_return_type,
+        start_rule_lhs,
+        terminal_type,
+        grammar_nonterminals,
+        grammar_terminals,
+    );
+    Ok(code)
 }
 
 #[inline]
@@ -301,7 +110,6 @@ fn actual_start_rule(original_start: &Rule) -> Rule {
             action: Action {
                 expr: Expr::Verbatim(quote! { Ok(ast) }),
             },
-            explicit_priority: Some(0),
         }],
     }
 }
@@ -436,6 +244,317 @@ fn production_meta(
     })
 }
 
+#[inline]
+fn rule_meta(
+    rule: Rule,
+    terminal_type: &Type,
+    grammar_nonterminals: &HashMap<Ident, NonterminalReference>,
+    grammar_terminals: &mut HashMap<Ident, (usize, TerminalRefname)>,
+    terminal_idx: &mut usize,
+    production_idx: &mut usize,
+) -> Result<RuleMeta, TokenStream> {
+    let rule_nonterminal = rule.nonterminal.clone();
+    let rule_return_type = rule.return_type.clone();
+
+    let production_metas = rule
+        .productions
+        .into_iter()
+        .map(|production| -> Result<_, TokenStream> {
+            let meta = production_meta(
+                production,
+                &rule_nonterminal,
+                &rule_return_type,
+                terminal_type,
+                grammar_nonterminals,
+                grammar_terminals,
+                terminal_idx,
+                production_idx,
+            )?;
+            Ok(meta)
+        })
+        .collect::<Result<_, _>>()?;
+    Ok(RuleMeta {
+        lhs: rule_nonterminal,
+        productions: production_metas,
+    })
+}
+
+#[inline]
+fn grammar(
+    rule_metas: Vec<RuleMeta>,
+    grammar_nonterminals: &HashMap<Ident, NonterminalReference>,
+) -> Result<Grammar<usize, usize, (i32, TokenStream)>, lalr::Error> {
+    let start_rule = rule_metas.first().unwrap();
+    let start = grammar_nonterminals.get(&start_rule.lhs).unwrap().idx;
+
+    let grammar_rules: BTreeMap<_, _> = rule_metas
+        .into_iter()
+        .map(|rule| {
+            let lhs = grammar_nonterminals.get(&rule.lhs).unwrap().idx;
+            let rhs_set: Vec<_> = rule
+                .productions
+                .into_iter()
+                .enumerate()
+                .map(|(priority, production)| production.grammar_rhs(priority as i32))
+                .collect();
+
+            (lhs, rhs_set)
+        })
+        .collect();
+
+    Grammar::new(start, grammar_rules)
+}
+
+#[inline]
+fn codegen<'g>(
+    table: LR1Table<'g, usize, usize, (i32, TokenStream)>,
+    parser_visibility: Option<Visibility>,
+    parser_name: Ident,
+    parser_return_type: Type,
+    start_rule_lhs: Ident,
+    terminal_type: Type,
+    grammar_nonterminals: HashMap<Ident, NonterminalReference>,
+    grammar_terminals: HashMap<Ident, (usize, TerminalRefname)>,
+) -> TokenStream {
+    let parser_decl = parser_decl(&parser_visibility, &parser_name);
+    let payload_enum_decl = payload_enum_decl(&grammar_nonterminals);
+    let map_token_decl = map_token_decl(&terminal_type, &grammar_terminals);
+    let get_goto_decl = get_goto_decl(&table);
+
+    let action_match_branches: Vec<_> = table
+        .states
+        .iter()
+        .enumerate()
+        .map(|(i, state)| {
+            let branches: Vec<_> = state
+                .actions
+                .iter()
+                .map(|(terminal, action)| {
+                    let action_code = tokenize_action(action);
+                    quote! { #terminal => { #action_code } }
+                })
+                .collect();
+
+            quote! {
+                #i => match token_n {
+                    #(#branches),*
+                    _ => std::panic!("unexpected token"),
+                }
+            }
+        })
+        .collect();
+
+    let action_match = quote! {
+        match current_state {
+            #(#action_match_branches),*
+            _ => std::unreachable!(),
+        }
+    };
+
+    let endmarker_match_branches: Vec<_> = table
+        .states
+        .iter()
+        .enumerate()
+        .map(|(i, state)| {
+            let code = match state.endmarker {
+                Some(ref action) => tokenize_action(action),
+                // TODO: Handle no action (error)
+                None => quote! { panic!() },
+            };
+
+            quote! { #i => { #code } }
+        })
+        .collect();
+
+    let endmarker_match = quote! {
+        match current_state {
+            #(#endmarker_match_branches),*
+            _ => std::panic!("unexpected token"),
+        }
+    };
+
+    quote! {
+        #parser_decl
+
+        impl #parser_name {
+            #parser_visibility fn new() -> Self {
+                Self {}
+            }
+
+            #parser_visibility fn parse<I>(&self, mut input: I) -> Result<#parser_return_type, ()>
+            where
+                I: Iterator<Item = #terminal_type>,
+            {
+                #payload_enum_decl
+                #map_token_decl
+
+                fn shift(
+                    stack: &mut Vec<(usize, Option<#terminal_type>, Option<PayloadNonterminal>)>,
+                    new_state: usize,
+                    payload: Option<#terminal_type>
+                ) {
+                    stack.push((new_state, payload, None));
+                }
+
+                #get_goto_decl
+
+                let mut stack = Vec::new();
+                let mut current_state = 0;
+                stack.push((current_state, None, None));
+
+                let mut saved_input: Option<Option<(#terminal_type, usize)>> = None;
+
+                while true {
+                    current_state = stack.last().unwrap().0;
+
+                    let (next_token, next_token_n) = match saved_input {
+                        Some(saved) => match saved {
+                            Some(tup) => (Some(tup.0), Some(tup.1)),
+                            None => (None, None),
+                        }
+                        None => {
+                            let next_token = input.next();
+                            let next_token_n = match next_token {
+                                Some(ref token) => map_token(token),
+                                None => None,
+                            };
+                            (next_token, next_token_n)
+                        }
+                    };
+                    saved_input = None;
+
+                    match next_token {
+                        Some(_) => {
+                            let token_n = next_token_n.unwrap();
+                            #action_match
+                        }
+                        None => {
+                            #endmarker_match
+                        }
+                    }
+                }
+
+                let final_payload = stack.pop().unwrap().2.unwrap();
+                let result = match final_payload {
+                    PayloadNonterminal::#start_rule_lhs(x) => x,
+                    _ => std::unreachable!(),
+                };
+
+                Ok(result)
+            }
+        }
+    }
+}
+
+#[inline]
+fn parser_decl(visibility: &Option<Visibility>, name: &Ident) -> TokenStream {
+    quote! {
+        #visibility struct #name {}
+    }
+}
+
+#[inline]
+fn payload_enum_decl(grammar_nonterminals: &HashMap<Ident, NonterminalReference>) -> TokenStream {
+    let payload_enum_variants: Vec<_> = grammar_nonterminals
+        .iter()
+        .map(|(ident, reference)| (ident, reference.return_type.clone()))
+        .map(|(ident, ty)| quote! { #ident(#ty) })
+        .collect();
+
+    quote! {
+        #[derive(Debug)]
+        enum PayloadNonterminal {
+            #(#payload_enum_variants),*
+        }
+    }
+}
+
+#[inline]
+fn map_token_decl(
+    terminal_type: &Type,
+    grammar_terminals: &HashMap<Ident, (usize, TerminalRefname)>,
+) -> TokenStream {
+    let terminal_map_branches: Vec<_> = grammar_terminals
+        .into_iter()
+        .map(|(variant, (n, refname))| {
+            let variant = match refname {
+                TerminalRefname::Destructure(_, ty, _) => {
+                    // Duplicate code but oh well
+                    match ty {
+                        DestructureType::Struct => quote! { #variant { .. } },
+                        DestructureType::TupleStruct => quote! { #variant( .. ) },
+                    }
+                }
+                TerminalRefname::Ignore => quote! { #variant },
+            };
+            quote! { #terminal_type::#variant => Some(#n) }
+        })
+        .collect();
+
+    quote! {
+        fn map_token(token: &#terminal_type) -> Option<usize> {
+            match token {
+                #(#terminal_map_branches),*,
+                _ => std::panic!("unrecognized terminal"),
+            }
+        }
+    }
+}
+
+#[inline]
+fn get_goto_decl<'g>(table: &LR1Table<'g, usize, usize, (i32, TokenStream)>) -> TokenStream {
+    let get_goto_branches: Vec<_> = table
+        .states
+        .iter()
+        .enumerate()
+        .map(|(i, state)| {
+            let branches: Vec<_> = state
+                .goto
+                .iter()
+                .map(|(n, dest)| quote! { #n => { #dest } })
+                .collect();
+
+            quote! { #i => match nonterminal {
+                #(#branches),*
+                _ => std::unreachable!(),
+            } }
+        })
+        .collect();
+
+    quote! {
+        fn get_goto(state: usize, nonterminal: usize) -> usize {
+            match state {
+                #(#get_goto_branches),*
+                _ => std::unreachable!(),
+            }
+        }
+    }
+}
+
+#[inline]
+fn tokenize_action<'g>(action: &LR1Action<'g, usize, usize, (i32, TokenStream)>) -> TokenStream {
+    match action {
+        LR1Action::Shift(dest) => quote! { shift(&mut stack, #dest, next_token); },
+        LR1Action::Reduce(lhs, rhs) => {
+            let action = &rhs.assoc.1;
+
+            quote! {
+                let payload = { #action }?;
+
+                let new_top = stack.last().unwrap().0;
+                let next_state = get_goto(new_top, #lhs);
+                stack.push((next_state, None, Some(payload)));
+
+                saved_input = Some(match next_token {
+                    Some(next_token) => Some((next_token, next_token_n.unwrap())),
+                    None => None,
+                });
+            }
+        }
+        LR1Action::Accept => quote! { break; },
+    }
+}
+
 #[derive(Clone)]
 struct RuleMeta {
     lhs: Ident,
@@ -452,6 +571,17 @@ struct ProductionMeta {
     /// Metadata for each symbol in the body.
     body: Vec<SymbolMeta>,
     reduce_action: Expr,
+}
+
+impl ProductionMeta {
+    fn grammar_rhs(&self, relative_priority: i32) -> Rhs<usize, usize, (i32, TokenStream)> {
+        let body = self.body.iter().map(|sym| sym.grammar_symbol()).collect();
+
+        let assoc_code = self.reduce_code().code();
+        let assoc = (relative_priority, assoc_code);
+
+        Rhs::new(body, assoc)
+    }
 }
 
 #[derive(Clone)]
@@ -497,6 +627,15 @@ enum SymbolMeta {
         ident: Ident,
         refname: Option<Field>,
     },
+}
+
+impl SymbolMeta {
+    fn grammar_symbol(&self) -> Symbol<usize, usize> {
+        match *self {
+            SymbolMeta::Terminal { nid, .. } => Symbol::Terminal(nid),
+            SymbolMeta::Nonterminal { nid, .. } => Symbol::Nonterminal(nid),
+        }
+    }
 }
 
 #[derive(Clone)]
