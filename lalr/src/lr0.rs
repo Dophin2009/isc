@@ -42,7 +42,7 @@ where
 {
     /// Compute the LR(0) item set.
     #[inline]
-    pub fn lr0_automaton<'g>(&'g self) -> LR0Automaton<'g, T, N, A> {
+    pub fn lr0_automaton(&self) -> LR0Automaton<'_, T, N, A> {
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = LR0ItemSet::new();
         initial_set.insert(LR0Item {
@@ -231,6 +231,15 @@ pub struct LR0ItemSet<'g, T: 'g, N: 'g, A: 'g> {
 }
 
 comparators!(LR0ItemSet('g, T, N, A), (T, N), (items));
+
+impl<'g, T: 'g, N: 'g, A: 'g> Default for LR0ItemSet<'g, T, N, A>
+where
+    LR0Item<'g, T, N, A>: Ord,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<'g, T: 'g, N: 'g, A: 'g> LR0ItemSet<'g, T, N, A>
 where

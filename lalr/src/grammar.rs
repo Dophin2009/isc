@@ -177,7 +177,7 @@ where
 
     /// Compute the FIRST sets for the nonterminals in the grammar.
     #[inline]
-    pub fn first_sets<'g>(&'g self) -> FirstSets<'g, T, N> {
+    pub fn first_sets(&self) -> FirstSets<'_, T, N> {
         // Map of FIRST sets, with flag indicating whether or not the set contains ε.
         let mut map: BTreeMap<_, _> = self
             .rules

@@ -209,6 +209,15 @@ pub struct LR1ItemSet<'g, T: 'g, N: 'g, A: 'g> {
 
 comparators!(LR1ItemSet('g, T, N, A), (T, N), (items));
 
+impl<'g, T: 'g, N: 'g, A: 'g> Default for LR1ItemSet<'g, T, N, A>
+where
+    LR1Item<'g, T, N, A>: Ord,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'g, T: 'g, N: 'g, A: 'g> LR1ItemSet<'g, T, N, A>
 where
     LR1Item<'g, T, N, A>: Ord,
@@ -520,7 +529,7 @@ where
     }
 
     #[inline]
-    pub fn lr1_automaton<'g>(&'g self) -> LR1Automaton<'g, T, N, A> {
+    pub fn lr1_automaton(&self) -> LR1Automaton<'_, T, N, A> {
         // Initialize item set to closure of {[S' -> S]}.
         let mut initial_set = LR1ItemSet::new();
         initial_set.insert(LR1Item {
@@ -608,7 +617,7 @@ where
         }
 
         self.lr1_closure(&mut new_set, first_sets);
-        return new_set;
+        new_set
     }
 
     /// Compute the LR(1) closure set for the given LR(1) item set.
@@ -670,8 +679,7 @@ where
                             }
                         }
 
-                        let mut first_set: BTreeSet<_> =
-                            first_set.into_iter().map(|t| Some(t)).collect();
+                        let mut first_set: BTreeSet<_> = first_set.into_iter().map(Some).collect();
 
                         // If all of β was nullable, consider the terminal a.
                         if nullable {
@@ -688,7 +696,7 @@ where
                                 lhs: b,
                                 rhs,
                                 pos: 0,
-                                lookahead: bt.clone(),
+                                lookahead: *bt,
                             });
                         }
                     }
@@ -827,7 +835,7 @@ mod test_grammar_4_55 {
         let y = Rhs::noop(vec![TT(Y)]);
         rules.insert(C, vec![x_c, y]);
 
-        return Grammar::new(E, rules).unwrap();
+        Grammar::new(E, rules).unwrap()
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
