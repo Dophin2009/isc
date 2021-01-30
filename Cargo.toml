@@ -3,9 +3,9 @@ members = [
   "automata",
   "lalr",
   "lalrgen",
-  "lalrgen-derive",
+  "lalrgen-macro",
   "llex",
-  "llex-derive",
+  "llex-macro",
   "regexp",
   "regexp2"
 ]

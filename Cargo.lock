@@ -113,14 +113,14 @@ name = "lalrgen"
 version = "0.1.0"
 dependencies = [
  "lalr",
- "lalrgen-derive",
+ "lalrgen-macro",
  "llex",
  "ordered-float",
  "utf8-chars",
 ]
 
 [[package]]
-name = "lalrgen-derive"
+name = "lalrgen-macro"
 version = "0.1.0"
 dependencies = [
  "itertools",
@@ -140,7 +140,7 @@ checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
 name = "llex"
 version = "0.1.0"
 dependencies = [
- "llex-derive",
+ "llex-macro",
  "proc-macro2",
  "quote",
  "regexp2",
@@ -148,7 +148,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "llex-derive"
+name = "llex-macro"
 version = "0.1.0"
 dependencies = [
  "anyhow",

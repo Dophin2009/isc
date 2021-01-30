@@ -6,7 +6,7 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-llex-derive = { path = "../llex-derive" }
+llex-macro = { path = "../llex-macro" }
 
 proc-macro2 = "1.0.18"
 quote = "1.0"

@@ -1,12 +1,12 @@
 [package]
-name = "llex-derive"
+name = "llex-macro"
 version = "0.1.0"
 authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 license = "MIT"
 
 [lib]
-name = "llex_derive"
+name = "llex_macro"
 proc-macro = true
 
 [dependencies]
