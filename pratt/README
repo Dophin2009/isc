@@ -1,0 +1,10 @@
+Pratt Parser
+============
+
+This is an attempt at a small expression parser using recursive-descent and
+Pratt parsing.
+
+Details taken from these two blog posts by Aleksey Kladov:
+
+  - https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+  - https://matklad.github.io/2020/04/15/from-pratt-to-dijkstra.html

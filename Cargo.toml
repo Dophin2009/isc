@@ -6,8 +6,9 @@ members = [
   "lalrgen-macro",
   "llex",
   "llex-macro",
+  "pratt",
   "regexp",
-  "regexp2"
+  "regexp2",
 ]
 
 [patch.crates-io]
