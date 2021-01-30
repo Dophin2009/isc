@@ -344,24 +344,6 @@ pub(crate) struct ReduceCode {
     pub ret: TokenStream,
 }
 
-impl ReduceCode {
-    pub fn code(&self) -> TokenStream {
-        let Self {
-            stack_pop,
-            fn_decl,
-            fn_call,
-            ret,
-        } = self;
-
-        quote! {
-            #fn_decl
-            #stack_pop
-            #fn_call
-            #ret
-        }
-    }
-}
-
 #[derive(Clone)]
 pub(crate) enum SymbolMeta {
     Terminal {
