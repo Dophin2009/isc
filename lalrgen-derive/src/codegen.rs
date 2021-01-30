@@ -260,7 +260,7 @@ fn tokenize_action<'g>(action: &LR1Action<'g, usize, usize, (i32, TokenStream)>)
 
 impl ProductionMeta {
     /// Generate the code for the associated closure, to be called on reduction on this production.
-    fn reduce_code(&self) -> ReduceCode {
+    pub fn reduce_code(&self) -> ReduceCode {
         let mut pop_stmts = Vec::new();
         // Parameter declarations in the action function signature.
         let mut fn_params = Vec::new();
