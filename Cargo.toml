@@ -9,3 +9,6 @@ members = [
   "regexp",
   "regexp2"
 ]
+
+[patch.crates-io]
+tree = { git = "https://github.com/apasel422/tree" }
