@@ -102,7 +102,7 @@ fn lexer_(parsed: Lexer) -> Result<TokenStream, TokenStream> {
 
         impl ::llex::stream::LexerDFAMatcher<#return_type> for #struct_name {
             #[inline]
-            fn tokenize<'a, I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
+            fn tokenize<'a, I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<(#return_type, ::llex::regexp2::automata::Match<char>)>
             where
                 I: std::iter::Iterator<Item = char>,
             {
@@ -115,25 +115,25 @@ fn lexer_(parsed: Lexer) -> Result<TokenStream, TokenStream> {
                     std::option::Option::Some(m) => m,
                     std::option::Option::None => {
                         input.next();
-                        return std::option::Option::Some(#error_variant);
+                        return std::option::Option::Some((#error_variant, ::llex::regexp2::automata::Match::new(0, 0, vec![])));
                     },
                 };
 
                 // Execute the action expression corresponding to the final state.
-                let span: std::string::String = m.span.into_iter().collect();
+                let span: std::string::String = m.span.iter().cloned().collect();
                 let token_op = match final_state {
                     #( #action_match ),*,
                     // Catch-all branch should never execute?
                     _ => std::unreachable!(),
                 };
 
-                token_op
+                token_op.map(|t| (t, m))
             }
         }
 
         impl ::llex::stream::LexerDFAMatcher<#return_type> for &#struct_name {
             #[inline]
-            fn tokenize<I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<#return_type>
+            fn tokenize<I>(&self, input: &mut std::iter::Peekable<I>) -> std::option::Option<(#return_type, ::llex::regexp2::automata::Match<char>)>
             where
                 I: std::iter::Iterator<Item = char>,
             {
