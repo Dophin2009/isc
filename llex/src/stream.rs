@@ -36,6 +36,7 @@ where
     pub input: Peekable<I>,
     matcher: M,
     current_item: Option<LexerItem<T>>,
+    offset: usize,
 }
 
 impl<T, M, I> LexerStream<T, M, I>
@@ -49,6 +50,7 @@ where
             matcher,
             current_item: None,
             input: input.peekable(),
+            offset: 0,
         }
     }
 }
@@ -67,10 +69,18 @@ where
         let token_op = self.matcher.tokenize(&mut self.input);
         match token_op {
             // If a token was returned, return the token and the remaining input.
-            Some((t, m)) => Some(LexerItem::new(t, m)),
+            Some((t, mut m)) => {
+                m.start += self.offset;
+                m.end += self.offset;
+                self.offset += m.end - m.start;
+                Some(LexerItem::new(t, m))
+            }
             // If no token was returned, one input symbol should be consumed and the process
             // restarted.
-            None => self.next(),
+            None => {
+                self.offset += 1;
+                self.next()
+            }
         }
     }
 }

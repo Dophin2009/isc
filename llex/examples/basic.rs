@@ -26,6 +26,8 @@
 //     }
 // }
 
+use std::fmt;
+
 use llex::lexer;
 
 // The type returned from the generated lexer function.
@@ -47,6 +49,26 @@ pub enum Token {
     Comma,
 
     Error,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::Ident(s) => write!(f, "{}", s),
+            Token::Integer(i) => write!(f, "{}", i),
+            Token::Float(n) => write!(f, "{}", n),
+            Token::KeywordPub => write!(f, "pub"),
+            Token::KeywordFn => write!(f, "fn"),
+            Token::KeywordEnum => write!(f, "enum"),
+            Token::LeftParenthesis => write!(f, "("),
+            Token::RightParenthesis => write!(f, ")"),
+            Token::LeftBracket => write!(f, "["),
+            Token::RightBracket => write!(f, "]"),
+            Token::Semicolon => write!(f, ";"),
+            Token::Comma => write!(f, ","),
+            Token::Error => write!(f, "<error>"),
+        }
+    }
 }
 
 lexer! {
@@ -105,6 +127,7 @@ fn main() {
     let tokens = lexer.stream(chars);
 
     for t in tokens {
-        print!("{:?} ", t.token);
+        print!("('{}' {}:{}) ", t.token, t.m.start, t.m.end - 1);
     }
+    println!()
 }
