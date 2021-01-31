@@ -6,6 +6,21 @@ use std::iter::Peekable;
 
 pub type Result<T> = std::result::Result<T, ParseError>;
 
+#[derive(Clone, Debug)]
+pub struct Symbol(pub Token, pub Span);
+
+#[derive(Clone, Debug)]
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser;
 
@@ -16,7 +31,7 @@ impl Parser {
 
     pub fn parse<I>(&self, input: I) -> Result<Expr>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         let mut input = input.peekable();
         self.expr_bp(&mut input, 0)
@@ -24,10 +39,10 @@ impl Parser {
 
     fn expr_bp<I>(&self, input: &mut Peekable<I>, min_bp: u8) -> Result<Expr>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         // Parse the lhs operand.
-        let mut lhs = match self.peek(input)? {
+        let mut lhs = match self.peek(input)?.0 {
             // Match an Atom token, then lhs is that Atom.
             Token::Atom(_) => self.expr_atom(input)?,
             // Match a left parenthesis, then parse the inside of the parentheses.
@@ -36,21 +51,23 @@ impl Parser {
             Token::Minus => self.expr_negative(input)?,
             // If none of the above were matched, then return an error.
             _ => {
+                let next = self.next(input)?;
                 return Err(ParseError::UnexpectedToken(
-                    self.next(input)?,
+                    next.1,
+                    next.0,
                     vec![
                         ExpectedToken::Atom,
                         ExpectedToken::LParen,
                         ExpectedToken::Minus,
                     ],
-                ))
+                ));
             }
         };
 
         loop {
             // Peek the next token, and if EOF is reached, break from the loop.
             // Otherwise, continue parsing as infix or postfix operator.
-            let op = match self.peek_optional(input)? {
+            let Symbol(op, _) = match self.peek_optional(input)? {
                 None => break,
                 Some(token) => token,
             };
@@ -85,7 +102,7 @@ impl Parser {
                         break;
                     }
 
-                    let op = self.next(input)?;
+                    let op = self.next(input)?.0;
                     let op = match op {
                         Token::Plus => BinaryOp::Add,
                         Token::Minus => BinaryOp::Subtract,
@@ -111,9 +128,10 @@ impl Parser {
 
                     // Ensure that the next token is the ternary separator.
                     let next = self.next(input)?;
-                    if next != Token::Colon {
+                    if next.0 != Token::Colon {
                         return Err(ParseError::UnexpectedToken(
-                            next,
+                            next.1,
+                            next.0,
                             vec![ExpectedToken::Colon],
                         ));
                     }
@@ -134,13 +152,14 @@ impl Parser {
     /// Parse a parenthesized exprression.
     fn expr_parenthesized<I>(&self, input: &mut Peekable<I>) -> Result<Expr>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         // Consume left parenthesis.
         let next = self.next(input)?;
-        if Token::LParen != next {
+        if next.0 != Token::LParen {
             return Err(ParseError::UnexpectedToken(
-                next,
+                next.1,
+                next.0,
                 vec![ExpectedToken::LParen],
             ));
         }
@@ -150,9 +169,10 @@ impl Parser {
         // Check that the next is the closing right parenthesis.
         // If not, return an error.
         let next = self.next(input)?;
-        if Token::RParen != next {
+        if next.0 != Token::RParen {
             return Err(ParseError::UnexpectedToken(
-                next,
+                next.1,
+                next.0,
                 vec![ExpectedToken::RParen],
             ));
         }
@@ -163,17 +183,18 @@ impl Parser {
     /// Parse an expression for the negative prefix operator applied to another expression.
     fn expr_negative<I>(&self, input: &mut Peekable<I>) -> Result<Expr>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         let next = self.next(input)?;
-        if next != Token::Minus {
+        if next.0 != Token::Minus {
             return Err(ParseError::UnexpectedToken(
-                next,
+                next.1,
+                next.0,
                 vec![ExpectedToken::Minus],
             ));
         }
 
-        let ((), rbp) = self.prefix_binding_power(&next).unwrap();
+        let ((), rbp) = self.prefix_binding_power(&next.0).unwrap();
         let rhs = self.expr_bp(input, rbp)?;
 
         Ok(Expr::UnaryOp(UnaryOp::Negative, Box::new(rhs)))
@@ -182,7 +203,7 @@ impl Parser {
     /// Parse an expression for an atom.
     fn expr_atom<I>(&self, input: &mut Peekable<I>) -> Result<Expr>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         Ok(Expr::Atom(self.atom(input)?))
     }
@@ -190,12 +211,13 @@ impl Parser {
     /// Parse an array index expression, including the brackets, in an array indexing operation.
     fn array_index<I>(&self, input: &mut Peekable<I>) -> Result<Expr>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         let next = self.next(input)?;
-        if next != Token::LBracket {
+        if next.0 != Token::LBracket {
             return Err(ParseError::UnexpectedToken(
-                next,
+                next.1,
+                next.0,
                 vec![ExpectedToken::LBracket],
             ));
         }
@@ -203,9 +225,10 @@ impl Parser {
         let idx = self.expr_bp(input, 0)?;
 
         let next = self.next(input)?;
-        if next != Token::RBracket {
+        if next.0 != Token::RBracket {
             return Err(ParseError::UnexpectedToken(
-                next,
+                next.1,
+                next.0,
                 vec![ExpectedToken::RBracket],
             ));
         }
@@ -216,12 +239,16 @@ impl Parser {
     /// Parse an Atom.
     fn atom<I>(&self, input: &mut Peekable<I>) -> Result<Atom>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         let next = self.next(input)?;
-        match next {
+        match next.0 {
             Token::Atom(s) => Ok(Atom(s)),
-            _ => Err(ParseError::UnexpectedToken(next, vec![ExpectedToken::Atom])),
+            _ => Err(ParseError::UnexpectedToken(
+                next.1,
+                next.0,
+                vec![ExpectedToken::Atom],
+            )),
         }
     }
 
@@ -261,35 +288,35 @@ impl Parser {
     /// Consume the next token from the input. Returns `ParseError::UnexpectedEof` if the end of
     /// the iterator was encountered, and `ParseError::LexerError` if the token was the error
     /// variant.
-    fn next<I>(&self, input: &mut I) -> Result<Token>
+    fn next<I>(&self, input: &mut I) -> Result<Symbol>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         match input.next().ok_or(ParseError::UnexpectedEof)? {
-            Token::Error => Err(ParseError::LexerError),
+            t if t.0 == Token::Error => Err(ParseError::LexerError),
             t => Ok(t),
         }
     }
 
     /// Peek the next token in the input. Has the same error semantics as [`Self::next`]
-    fn peek<'a, I>(&self, input: &'a mut Peekable<I>) -> Result<&'a Token>
+    fn peek<'a, I>(&self, input: &'a mut Peekable<I>) -> Result<&'a Symbol>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         match input.peek().ok_or(ParseError::UnexpectedEof)? {
-            Token::Error => Err(ParseError::LexerError),
+            t if t.0 == Token::Error => Err(ParseError::LexerError),
             t => Ok(t),
         }
     }
 
     /// Peek the next token in the input. Has the same error semantics as [`Self::next`], except
     /// [`None`] is returned if the end of the input is encountered.
-    fn peek_optional<'a, I>(&self, input: &'a mut Peekable<I>) -> Result<Option<&'a Token>>
+    fn peek_optional<'a, I>(&self, input: &'a mut Peekable<I>) -> Result<Option<&'a Symbol>>
     where
-        I: Iterator<Item = Token>,
+        I: Iterator<Item = Symbol>,
     {
         match input.peek() {
-            Some(token) => match token {
+            Some(token) => match token.0 {
                 Token::Error => Err(ParseError::LexerError),
                 _ => Ok(Some(token)),
             },
@@ -300,8 +327,8 @@ impl Parser {
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("unexpected token {:?}, expected one of {:?}", .0, .1)]
-    UnexpectedToken(Token, Vec<ExpectedToken>),
+    #[error("unexpected token {} at position {}, expected one of {:?}", .1, .0.start + 1, .2)]
+    UnexpectedToken(Span, Token, Vec<ExpectedToken>),
     #[error("unexpected end-of-file")]
     UnexpectedEof,
     #[error("lexer error")]
