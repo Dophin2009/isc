@@ -12,5 +12,4 @@ path = "src/main.rs"
 [dependencies]
 llex = { path = "../llex" }
 
-lazy_static = "1.4.0"
 thiserror = "1.0"

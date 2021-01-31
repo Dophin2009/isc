@@ -14,6 +14,8 @@ llex::lexer! {
     r"\*"   => Some(Token::Star),
     r"/"    => Some(Token::Slash),
     r"!"    => Some(Token::Exclamation),
+    r"\?"    => Some(Token::Question),
+    r":"    => Some(Token::Colon),
 
     r"\("   => Some(Token::LParen),
     r"\)"   => Some(Token::RParen),

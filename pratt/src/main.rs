@@ -24,6 +24,8 @@ fn main() -> Result<(), Error> {
 
         let ast = parser.parse(tokens)?;
         println!("{}", ast);
+
+        buf.clear();
     }
 }
 

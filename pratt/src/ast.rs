@@ -1,12 +1,12 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
-    ArrayIndex(Atom, Box<Expr>),
+    ArrayIndex(Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
-    Atom(String),
+    Atom(Atom),
 }
 
 impl fmt::Display for Expr {
@@ -21,7 +21,7 @@ impl fmt::Display for Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Atom(pub String);
 
 impl fmt::Display for Atom {
@@ -30,7 +30,7 @@ impl fmt::Display for Atom {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum UnaryOp {
     Negative,
     Factorial,
@@ -45,7 +45,7 @@ impl fmt::Display for UnaryOp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum BinaryOp {
     Add,
     Subtract,
