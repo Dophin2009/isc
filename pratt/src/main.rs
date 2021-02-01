@@ -19,7 +19,9 @@ fn main() -> Result<(), Error> {
     let mut buf = String::new();
     loop {
         print!("> ");
-        io::stdout().flush()?;
+        if let Err(err) = io::stdout().flush() {
+            print_error(err.into());
+        }
 
         stdin.read_line(&mut buf)?;
         let tokens = lexer
