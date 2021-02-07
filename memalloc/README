@@ -1,0 +1,14 @@
+memalloc
+========
+
+Broken attempt at a memory heap allocator; will probably try to revisit later.
+
+References
+==========
+
+Writing a Memory Allocator    : http://dmitrysoshnikov.com/compilers/writing-a-memory-allocator
+Allocator Designs             : https://os.phil-opp.com/allocator-designs/
+Redox OS's ralloc             : https://github.com/redox-os/ralloc
+elfmalloc                     : https://github.com/ezrosent/allocators-rs
+slabmalloc                    : https://github.com/gz/rust-slabmalloc
+rust-malloc                   : https://github.com/huonw/rust-malloc
