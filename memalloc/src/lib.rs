@@ -15,8 +15,10 @@ pub extern "C" fn memalloc(size: usize) -> *mut u8 {
     ALLOCATOR.lock().unwrap().alloc(size)
 }
 
-// #[no_mangle]
-// pub extern "C" fn memfree() -> *mut u8 {}
+#[no_mangle]
+pub extern "C" fn memfree(ptr: *mut u8) {
+    ALLOCATOR.lock().unwrap().free(ptr);
+}
 
 /// Syscall id for brk().
 static SYS_BRK: usize = 12;
@@ -30,10 +32,15 @@ struct Block {
     data: AtomicPtr<u8>,
 }
 
+#[repr(C)]
 #[derive(Debug)]
 struct Allocator {
+    /// Start block of the linked-list heap.
     start: Option<Arc<Mutex<Block>>>,
+    /// Current top of the heap.
     top: Option<Arc<Mutex<Block>>>,
+
+    /// Current brk ptr position, for use in `sbrk`.
     current_brk: usize,
 }
 
@@ -45,7 +52,7 @@ macro_rules! rc_refcell {
 
 impl Allocator {
     #[inline]
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             start: None,
             top: None,
@@ -54,7 +61,7 @@ impl Allocator {
     }
 
     #[inline]
-    fn alloc(&mut self, mut size: usize) -> *mut u8 {
+    pub fn alloc(&mut self, mut size: usize) -> *mut u8 {
         // Get properly aligned size.
         size = align(size);
 
@@ -84,14 +91,32 @@ impl Allocator {
 
         self.top = Some(block);
 
-        self.top
+        let ptr = self
+            .top
             .as_ref()
             .unwrap()
             .lock()
             .unwrap()
             .data
             .get_mut()
-            .clone()
+            .clone();
+
+        unsafe {
+            let block = self.get_header(ptr);
+            println!("header: {:?} {:?}", block, block.as_ref());
+        }
+
+        ptr
+    }
+
+    #[inline]
+    pub fn free(&mut self, ptr: *mut u8) {}
+
+    /// Return the block header for a given block data pointer.
+    #[inline]
+    unsafe fn get_header(&mut self, ptr: *mut u8) -> *mut Block {
+        ptr.offset(mem::size_of::<AtomicPtr<u8>>() as isize - mem::size_of::<Block>() as isize)
+            .cast()
     }
 
     /// Request the OS to allocate a new memory block and return the address to the start of that
