@@ -11,19 +11,23 @@ Components
 
 The following components have been / are being implemented:
 
-    automata :  implementation of nondeterminstic and deterministic finite
-                automata
-    lalr     :  generation of SLR(1), LR(1), and LALR(1) parse tables from
-                context-free grammars
-    lalrgen  :  parser generator as a procedural macro
-    llex     :  lexical analyzer generator as a procedural macro
-    memalloc :  malloc/free implementation attempt as a dynamic lib
-    pratt    :  attempt at a basic Pratt expression parser
-    regexp   :  implementation of limited regular expressions
-    regexp2  :  better implementation of regular expressions with support for
-                character classes and other operators
+    automata [w] :  implementation of nondeterminstic and deterministic finite
+                    automata
+    lalr     [p] :  generation of SLR(1), LR(1), and LALR(1) parse tables from
+                    context-free grammars
+    lalrgen  [p] :  parser generator as a procedural macro
+    llex     [w] :  lexical analyzer generator as a procedural macro
+    memalloc [b] :  malloc/free implementation attempt as a dynamic lib
+    pratt    [w] :  attempt at a basic Pratt expression parser
+    regexp   [w] :  implementation of limited regular expressions
+    regexp2  [w] :  better implementation of regular expressions with support
+                    for character classes and other operators
 
 See subdirectories for more information and examples.
+
+[w]: Generall working
+[p]: Partially working
+[b]: Broken / never worked
 
 Building
 ========
