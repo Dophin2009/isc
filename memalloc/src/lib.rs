@@ -2,7 +2,6 @@ extern crate alloc;
 
 use alloc::sync::Arc;
 use core::mem;
-use core::ptr;
 use core::sync::atomic::AtomicPtr;
 use std::sync::Mutex;
 
@@ -22,6 +21,7 @@ pub extern "C" fn memalloc(size: usize) -> *mut u8 {
 /// Syscall id for brk().
 static SYS_BRK: usize = 12;
 
+#[repr(C)]
 #[derive(Debug)]
 struct Block {
     size: usize,
@@ -60,7 +60,7 @@ impl Allocator {
 
         // Request memory from OS and get the pointer to the start of the new block.
         let ptr = match self.request_from_os(size) {
-            Some(ptr) => ptr,
+            Some(ptr) => ptr as *mut u8,
             // TODO: proper OOM handling
             None => panic!("Out of memory"),
         };
@@ -83,6 +83,7 @@ impl Allocator {
         }
 
         self.top = Some(block);
+
         self.top
             .as_ref()
             .unwrap()
@@ -96,11 +97,12 @@ impl Allocator {
     /// Request the OS to allocate a new memory block and return the address to the start of that
     /// new block.
     #[inline]
-    fn request_from_os(&mut self, size: usize) -> Option<*mut u8> {
+    fn request_from_os(&mut self, size: usize) -> Option<usize> {
         // Get the current brk position (start of the new allocated block).
         let block = self.sbrk(0);
 
-        match self.sbrk(alloc_size(size)) {
+        let size = alloc_size(size);
+        match self.sbrk(size) {
             Some(_) => block,
             // OOM
             None => None,
@@ -109,7 +111,7 @@ impl Allocator {
 
     /// Increase the brk pointer by `incr`. Returns a nullptr if OOM.
     #[inline]
-    fn sbrk(&mut self, incr: usize) -> Option<*mut u8> {
+    fn sbrk(&mut self, incr: usize) -> Option<usize> {
         if self.current_brk == 0 {
             self.brk(0);
         }
@@ -120,21 +122,21 @@ impl Allocator {
     /// Set the brk pointer to the given position and return the new brk position. Returns `None`
     /// if OOM.
     #[inline]
-    fn brk(&mut self, ptr: usize) -> Option<*mut u8> {
+    fn brk(&mut self, ptr: usize) -> Option<usize> {
         let new = unsafe { syscall!(SYS_BRK, ptr) } as usize;
 
         self.current_brk = new;
         if new < ptr {
             None
         } else {
-            Some(new as *mut u8)
+            Some(new)
         }
     }
 }
 
 #[inline]
 fn alloc_size(size: usize) -> usize {
-    size + mem::size_of::<Block>() - mem::size_of::<usize>()
+    size + mem::size_of::<Block>() - mem::size_of::<AtomicPtr<u8>>()
 }
 
 /// Return the correct amount of bytes for alignment.
