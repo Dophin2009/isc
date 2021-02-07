@@ -1,0 +1,12 @@
+[package]
+name = "memalloc"
+version = "0.1.0"
+authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
+edition = "2018"
+
+[lib]
+name = "malloc"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]

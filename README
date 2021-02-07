@@ -17,6 +17,7 @@ The following components have been / are being implemented:
                 context-free grammars
     lalrgen  :  parser generator as a procedural macro
     llex     :  lexical analyzer generator as a procedural macro
+    memalloc :  malloc/free implementation attempt as a dynamic lib
     pratt    :  attempt at a basic Pratt expression parser
     regexp   :  implementation of limited regular expressions
     regexp2  :  better implementation of regular expressions with support for

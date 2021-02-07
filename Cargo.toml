@@ -6,6 +6,7 @@ members = [
   "lalrgen-macro",
   "llex",
   "llex-macro",
+  "memalloc",
   "pratt",
   "regexp",
   "regexp2",
