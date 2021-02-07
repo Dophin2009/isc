@@ -11,7 +11,7 @@ use x86::syscall;
 
 static ALLOCATOR: Lazy<Mutex<Allocator>> = Lazy::new(|| Mutex::new(Allocator::new()));
 
-// #[no_mangle]
+#[no_mangle]
 pub extern "C" fn memalloc(size: usize) -> *mut u8 {
     ALLOCATOR.lock().unwrap().alloc(size)
 }
