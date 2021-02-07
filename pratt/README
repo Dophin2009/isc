@@ -4,7 +4,9 @@ Pratt Parser
 This is an attempt at a small expression parser using recursive-descent and
 Pratt parsing.
 
-Details taken from these two blog posts by Aleksey Kladov:
+References
+==========
 
-  - https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
-  - https://matklad.github.io/2020/04/15/from-pratt-to-dijkstra.html
+Simple but Powerful Pratt Parsing   : https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+From Pratt to Dijkstra              : https://matklad.github.io/2020/04/15/from-pratt-to-dijkstra.html
+Pratt Parsing Index and Updates     : http://www.oilshell.org/blog/2017/03/31.html
