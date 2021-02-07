@@ -62,6 +62,7 @@ fn lexer_(parsed: Lexer) -> Result<TokenStream, TokenStream> {
             let fn_name = format_ident!("action_{}", dfa_state);
             quote! {
                 #[allow(unused)]
+                #[allow(clippy::unnecessary_wraps)]
                 #[inline]
                 fn #fn_name(#span_id: &str) -> std::option::Option<#return_type> {
                     #action
