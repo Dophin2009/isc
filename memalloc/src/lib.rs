@@ -1,202 +1,32 @@
-extern crate alloc;
+#![no_std]
+#![feature(lang_items)]
+#![feature(const_mut_refs)]
 
-use alloc::sync::Arc;
-use core::mem;
-use core::sync::atomic::AtomicPtr;
-use std::sync::Mutex;
+mod alloc;
 
-use once_cell::sync::Lazy;
-use x86::syscall;
+use core::panic::PanicInfo;
 
-static ALLOCATOR: Lazy<Mutex<Allocator>> = Lazy::new(|| Mutex::new(Allocator::new()));
+use alloc::{Allocator, Locked};
+use spin::Once;
+
+static ALLOCATOR: Once<Locked<Allocator>> = Once::initialized(Locked::new(Allocator::new()));
 
 #[no_mangle]
 pub extern "C" fn memalloc(size: usize) -> *mut u8 {
-    ALLOCATOR.lock().unwrap().alloc(size)
+    ALLOCATOR.get().unwrap().alloc(size)
 }
 
 #[no_mangle]
 pub extern "C" fn memfree(ptr: *mut u8) {
-    ALLOCATOR.lock().unwrap().free(ptr);
+    ALLOCATOR.get().unwrap().dealloc(ptr);
 }
 
-/// Syscall id for brk().
-static SYS_BRK: usize = 12;
+#[cfg(not(test))]
+#[lang = "eh_personality"]
+fn eh_personality() {}
 
-#[repr(C)]
-#[derive(Debug)]
-struct Block {
-    size: usize,
-    used: bool,
-    next: Option<Arc<Mutex<Block>>>,
-    data: AtomicPtr<u8>,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-struct Allocator {
-    /// Start block of the linked-list heap.
-    start: Option<Arc<Mutex<Block>>>,
-    /// Current top of the heap.
-    top: Option<Arc<Mutex<Block>>>,
-
-    /// Current brk ptr position, for use in `sbrk`.
-    current_brk: usize,
-}
-
-macro_rules! rc_refcell {
-    ($expr:expr) => {
-        Arc::new(Mutex::new($expr))
-    };
-}
-
-impl Allocator {
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            start: None,
-            top: None,
-            current_brk: 0,
-        }
-    }
-
-    #[inline]
-    pub fn alloc(&mut self, mut size: usize) -> *mut u8 {
-        // Get properly aligned size.
-        size = align(size);
-
-        // Request memory from OS and get the pointer to the start of the new block.
-        let ptr = match self.request_from_os(size) {
-            Some(ptr) => ptr as *mut u8,
-            // TODO: proper OOM handling
-            None => panic!("Out of memory"),
-        };
-        let block = rc_refcell!(Block {
-            size,
-            used: true,
-            next: None,
-            data: AtomicPtr::new(ptr),
-        });
-
-        // Initialize heap if not already initialized.
-        if self.start.is_none() {
-            self.start = Some(block.clone());
-        }
-
-        // Chain the blocks.
-        if let Some(top) = &self.top {
-            let mut top = top.lock().unwrap();
-            top.next = Some(block.clone());
-        }
-
-        self.top = Some(block);
-
-        let ptr = self
-            .top
-            .as_ref()
-            .unwrap()
-            .lock()
-            .unwrap()
-            .data
-            .get_mut()
-            .clone();
-
-        unsafe {
-            let block = self.get_header(ptr);
-            println!("header: {:?} {:?}", block, block.as_ref());
-        }
-
-        ptr
-    }
-
-    #[inline]
-    pub fn free(&mut self, ptr: *mut u8) {}
-
-    /// Return the block header for a given block data pointer.
-    #[inline]
-    unsafe fn get_header(&mut self, ptr: *mut u8) -> *mut Block {
-        ptr.offset(mem::size_of::<AtomicPtr<u8>>() as isize - mem::size_of::<Block>() as isize)
-            .cast()
-    }
-
-    /// Request the OS to allocate a new memory block and return the address to the start of that
-    /// new block.
-    #[inline]
-    fn request_from_os(&mut self, size: usize) -> Option<usize> {
-        // Get the current brk position (start of the new allocated block).
-        let block = self.sbrk(0);
-
-        let size = alloc_size(size);
-        match self.sbrk(size) {
-            Some(_) => block,
-            // OOM
-            None => None,
-        }
-    }
-
-    /// Increase the brk pointer by `incr`. Returns a nullptr if OOM.
-    #[inline]
-    fn sbrk(&mut self, incr: usize) -> Option<usize> {
-        if self.current_brk == 0 {
-            self.brk(0);
-        }
-        let new = self.current_brk + incr;
-        self.brk(new)
-    }
-
-    /// Set the brk pointer to the given position and return the new brk position. Returns `None`
-    /// if OOM.
-    #[inline]
-    fn brk(&mut self, ptr: usize) -> Option<usize> {
-        let new = unsafe { syscall!(SYS_BRK, ptr) } as usize;
-
-        self.current_brk = new;
-        if new < ptr {
-            None
-        } else {
-            Some(new)
-        }
-    }
-}
-
-#[inline]
-fn alloc_size(size: usize) -> usize {
-    size + mem::size_of::<Block>() - mem::size_of::<AtomicPtr<u8>>()
-}
-
-/// Return the correct amount of bytes for alignment.
-#[inline]
-fn align(n: usize) -> usize {
-    let size = mem::size_of::<usize>();
-    (n + size - 1) & !(size - 1)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    use cfg_if::cfg_if;
-
-    #[test]
-    fn test_align() {
-        cfg_if! {
-            if #[cfg(target_pointer_width = "64")] {
-                assert_eq!(8, align(3));
-                assert_eq!(8, align(5));
-                assert_eq!(8, align(8));
-                assert_eq!(16, align(9));
-                assert_eq!(16, align(12));
-                assert_eq!(16, align(13));
-                assert_eq!(16, align(16));
-            } else if #[cfg(target_pointer_width = "32")] {
-                assert_eq!(4, align(3));
-                assert_eq!(8, align(5));
-                assert_eq!(8, align(8));
-                assert_eq!(12, align(9));
-                assert_eq!(12, align(12));
-                assert_eq!(16, align(13));
-                assert_eq!(16, align(16));
-            }
-        }
-    }
+#[cfg(not(test))]
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
 }
