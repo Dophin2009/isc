@@ -149,7 +149,7 @@ fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
         let mut followpos_split: HashMap<CharType, HashSet<u32>> = HashMap::new();
         s.positions
             .iter()
-            .map(|i| -> Result<(), ParseError> {
+            .try_for_each(|i| -> Result<(), ParseError> {
                 let leaf = base.leaves.get(&i).ok_or(ParseError::Dfa)?;
                 let leaf_char = &leaf.character;
                 let c = (*leaf_char).as_ref().ok_or(ParseError::Dfa)?;
@@ -163,13 +163,12 @@ fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
                 };
 
                 Ok(())
-            })
-            .collect::<Result<_, _>>()?;
+            })?;
 
         // Create new states based on created unions and update the transition table.
         followpos_split
             .into_iter()
-            .map(|(c, fp_union)| -> Result<(), ParseError> {
+            .try_for_each(|(c, fp_union)| -> Result<(), ParseError> {
                 label += 1;
                 let mut new_state = DState {
                     label,
@@ -220,8 +219,7 @@ fn tree_to_dfa(tree: &SyntaxTree) -> Result<DFA, ParseError> {
                 }
 
                 Ok(())
-            })
-            .collect::<Result<_, _>>()?;
+            })?;
 
         // Push current state to handled states.
         marked_states.push(s);
@@ -271,10 +269,7 @@ enum AugmentTreeRet {
 /// and `followpos` are computed and stored for each node via a depth-first traversal.
 /// A lookup map is maintained with all nodes is maintained to compute `followpos` values.
 impl AugmentTreeRet {
-    fn extract(
-        self,
-        lookup: &mut HashMap<u32, AugmentedNode>,
-    ) -> Result<(Option<u32>, AugmentedNode), ParseError> {
+    fn extract(self, lookup: &mut HashMap<u32, AugmentedNode>) -> (Option<u32>, AugmentedNode) {
         let mark = match self {
             AugmentTreeRet::Leaf(m) => Some(m),
             AugmentTreeRet::Branch(_) => None,
@@ -284,7 +279,7 @@ impl AugmentTreeRet {
             AugmentTreeRet::Leaf(m) => lookup.remove(&m).unwrap(),
             AugmentTreeRet::Branch(aug_n) => aug_n,
         };
-        Ok((mark, val))
+        (mark, val)
     }
 }
 
@@ -324,23 +319,20 @@ fn augment_kleene(
         None => return Ok(None),
     };
     // Remove first child from lookup if is leaf, insert back at the end
-    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup);
 
     let firstpos = aug_c1.firstpos.clone();
     let lastpos = aug_c1.lastpos.clone();
 
     // All positions in firstpos are in followpos of each position i in lastpos.
-    let _ = lastpos
-        .iter()
-        .map(|i| -> Result<(), ParseError> {
-            if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
-                aug_c1.followpos = hash_set_union(&aug_c1.followpos, &firstpos);
-            } else if let Some(i_pos) = lookup.get_mut(i) {
-                i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
-            }
-            Ok(())
-        })
-        .collect::<Result<(), _>>()?;
+    let _ = lastpos.iter().try_for_each(|i| -> Result<(), ParseError> {
+        if aug_c1_mark.is_some() && *i == aug_c1_mark.unwrap() {
+            aug_c1.followpos = hash_set_union(&aug_c1.followpos, &firstpos);
+        } else if let Some(i_pos) = lookup.get_mut(i) {
+            i_pos.followpos = hash_set_union(&i_pos.followpos, &firstpos);
+        }
+        Ok(())
+    })?;
 
     let aug_node = AugmentedNode {
         character: None,
@@ -369,7 +361,7 @@ fn augment_alter(
         None => return Ok(None),
     };
     // Remove first child from lookup if is leaf, insert back at the end
-    let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup)?;
+    let (aug_c1_mark, aug_c1) = aug_c1_ret.extract(lookup);
 
     // Calculate second child
     let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
@@ -380,7 +372,7 @@ fn augment_alter(
         }
     };
     // Remove second child from lookup if is leaf, insert back at the end
-    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
+    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup);
 
     let aug_node = AugmentedNode {
         character: None,
@@ -411,14 +403,14 @@ fn augment_concat(
 ) -> Result<Option<AugmentTreeRet>, ParseError> {
     let aug_c1_ret = augment_tree(c1, lookup, mark)?;
     if aug_c1_ret.is_none() {
-        return Ok(augment_tree(c2, lookup, mark)?);
+        return augment_tree(c2, lookup, mark);
     }
 
     let aug_c1_ret = aug_c1_ret.unwrap();
     // Copy to save and return if second child is None; awful hack, but oh well.
     let aug_c1_ret_dup = aug_c1_ret.clone();
     // Remove first child from lookup if is leaf, insert back at the end
-    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup)?;
+    let (aug_c1_mark, mut aug_c1) = aug_c1_ret.extract(lookup);
 
     // Calculate second child
     let aug_c2_ret = match augment_tree(c2, lookup, mark)? {
@@ -430,7 +422,7 @@ fn augment_concat(
     };
 
     // Remove second child from lookup if is leaf, insert back at the end
-    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup)?;
+    let (aug_c2_mark, aug_c2) = aug_c2_ret.extract(lookup);
 
     // If first child is nullable, firstpos must also contain firstpos of second
     // child.
