@@ -10,8 +10,8 @@ mod visibility;
 pub use error::ParseError;
 
 use self::error::ExpectedToken;
-use crate::ast::Program;
-use crate::token::{Reserved, Token};
+use crate::ast::{Program, Spanned};
+use crate::token::{Reserved, ReservedVariant, Token};
 
 use std::iter::Peekable;
 
@@ -26,21 +26,7 @@ where
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self>;
 }
 
-#[derive(Clone, Debug)]
-pub struct Symbol(pub Token, pub Span);
-
-#[derive(Clone, Debug)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-
-impl Span {
-    #[inline]
-    pub const fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
-    }
-}
+pub type Symbol = Spanned<Token>;
 
 #[derive(Debug)]
 pub struct ParseInput<I>
@@ -124,15 +110,20 @@ where
     }
 
     #[inline]
-    pub fn consume_lbrace(&mut self) -> ParseResult<()> {
-        self.next_checked(&reserved!(LBrace), || vec![ereserved!(LBrace)])?;
+    pub fn consume<R: ReservedVariant>(&mut self) -> ParseResult<()> {
+        self.next_checked(&Token::Reserved(R::variant()), || {
+            vec![ExpectedToken::Reserved(R::variant())]
+        })?;
         Ok(())
     }
 
     #[inline]
-    pub fn consume_rbrace(&mut self) -> ParseResult<()> {
-        self.next_checked(&reserved!(RBrace), || vec![ereserved!(LBrace)])?;
-        Ok(())
+    pub fn consume_opt<R: ReservedVariant>(&mut self) -> ParseResult<Option<()>> {
+        match self.next() {
+            Some(next) if next == Token::Reserved(R::variant()) => Ok(Some(())),
+            None => Ok(None),
+            _ => Err(()),
+        }
     }
 }
 

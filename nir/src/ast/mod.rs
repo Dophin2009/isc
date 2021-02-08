@@ -1,4 +1,21 @@
 #[derive(Clone, Debug)]
+pub struct Spanned<T>(pub Span, pub T );
+
+#[derive(Clone, Debug)]
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Span {
+    #[inline]
+    pub const fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+}
+
+
+#[derive(Clone, Debug)]
 pub struct Program {
     pub items: Vec<Item>,
 }
@@ -32,17 +49,19 @@ pub struct StructField {
 
 #[derive(Clone, Debug)]
 pub struct StructFunction {
-    name: Ident,
-    params: Vec<FunctionParam>,
-    return_type: Type,
-    is_method: bool,
+    pub vis: Visibility,
+    pub name: Ident,
+    pub params: Vec<FunctionParam>,
+    pub return_type: Type,
+    pub is_method: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct Function {
-    visibility: Visibility,
-    name: Ident,
-    params: Vec<FunctionParam>,
+    pub vis: Visibility,
+    pub name: Ident,
+    pub params: Vec<FunctionParam>,
+    pub return_type: Type,
 }
 
 #[derive(Clone, Debug)]
@@ -52,11 +71,17 @@ pub struct FunctionParam {
 }
 
 #[derive(Clone, Debug)]
-pub struct Type {
-    name: String,
+pub struct Ident {
+    pub name: String,
 }
 
 #[derive(Clone, Debug)]
-pub struct Ident {
-    pub name: String,
+pub enum Type {
+    Defined { name: String },
+}
+
+#[derive(Clone, Debug)]
+pub struct Path {
+    pub segs: Vec<
+
 }

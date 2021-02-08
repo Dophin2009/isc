@@ -15,6 +15,9 @@ struct_method = function_def;
 
 function_def = "fn", ident, "(", function_params, ")", ["->", type], block;
 
+type = path;
+path = ident, {"::", ident}
+
 block = "{", statements, [expression], "}";
 
 statements = {statement};

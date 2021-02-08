@@ -1,6 +1,6 @@
 use super::error::{ExpectedToken, ParseError};
 use super::{Parse, ParseInput, Symbol};
-use crate::ast::{Item, Struct};
+use crate::ast::{Function, Item, Struct};
 use crate::token::{Reserved, Token};
 
 impl<I> Parse<I> for Item
@@ -14,23 +14,23 @@ where
 
         // Ensure that next token is not another visibility token.
         let peeked = match input.peek() {
+            Some(peeked) if peeked.0 == reserved!(Pub) => {
+                // If so, actually consume that token and return an error.
+                let next = input.next().unwrap();
+                input.error(unexpectedtoken!(
+                    next.1,
+                    next.0,
+                    ereserved!(Struct),
+                    ereserved!(Function)
+                ));
+                return Err(());
+            }
             Some(peeked) => peeked,
             None => {
                 input.error(unexpectedeof!(ereserved!(Struct), ereserved!(Function)));
                 return Err(());
             }
         };
-        if peeked.0 == reserved!(Pub) {
-            // If so, actually consume that token and return an error.
-            let next = input.next().unwrap();
-            input.error(unexpectedtoken!(
-                next.1,
-                next.0,
-                ereserved!(Struct),
-                ereserved!(Function)
-            ));
-            return Err(());
-        }
 
         let item = match &peeked.0 {
             reserved!(Struct) => {
@@ -38,7 +38,11 @@ where
                 s.vis = vis;
                 Item::Struct(s)
             }
-            // reserved!(Function) => Item::Function(input.parse()?),
+            reserved!(Function) => {
+                let mut f: Function = input.parse()?;
+                f.vis = vis;
+                Item::Function(f)
+            }
             _ => {
                 let next = input.next().unwrap();
                 input.error(unexpectedtoken!(

@@ -1,11 +1,5 @@
 use std::fmt;
 
-macro_rules! reserved {
-    ($variant:ident) => {
-        Token::Reserved(Reserved::$variant)
-    };
-}
-
 /// Atoms parsed by the lexer and passed to the parser.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -15,56 +9,6 @@ pub enum Token {
     Reserved(Reserved),
 
     Unknown,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Reserved {
-    Pub,
-    Using,
-
-    Struct,
-    Function,
-
-    Let,
-
-    While,
-    For,
-    In,
-    Break,
-    Continue,
-
-    If,
-    Else,
-
-    // Symbols
-    LBracket,
-    RBracket,
-    LParen,
-    RParen,
-    LBrace,
-    RBrace,
-
-    Dot,
-    Comma,
-    Colon,
-    DoubleColon,
-    Semicolon,
-    Arrow,
-
-    Equ,
-    Gt,
-    Lt,
-
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Exclamation,
-
-    Amp,
-    DoubleAmp,
-    Bar,
-    DoubleBar,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -95,6 +39,94 @@ pub enum Type {
     F64,
 }
 
+pub(crate) trait ReservedVariant {
+    fn variant() -> Reserved;
+}
+
+macro_rules! define_reserved {
+    ($($variant:ident => $str:literal),*) => {
+        #[derive(Clone, Debug, PartialEq)]
+        pub enum Reserved {
+            $($variant),*
+        }
+
+        impl fmt::Display for Reserved {
+            #[inline]
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $( Self::$variant => write!(f, $str) ),*
+                }
+            }
+        }
+
+        $(
+            pub(crate) struct $variant;
+
+            impl ReservedVariant for $variant {
+                #[inline]
+                fn variant() -> Reserved {
+                    Reserved::$variant
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! reserved {
+    ($variant:ident) => {
+        Token::Reserved(Reserved::$variant)
+    };
+}
+
+define_reserved! {
+    Pub => "pub",
+    Using => "using",
+
+    Struct => "struct",
+    Function => "fn",
+
+    Let => "let",
+
+    While => "while",
+    For => "foor",
+    In => "in",
+    Break => "break",
+    Continue => "continue",
+
+    If => "if",
+    Else => "else",
+
+    // Symbols
+    LBracket => "[",
+    RBracket => "]",
+    LParen => "(",
+    RParen => ")",
+    LBrace => "{{",
+    RBrace => "}}",
+
+    Dot => ".",
+    Comma => ",",
+    Colon => ":",
+    DoubleColon => "::",
+    Semicolon => ";",
+    Arrow => "->",
+
+    Equ => "=",
+    Gt => ">",
+    Lt => "<",
+
+    Plus => "+",
+    Minus => "-",
+    Star => "*",
+    Slash => "/",
+    Exclamation => "!",
+
+    Amp => "&",
+    DoubleAmp => "&&",
+    Bar => "|",
+    DoubleBar => "||"
+}
+
 impl fmt::Display for Token {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -104,50 +136,6 @@ impl fmt::Display for Token {
             Token::Type(ty) => write!(f, "{}", ty),
             Token::Reserved(reserved) => write!(f, "{}", reserved),
             Token::Unknown => write!(f, ""),
-        }
-    }
-}
-
-impl fmt::Display for Reserved {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Reserved::Pub => write!(f, "export"),
-            Reserved::Using => write!(f, "using"),
-            Reserved::Struct => write!(f, "struct"),
-            Reserved::Function => write!(f, "fn"),
-            Reserved::Let => write!(f, "let"),
-            Reserved::While => write!(f, "while"),
-            Reserved::For => write!(f, "for"),
-            Reserved::In => write!(f, "in"),
-            Reserved::Break => write!(f, "break"),
-            Reserved::Continue => write!(f, "continue"),
-            Reserved::If => write!(f, "if"),
-            Reserved::Else => write!(f, "else"),
-            Reserved::LBracket => write!(f, "["),
-            Reserved::RBracket => write!(f, "]"),
-            Reserved::LParen => write!(f, "("),
-            Reserved::RParen => write!(f, ")"),
-            Reserved::LBrace => write!(f, "{{"),
-            Reserved::RBrace => write!(f, "}}"),
-            Reserved::Dot => write!(f, "."),
-            Reserved::Comma => write!(f, ","),
-            Reserved::Colon => write!(f, ":"),
-            Reserved::DoubleColon => write!(f, "::"),
-            Reserved::Semicolon => write!(f, ";"),
-            Reserved::Arrow => write!(f, "->"),
-            Reserved::Equ => write!(f, "="),
-            Reserved::Gt => write!(f, ">"),
-            Reserved::Lt => write!(f, "<"),
-            Reserved::Plus => write!(f, "+"),
-            Reserved::Minus => write!(f, "-"),
-            Reserved::Star => write!(f, "*"),
-            Reserved::Slash => write!(f, "/"),
-            Reserved::Exclamation => write!(f, "!"),
-            Reserved::Amp => write!(f, "&"),
-            Reserved::DoubleAmp => write!(f, "&&"),
-            Reserved::Bar => write!(f, "|"),
-            Reserved::DoubleBar => write!(f, "||"),
         }
     }
 }
