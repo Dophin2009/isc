@@ -1,14 +1,8 @@
-use crate::token::{Keyword, Literal, Token, Type};
+use crate::token::{Literal, Reserved, Token, Type};
 
-macro_rules! token {
+macro_rules! reserved {
     ($variant:ident) => {
-        Some(Token::$variant)
-    };
-}
-
-macro_rules! kw {
-    ($variant:ident) => {
-        Some(Token::Keyword(Keyword::$variant))
+        Some(Token::Reserved(Reserved::$variant))
     };
 }
 
@@ -31,16 +25,16 @@ llex::lexer! {
 
     r"\s" => None,
 
-    "export" => kw!(Export),
-    "using" => kw!(Using),
-    "struct" => kw!(Struct),
-    "fn" => kw!(Function),
-    "let" => kw!(Let),
-    "while" => kw!(While),
-    "for" => kw!(For),
-    "in" => kw!(In),
-    "break" => kw!(Break),
-    "continue" => kw!(Continue),
+    "pub" => reserved!(Pub),
+    "using" => reserved!(Using),
+    "struct" => reserved!(Struct),
+    "fn" => reserved!(Function),
+    "let" => reserved!(Let),
+    "while" => reserved!(While),
+    "for" => reserved!(For),
+    "in" => reserved!(In),
+    "break" => reserved!(Break),
+    "continue" => reserved!(Continue),
 
     "bool" => ty!(Bool),
     "char" => ty!(Char),
@@ -55,34 +49,34 @@ llex::lexer! {
     "f32" => ty!(F32),
     "f64" => ty!(F64),
 
-    r"{" => token!(LBrace),
-    r"}" => token!(RBrace),
-    r"\[" => token!(LBracket),
-    r"\]" => token!(RBracket),
-    r"\(" => token!(LParen),
-    r"\)" => token!(RParen),
+    r"{" => reserved!(LBrace),
+    r"}" => reserved!(RBrace),
+    r"\[" => reserved!(LBracket),
+    r"\]" => reserved!(RBracket),
+    r"\(" => reserved!(LParen),
+    r"\)" => reserved!(RParen),
 
-    r"\." => token!(Dot),
-    r"," => token!(Comma),
-    r"::" => token!(DoubleColon),
-    r":" => token!(Colon),
-    r";" => token!(Semicolon),
-    r"->" => token!(Arrow),
+    r"\." => reserved!(Dot),
+    r"," => reserved!(Comma),
+    r"::" => reserved!(DoubleColon),
+    r":" => reserved!(Colon),
+    r";" => reserved!(Semicolon),
+    r"->" => reserved!(Arrow),
 
-    r"=" => token!(Equ),
-    r">" => token!(Gt),
-    r"<" => token!(Lt),
+    r"=" => reserved!(Equ),
+    r">" => reserved!(Gt),
+    r"<" => reserved!(Lt),
 
-    r"\+" => token!(Plus),
-    r"-" => token!(Minus),
-    r"\*" => token!(Star),
-    r"/" => token!(Slash),
+    r"\+" => reserved!(Plus),
+    r"-" => reserved!(Minus),
+    r"\*" => reserved!(Star),
+    r"/" => reserved!(Slash),
 
-    r"&&" => token!(DoubleAmp),
-    r"&" => token!(Amp),
-    r"\|" => token!(Bar),
-    r"\|\|" => token!(DoubleBar),
-    r"!" => token!(Exclamation),
+    r"&&" => reserved!(DoubleAmp),
+    r"&" => reserved!(Amp),
+    r"\|" => reserved!(Bar),
+    r"\|\|" => reserved!(DoubleBar),
+    r"!" => reserved!(Exclamation),
 
     "true" => literal!(Literal::Boolean(true)),
     "false" => literal!(Literal::Boolean(false)),
@@ -106,15 +100,15 @@ mod test {
 
     #[test]
     fn test_keywords() {
-        let mut tokens = lex("struct fn export using let for in");
+        let mut tokens = lex("struct fn pub using let for in");
 
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Struct)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Function)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Export)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Using)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Let)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::For)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::In)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::Struct)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::Function)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::Pub)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::Using)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::Let)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::For)));
+        assert_eq!(tokens.next(), Some(Token::Reserved(Reserved::In)));
     }
 
     fn lex(input: &str) -> impl Iterator<Item = Token> {

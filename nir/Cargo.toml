@@ -10,3 +10,6 @@ path = "src/lib.rs"
 
 [dependencies]
 llex = { path = "../llex" }
+
+itertools = "0.10"
+thiserror = "1.0"

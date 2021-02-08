@@ -2,13 +2,16 @@ program = items;
 
 items = {item};
 
-item = struct_def
-     | function_def
+item = visibility, struct_def
+     | visibility, function_def
      ;
 
-struct_def = "struct", "{", struct_fields, "}";
-struct_fields = struct_field, [{struct_field, ","}];
-struct_field = ident, ":", type;
+struct_def = "struct", "{", {struct_member}, "}";
+struct_member = struct_field
+              | struct_method
+              ;
+struct_field = ident, ":", type, ";";
+struct_method = function_def;
 
 function_def = "fn", ident, "(", function_params, ")", ["->", type], block;
 

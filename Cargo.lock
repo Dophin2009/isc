@@ -211,7 +211,9 @@ dependencies = [
 name = "nir"
 version = "0.1.0"
 dependencies = [
+ "itertools",
  "llex",
+ "thiserror",
 ]
 
 [[package]]
