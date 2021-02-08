@@ -1,6 +1,9 @@
 #![no_std]
 #![feature(lang_items)]
 #![feature(const_mut_refs)]
+#![allow(dead_code)]
+#![allow(clippy::all)]
+#![allow(unused_variables)]
 
 mod alloc;
 
