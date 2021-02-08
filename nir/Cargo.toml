@@ -1,0 +1,12 @@
+[package]
+name = "nir"
+version = "0.1.0"
+authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
+edition = "2018"
+
+[lib]
+name = "nir"
+path = "src/lib.rs"
+
+[dependencies]
+llex = { path = "../llex" }

@@ -7,6 +7,7 @@ members = [
   "llex",
   "llex-macro",
   "memalloc",
+  "nir",
   "pratt",
   "regexp",
   "regexp2",
