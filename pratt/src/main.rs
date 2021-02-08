@@ -5,6 +5,7 @@ mod token;
 
 use crate::lexer::Lexer;
 use crate::parser::{ParseError, Parser, Span, Symbol};
+use crate::token::Token;
 
 use llex::LexerItem;
 
@@ -24,9 +25,14 @@ fn main() -> Result<(), Error> {
         }
 
         stdin.read_line(&mut buf)?;
-        let tokens = lexer
-            .stream(buf.chars())
-            .map(|LexerItem { token, m }| Symbol(token, Span::new(m.start, m.end - 1)));
+        let tokens = lexer.stream(buf.chars()).map(|LexerItem { token, m }| {
+            let end = if token == Token::Error {
+                m.end
+            } else {
+                m.end - 1
+            };
+            Symbol(token, Span::new(m.start, end))
+        });
 
         match parser.parse(tokens) {
             Ok(ast) => println!("{}", ast),
