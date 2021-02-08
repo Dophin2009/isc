@@ -1,0 +1,79 @@
+program = items;
+
+items = {item};
+
+item = struct_def
+     | function_def
+     ;
+
+struct_def = "struct", "{", struct_fields, "}";
+struct_fields = struct_field, [{struct_field, ","}];
+struct_field = ident, ":", type;
+
+function_def = "fn", ident, "(", function_params, ")", ["->", type], block;
+
+block = "{", statements, [expression], "}";
+
+statements = {statement};
+
+statement = var_decl, ";"
+          | var_assign, ";"
+          | for_loop
+          | while_loop
+          | if_only, ";"
+          | "break", ";"
+          | "continue", ";"
+          | expression, ";"
+          ;
+
+var_decl = "let", ident, "=", expression;
+var_assign = ident, "=", expression;
+
+for_loop = "for", ident, "in", expression, block;
+while_loop = "while", expression, block;
+
+expression = literal
+           | ident
+           | binop_expression
+           | unop_expression
+           | ternary
+           | function_call
+           | if_else
+           | block
+           ;
+
+binop_expression = expression, binop, expression;
+binop = "+"
+      | "-"
+      | "*"
+      | "/"
+      | "=="
+      | "<="
+      | ">="
+      | "<"
+      | ">"
+      | "&&"
+      | "||"
+      | "&"
+      | "|"
+      ;
+
+unop_expression = "-", expression
+                | "!", expression
+                ;
+
+ternary = expression, "?", expression, ":", expression;
+
+literal = "true"
+        | "false"
+        | char_literal
+        | str_literal
+        | integer_literal
+        | float_literal
+        ;
+
+function_call = ident, "(", [function_args], ")";
+function_args = expression, [{expression, ","}];
+
+if_else = "if", expression, block, "else", (if_else | block);
+if_only = "if", expression, block;
