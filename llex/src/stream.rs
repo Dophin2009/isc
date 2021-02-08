@@ -58,7 +58,7 @@ where
 impl<'a, T, M, I> Iterator for LexerStream<T, M, I>
 where
     M: LexerDFAMatcher<T>,
-    I: Iterator<Item = char> + std::fmt::Debug,
+    I: Iterator<Item = char>,
 {
     type Item = LexerItem<T>;
 
