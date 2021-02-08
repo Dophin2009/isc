@@ -7,6 +7,7 @@ mod program;
 mod structs;
 mod visibility;
 
+pub use crate::ast::Span;
 pub use error::ParseError;
 
 use self::error::ExpectedToken;
@@ -18,6 +19,8 @@ use std::iter::Peekable;
 pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 pub type ParseResult<T> = std::result::Result<T, ()>;
 
+pub type Symbol = Spanned<Token>;
+
 pub trait Parse<I>
 where
     I: Iterator<Item = Symbol>,
@@ -26,7 +29,25 @@ where
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self>;
 }
 
-pub type Symbol = Spanned<Token>;
+#[derive(Debug)]
+pub struct Parser {}
+
+impl Parser {
+    #[inline]
+    pub const fn new() -> Self {
+        Self {}
+    }
+
+    /// Parse the input tokens into a syntax tree.
+    #[inline]
+    pub fn parse<I>(&self, input: I) -> Result<Program>
+    where
+        I: Iterator<Item = Symbol>,
+    {
+        let mut input = ParseInput::new(input);
+        input.parse().map_err(|_| input.errors)
+    }
+}
 
 #[derive(Debug)]
 pub struct ParseInput<I>
@@ -120,29 +141,35 @@ where
     #[inline]
     pub fn consume_opt<R: ReservedVariant>(&mut self) -> ParseResult<Option<()>> {
         match self.next() {
-            Some(next) if next == Token::Reserved(R::variant()) => Ok(Some(())),
+            Some(next) if next.0 == Token::Reserved(R::variant()) => Ok(Some(())),
             None => Ok(None),
             _ => Err(()),
         }
     }
 }
 
-#[derive(Debug)]
-pub struct Parser {}
+#[derive(Debug, Clone)]
+pub struct Separated<T, S> {
+    pub items: Vec<T>,
+    pub seps: Vec<S>,
+}
 
-impl Parser {
-    #[inline]
-    pub const fn new() -> Self {
-        Self {}
-    }
+impl<I> Parse<I> for Separated<T, S>
+where
+    I: Iterator<Item = Symbol>,
+{
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        let peeked = match input.peek() {
+            Some(peeked) => peeked,
+            None => {
+                return Ok(Self {
+                    items: vec![],
+                    seps: vec![],
+                });
+            }
+        };
 
-    /// Parse the input tokens into a syntax tree.
-    #[inline]
-    pub fn parse<I>(&self, input: I) -> Result<Program>
-    where
-        I: Iterator<Item = Symbol>,
-    {
-        let mut input = ParseInput::new(input);
-        input.parse().map_err(|_| input.errors)
+        let try_parsed = input.parse().ok();
+        let first_item = match try_parsed {};
     }
 }

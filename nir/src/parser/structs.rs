@@ -1,6 +1,6 @@
 use super::error::{ExpectedToken, ParseError};
 use super::{Parse, ParseInput, ParseResult, Symbol};
-use crate::ast::{Struct, StructField, StructFunction};
+use crate::ast::{Struct, StructField, StructFunction, Type};
 use crate::token::{self, Reserved, Token};
 
 impl<I> Parse<I> for Struct
@@ -106,16 +106,22 @@ where
         let params = Vec::new();
         while !input.peek_is(&reserved!(RParen)) {
             let param = input.parse()?;
+
+            // Consume separating comma.
+            input.consume::<token::Comma>()?;
             params.push(param);
         }
 
         // Conusme right parenthesis.
         input.consume::<token::RParen>()?;
 
-        let return_type = match input.consume_opt::<token::Arrow> {
-            Some(_) => ,
-            None => ,
-        }
+        let return_type = match input.consume_opt::<token::Arrow>()? {
+            Some(_) => input.parse()?,
+            None => Type::None,
+        };
+
+        // Parse block.
+        let body = input.parse()?;
 
         Ok(Self {
             vis,
@@ -123,6 +129,7 @@ where
             params,
             return_type,
             is_method,
+            body,
         })
     }
 }

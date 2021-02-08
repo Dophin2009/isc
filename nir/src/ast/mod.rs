@@ -1,5 +1,7 @@
+pub use crate::token::Type as PrimitiveType;
+
 #[derive(Clone, Debug)]
-pub struct Spanned<T>(pub Span, pub T );
+pub struct Spanned<T>(pub T, pub Span);
 
 #[derive(Clone, Debug)]
 pub struct Span {
@@ -13,7 +15,6 @@ impl Span {
         Self { start, end }
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct Program {
@@ -54,6 +55,7 @@ pub struct StructFunction {
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
     pub is_method: bool,
+    pub body: Body,
 }
 
 #[derive(Clone, Debug)]
@@ -62,13 +64,17 @@ pub struct Function {
     pub name: Ident,
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
+    pub body: Body,
 }
 
 #[derive(Clone, Debug)]
 pub struct FunctionParam {
-    name: Ident,
-    ty: Type,
+    pub name: Ident,
+    pub ty: Type,
 }
+
+#[derive(Clone, Debug)]
+pub struct Body {}
 
 #[derive(Clone, Debug)]
 pub struct Ident {
@@ -77,11 +83,12 @@ pub struct Ident {
 
 #[derive(Clone, Debug)]
 pub enum Type {
-    Defined { name: String },
+    Primitive(PrimitiveType),
+    Path(Path),
+    None,
 }
 
 #[derive(Clone, Debug)]
 pub struct Path {
-    pub segs: Vec<
-
+    pub segs: Vec<Ident>,
 }
