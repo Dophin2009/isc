@@ -29,8 +29,9 @@ pub enum LiteralKind {
 }
 
 impl fmt::Display for ExpectedToken {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
+        match self {
             ExpectedToken::Ident => write!(f, "<identifier>"),
             ExpectedToken::Literal(kind) => match kind {
                 LiteralKind::Str => write!(f, "<string>"),
@@ -39,7 +40,7 @@ impl fmt::Display for ExpectedToken {
                 LiteralKind::Boolean => write!(f, "<bool>"),
             },
             ExpectedToken::Type => write!(f, "<identifier>"),
-            ExpectedToken::Reserved(reserved) => write!(f, "reserved"),
+            ExpectedToken::Reserved(reserved) => write!(f, "{}", reserved),
         }
     }
 }

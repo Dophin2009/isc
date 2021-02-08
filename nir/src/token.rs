@@ -96,6 +96,7 @@ pub enum Type {
 }
 
 impl fmt::Display for Token {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::Ident(ident) => write!(f, "{}", ident),
@@ -108,6 +109,7 @@ impl fmt::Display for Token {
 }
 
 impl fmt::Display for Reserved {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Reserved::Pub => write!(f, "export"),
@@ -151,6 +153,7 @@ impl fmt::Display for Reserved {
 }
 
 impl fmt::Display for Literal {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Literal::Str(s) => write!(f, r#""{}""#, s),
@@ -162,6 +165,7 @@ impl fmt::Display for Literal {
 }
 
 impl fmt::Display for Type {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Type::Bool => write!(f, "bool"),

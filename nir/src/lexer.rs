@@ -1,4 +1,4 @@
-use crate::token::{Literal, Reserved, Token, Type};
+pub use crate::token::{Literal, Reserved, Token, Type};
 
 macro_rules! reserved {
     ($variant:ident) => {

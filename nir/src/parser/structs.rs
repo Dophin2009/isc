@@ -7,6 +7,7 @@ impl<I> Parse<I> for Struct
 where
     I: Iterator<Item = Symbol>,
 {
+    #[inline]
     fn parse(input: &mut ParseInput<I>) -> Result<Self, ()> {
         // Parse visibility.
         let vis = input.parse()?;
