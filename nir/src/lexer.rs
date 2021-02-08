@@ -36,8 +36,11 @@ llex::lexer! {
     "struct" => kw!(Struct),
     "fn" => kw!(Function),
     "let" => kw!(Let),
+    "while" => kw!(While),
     "for" => kw!(For),
     "in" => kw!(In),
+    "break" => kw!(Break),
+    "continue" => kw!(Continue),
 
     "bool" => ty!(Bool),
     "char" => ty!(Char),
@@ -75,8 +78,14 @@ llex::lexer! {
     r"\*" => token!(Star),
     r"/" => token!(Slash),
 
+    r"&&" => token!(DoubleAmp),
     r"&" => token!(Amp),
     r"\|" => token!(Bar),
+    r"\|\|" => token!(DoubleBar),
+    r"!" => token!(Exclamation),
+
+    "true" => literal!(Literal::Boolean(true)),
+    "false" => literal!(Literal::Boolean(false)),
 
     r"[A-Za-z_][A-Za-z0-9_]*" => Some(Token::Ident(text.to_string())),
     r#"".*""# => literal!(Literal::Str(text.to_string())),
@@ -98,6 +107,7 @@ mod test {
     #[test]
     fn test_keywords() {
         let mut tokens = lex("struct fn export using let for in");
+
         assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Struct)));
         assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Function)));
         assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Export)));

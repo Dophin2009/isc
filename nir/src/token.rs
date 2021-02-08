@@ -29,9 +29,12 @@ pub enum Token {
     Minus,
     Star,
     Slash,
+    Exclamation,
 
     Amp,
+    DoubleAmp,
     Bar,
+    DoubleBar,
 
     Unknown,
 }
@@ -46,8 +49,14 @@ pub enum Keyword {
 
     Let,
 
+    While,
     For,
     In,
+    Break,
+    Continue,
+
+    If,
+    Else,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -56,6 +65,8 @@ pub enum Literal {
     Str(String),
     Integer(i64),
     Float(f64),
+
+    Boolean(bool),
 }
 
 #[derive(Clone, Debug, PartialEq)]
