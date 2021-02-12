@@ -3,6 +3,9 @@ use lexer::{Reserved, Token};
 
 use std::fmt;
 
+/// Result wrapper returned by parser.
+pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
+
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("unexpected token {:?} at position {}, expected one of {:?}", .1, .0.start + 1, .2)]
@@ -64,8 +67,8 @@ macro_rules! ereserved {
     };
 }
 
-macro_rules! eliteral {
-    ($variant:ident) => {
-        ExpectedToken::Literal(Reserved::$variant)
-    };
-}
+// macro_rules! eliteral {
+// ($variant:ident) => {
+// ExpectedToken::Literal(Reserved::$variant)
+// };
+// }

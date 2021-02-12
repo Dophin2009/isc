@@ -23,8 +23,8 @@ where
         input.consume::<ttypes::LBrace>()?;
 
         // Parse fields and methods.
-        let fields = Vec::new();
-        let functions = Vec::new();
+        let mut fields = Vec::new();
+        // let mut functions = Vec::new();
         while !input.peek_is(&reserved!(RBrace)) {
             // Parse member visibility and patch later.
             let member_vis = input.parse()?;
@@ -69,7 +69,7 @@ where
             vis,
             name,
             fields,
-            functions,
+            // functions,
         })
     }
 }

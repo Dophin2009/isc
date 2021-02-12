@@ -1,6 +1,6 @@
 use ast::Program;
 use lexer::Lexer;
-use parser::{ParseError, Parser, Span, Symbol};
+use parser::{ParseError, Parser, Span, Spanned};
 
 use std::fmt;
 
@@ -22,7 +22,7 @@ impl Compiler {
         let tokens = self
             .lexer
             .stream(input.into_iter())
-            .map(|item| Symbol(item.token, Span::new(item.m.start, item.m.end - 1)));
+            .map(|item| Spanned::new(item.token, Span::new(item.m.start, item.m.end - 1)));
 
         Ok(self.parser.parse(tokens)?)
     }

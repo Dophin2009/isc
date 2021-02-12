@@ -10,6 +10,10 @@ pub use ty::*;
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T> Spanned<T> {
+    pub fn new(inner: T, span: Span) -> Self {
+        Self(inner, span)
+    }
+
     pub fn inner(&self) -> &T {
         &self.0
     }

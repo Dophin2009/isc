@@ -5,7 +5,7 @@ pub struct Struct {
     pub vis: Visibility,
     pub name: Ident,
     pub fields: Vec<StructField>,
-    pub functions: Vec<StructFunction>,
+    // pub functions: Vec<StructFunction>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
