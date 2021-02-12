@@ -1,27 +1,33 @@
 #[macro_use]
 pub mod error;
 
+#[macro_use]
+mod macros;
+
+// Parse implementations on AST nodes.
 mod ident;
 mod item;
 mod program;
 mod structs;
 mod visibility;
 
-pub use crate::ast::Span;
-pub use error::ParseError;
+/// Re-export of ast crate.
+pub use ast;
+pub use ast::Spanned;
 
-use self::error::ExpectedToken;
-use crate::ast::{Program, Spanned};
-use crate::token::{Reserved, ReservedVariant, Token};
+pub use self::error::{ExpectedToken, ParseError};
 
 use std::iter::Peekable;
+
+use ast::Program;
+use lexer::{types::ReservedVariant, Token};
 
 pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 pub type ParseResult<T> = std::result::Result<T, ()>;
 
-pub type Symbol = Spanned<Token>;
+pub(crate) type Symbol = Spanned<Token>;
 
-pub trait Parse<I>
+pub(crate) trait Parse<I>
 where
     I: Iterator<Item = Symbol>,
     Self: Sized,
@@ -154,7 +160,7 @@ pub struct Separated<T, S> {
     pub seps: Vec<S>,
 }
 
-impl<I> Parse<I> for Separated<T, S>
+impl<I, T, S> Parse<I> for Separated<T, S>
 where
     I: Iterator<Item = Symbol>,
 {

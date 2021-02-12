@@ -1,4 +1,5 @@
-use super::{Reserved, Span, Token};
+use ast::Span;
+use lexer::{Reserved, Token};
 
 use std::fmt;
 

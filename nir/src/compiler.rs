@@ -1,10 +1,8 @@
-use crate::ast::Program;
-use crate::lexer::Lexer;
-use crate::parser::{ParseError, Parser, Span, Symbol};
+use ast::Program;
+use lexer::Lexer;
+use parser::{ParseError, Parser, Span, Symbol};
 
 use std::fmt;
-
-use llex::LexerItem;
 
 #[derive(Debug)]
 pub struct Compiler {
@@ -24,7 +22,7 @@ impl Compiler {
         let tokens = self
             .lexer
             .stream(input.into_iter())
-            .map(|LexerItem { token, m }| Symbol(token, Span::new(m.start, m.end - 1)));
+            .map(|item| Symbol(item.token, Span::new(item.m.start, item.m.end - 1)));
 
         Ok(self.parser.parse(tokens)?)
     }

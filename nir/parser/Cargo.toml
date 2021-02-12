@@ -1,19 +1,16 @@
 [package]
-name = "nir"
+name = "parser"
 version = "0.1.0"
 authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
 edition = "2018"
 
 [lib]
-name = "nir"
+name = "parser"
 path = "src/lib.rs"
 
 [dependencies]
-parser = { path = "parser" }
-lexer = { path = "lexer" }
-ast = { path = "ast" }
+ast = { path = "../ast" }
+lexer = { path = "../lexer" }
 
+itertools = "0.10"
 thiserror = "1.0"
-
-[workspace]
-members = ["ast", "lexer", "parser"]

@@ -1,5 +1,6 @@
-use super::{Parse, ParseInput, Symbol};
-use crate::ast::Program;
+use crate::{Parse, ParseInput, Symbol};
+
+use ast::Program;
 
 impl<I> Parse<I> for Program
 where

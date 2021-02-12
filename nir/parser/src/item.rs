@@ -1,7 +1,8 @@
-use super::error::{ExpectedToken, ParseError};
-use super::{Parse, ParseInput, Symbol};
-use crate::ast::{Function, Item, Struct};
-use crate::token::{Reserved, Token};
+use crate::error::{ExpectedToken, ParseError};
+use crate::{Parse, ParseInput, Symbol};
+
+use ast::{Function, Item, Struct};
+use lexer::{Reserved, Token};
 
 impl<I> Parse<I> for Item
 where

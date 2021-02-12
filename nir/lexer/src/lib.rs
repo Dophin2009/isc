@@ -1,4 +1,14 @@
+mod lexer;
+mod reserved;
+
+pub use lexer::Lexer;
+pub use reserved::Reserved;
+
 use std::fmt;
+
+pub mod types {
+    pub use crate::reserved::*;
+}
 
 /// Atoms parsed by the lexer and passed to the parser.
 #[derive(Clone, Debug, PartialEq)]
@@ -37,94 +47,6 @@ pub enum Type {
     U64,
     F32,
     F64,
-}
-
-pub(crate) trait ReservedVariant {
-    fn variant() -> Reserved;
-}
-
-macro_rules! define_reserved {
-    ($($variant:ident => $str:literal),*) => {
-        #[derive(Clone, Debug, PartialEq)]
-        pub enum Reserved {
-            $($variant),*
-        }
-
-        impl fmt::Display for Reserved {
-            #[inline]
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match self {
-                    $( Self::$variant => write!(f, $str) ),*
-                }
-            }
-        }
-
-        $(
-            pub(crate) struct $variant;
-
-            impl ReservedVariant for $variant {
-                #[inline]
-                fn variant() -> Reserved {
-                    Reserved::$variant
-                }
-            }
-        )*
-    };
-}
-
-macro_rules! reserved {
-    ($variant:ident) => {
-        Token::Reserved(Reserved::$variant)
-    };
-}
-
-define_reserved! {
-    Pub => "pub",
-    Using => "using",
-
-    Struct => "struct",
-    Function => "fn",
-
-    Let => "let",
-
-    While => "while",
-    For => "foor",
-    In => "in",
-    Break => "break",
-    Continue => "continue",
-
-    If => "if",
-    Else => "else",
-
-    // Symbols
-    LBracket => "[",
-    RBracket => "]",
-    LParen => "(",
-    RParen => ")",
-    LBrace => "{{",
-    RBrace => "}}",
-
-    Dot => ".",
-    Comma => ",",
-    Colon => ":",
-    DoubleColon => "::",
-    Semicolon => ";",
-    Arrow => "->",
-
-    Equ => "=",
-    Gt => ">",
-    Lt => "<",
-
-    Plus => "+",
-    Minus => "-",
-    Star => "*",
-    Slash => "/",
-    Exclamation => "!",
-
-    Amp => "&",
-    DoubleAmp => "&&",
-    Bar => "|",
-    DoubleBar => "||"
 }
 
 impl fmt::Display for Token {

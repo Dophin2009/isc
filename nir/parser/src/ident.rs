@@ -1,7 +1,8 @@
-use super::error::{ExpectedToken, ParseError};
-use super::{Parse, ParseInput, Symbol};
-use crate::ast::Ident;
-use crate::token::Token;
+use crate::error::{ExpectedToken, ParseError};
+use crate::{Parse, ParseInput, Symbol};
+
+use ast::Ident;
+use lexer::Token;
 
 impl<I> Parse<I> for Ident
 where

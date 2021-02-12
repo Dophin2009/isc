@@ -1,6 +1,7 @@
-use super::{Parse, ParseInput, Symbol};
-use crate::ast::Visibility;
-use crate::token::{Reserved, Token};
+use crate::{Parse, ParseInput, Symbol};
+
+use ast::Visibility;
+use lexer::{Reserved, Token};
 
 impl<I> Parse<I> for Visibility
 where

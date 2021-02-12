@@ -1,7 +1,8 @@
-use super::error::{ExpectedToken, ParseError};
-use super::{Parse, ParseInput, ParseResult, Symbol};
-use crate::ast::{Struct, StructField, StructFunction, Type};
-use crate::token::{self, Reserved, Token};
+use crate::error::{ExpectedToken, ParseError};
+use crate::{Parse, ParseInput, ParseResult, Symbol};
+
+use ast::{PrimitiveType, Struct, StructField, StructFunction, Type};
+use lexer::{types as ttypes, Reserved, Token};
 
 impl<I> Parse<I> for Struct
 where
@@ -13,13 +14,13 @@ where
         let vis = input.parse()?;
 
         // Ensure next token is struct.
-        input.consume::<token::Struct>()?;
+        input.consume::<ttypes::Struct>()?;
 
         // Parse struct name.
         let name = input.parse()?;
 
         // Ensure next token is opening brace.
-        input.consume::<token::LBrace>()?;
+        input.consume::<ttypes::LBrace>()?;
 
         // Parse fields and methods.
         let fields = Vec::new();
@@ -62,7 +63,7 @@ where
             }
         }
 
-        input.consume::<token::RBrace>()?;
+        input.consume::<ttypes::RBrace>()?;
 
         Ok(Self {
             vis,
@@ -89,7 +90,7 @@ where
         let name = input.parse()?;
 
         // Conusme left parenthesis.
-        input.consume::<token::LParen>()?;
+        input.consume::<ttypes::LParen>()?;
 
         // Parse parameters.
         // Check if self parameter is present.
@@ -97,7 +98,7 @@ where
             // Actually consume the self token.
             input.next();
             // Consume the comma.
-            input.consume::<token::Comma>()?;
+            input.consume::<ttypes::Comma>()?;
             true
         } else {
             false
@@ -108,16 +109,17 @@ where
             let param = input.parse()?;
 
             // Consume separating comma.
-            input.consume::<token::Comma>()?;
+            input.consume::<ttypes::Comma>()?;
             params.push(param);
         }
 
         // Conusme right parenthesis.
-        input.consume::<token::RParen>()?;
+        input.consume::<ttypes::RParen>()?;
 
-        let return_type = match input.consume_opt::<token::Arrow>()? {
+        // Parse the return type (if any).
+        let return_type = match input.consume_opt::<ttypes::Arrow>()? {
             Some(_) => input.parse()?,
-            None => Type::None,
+            None => Type::Primitive(PrimitiveType::Unit),
         };
 
         // Parse block.
