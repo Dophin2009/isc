@@ -22,6 +22,7 @@ macro_rules! define_reserved {
         }
 
         $(
+            #[derive(Clone, Debug, PartialEq)]
             pub struct $variant;
 
             impl ReservedVariant for $variant {

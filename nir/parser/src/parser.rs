@@ -1,12 +1,14 @@
 use crate::error::{ExpectedToken, ParseError};
-use crate::{Result, Symbol};
+use crate::Result;
 
 use std::iter::Peekable;
 
-use ast::Program;
+use ast::{punctuated::Punctuated, Program, Spannable, Spanned};
 use lexer::{types as ttypes, Token};
 
 pub type ParseResult<T> = std::result::Result<T, ()>;
+
+pub(crate) type Symbol = Spanned<lexer::Token>;
 
 pub trait Parse<I>
 where
@@ -41,8 +43,10 @@ pub struct ParseInput<I>
 where
     I: Iterator<Item = Symbol>,
 {
-    pub inner: Peekable<I>,
+    inner: Peekable<I>,
     pub errors: Vec<ParseError>,
+
+    last_pos: usize,
 }
 
 impl<I> ParseInput<I>
@@ -54,7 +58,18 @@ where
         Self {
             inner: inner.peekable(),
             errors: Vec::new(),
+            last_pos: 0,
         }
+    }
+
+    #[inline]
+    pub fn error(&mut self, error: ParseError) {
+        self.errors.push(error)
+    }
+
+    #[inline]
+    pub fn last_pos(&self) -> usize {
+        self.last_pos
     }
 
     #[inline]
@@ -68,7 +83,14 @@ where
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<Symbol> {
-        self.inner.next()
+        // Get next from inner iterator.
+        let next = self.inner.next();
+
+        // If Some, then update the last span position.
+        if let Some(ref sy) = next {
+            self.last_pos = sy.1.end;
+        }
+        next
     }
 
     #[inline]
@@ -113,24 +135,19 @@ where
     }
 
     #[inline]
-    pub fn error(&mut self, error: ParseError) {
-        self.errors.push(error)
-    }
-
-    #[inline]
-    pub fn consume<R: ttypes::ReservedVariant>(&mut self) -> ParseResult<()> {
+    pub fn consume<R: ttypes::ReservedVariant>(&mut self) -> ParseResult<Spanned<R>> {
         self.next_checked(&Token::Reserved(R::variant()), || {
             vec![ExpectedToken::Reserved(R::variant())]
-        })?;
-        Ok(())
+        })
+        .map(|r| Spanned::new(R::new(), r.1))
     }
 
     #[inline]
-    pub fn consume_opt<R: ttypes::ReservedVariant>(&mut self) -> ParseResult<Option<()>> {
+    pub fn consume_opt<R: ttypes::ReservedVariant>(&mut self) -> ParseResult<Option<Spanned<R>>> {
         match self.peek() {
             Some(next) if next.0 == Token::Reserved(R::variant()) => {
-                self.next();
-                Ok(Some(()))
+                let next = self.next().unwrap();
+                Ok(Some(Spanned::new(R::new(), next.1)))
             }
             None => Ok(None),
             _ => Err(()),
@@ -146,8 +163,12 @@ impl<R> Rsv<R>
 where
     R: ttypes::ReservedVariant,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self(R::new())
+    }
+
+    pub fn inner(&self) -> R {
+        self.0
     }
 }
 

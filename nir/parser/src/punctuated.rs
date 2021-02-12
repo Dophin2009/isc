@@ -1,10 +1,6 @@
 use crate::{Parse, ParseInput, ParseResult, Symbol};
 
-#[derive(Debug, Clone)]
-pub struct Punctuated<T, S> {
-    pub items: Vec<T>,
-    pub seps: Vec<S>,
-}
+use ast::punctuated::Punctuated;
 
 impl<I, T, S> Parse<I> for Punctuated<T, S>
 where

@@ -1,7 +1,6 @@
 use crate::{Parse, ParseInput, Symbol};
 
-use ast::Visibility;
-use lexer::{Reserved, Token};
+use ast::{keywords::Pub, Span, Visibility, VisibilityKind};
 
 impl<I> Parse<I> for Visibility
 where
@@ -9,12 +8,23 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> Result<Self, ()> {
-        let vis = if input.peek_is(&Token::Reserved(Reserved::Pub)) {
-            input.next();
-            Visibility::Public
-        } else {
-            Visibility::Private
+        let (kind, span) = match input.peek() {
+            Some(peeked) => match peeked.0 {
+                reserved!(Pub) => {
+                    let spanned = input.consume::<Pub>()?;
+                    (VisibilityKind::Public, spanned.1)
+                }
+                _ => {
+                    input.error(unexpectedtoken!(peeked.1, peeked.0, ereserved!(Pub)));
+                    return Err(());
+                }
+            },
+            None => {
+                let pos = input.last_pos();
+                (VisibilityKind::Private, Span::new(pos, pos))
+            }
         };
-        Ok(vis)
+
+        Ok(Visibility { kind, span })
     }
 }

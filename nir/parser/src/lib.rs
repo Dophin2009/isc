@@ -5,6 +5,7 @@ mod macros;
 pub mod error;
 pub mod parser;
 pub mod punctuated;
+pub mod span;
 
 // Parse implementations on AST nodes.
 mod block;
@@ -18,7 +19,6 @@ mod visibility;
 
 /// Re-export of ast crate.
 pub use ast;
-pub use ast::{Span, Spanned};
 
 // Export error facilities directly.
 pub use self::error::{ExpectedToken, ParseError, Result};
@@ -26,5 +26,4 @@ pub use self::error::{ExpectedToken, ParseError, Result};
 pub use self::parser::Parser;
 
 // Internal crate usage convenience.
-pub(crate) use self::parser::{Parse, ParseInput, ParseResult, Rsv};
-pub(crate) type Symbol = Spanned<lexer::Token>;
+pub(crate) use self::parser::{Parse, ParseInput, ParseResult, Rsv, Symbol};

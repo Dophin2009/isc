@@ -9,7 +9,7 @@ where
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> Result<Self, ()> {
         let mut items = Vec::new();
-        while input.inner.peek().is_some() {
+        while input.peek().is_some() {
             let item = input.parse()?;
             items.push(item);
         }

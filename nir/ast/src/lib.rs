@@ -1,14 +1,28 @@
 mod block;
 mod expr;
 mod function;
+mod ident;
+mod program;
 mod structs;
 mod ty;
+mod visibility;
+
+pub mod punctuated;
 
 pub use block::*;
 pub use expr::*;
 pub use function::*;
+pub use ident::*;
+pub use program::*;
 pub use structs::*;
 pub use ty::*;
+pub use visibility::*;
+
+pub use lexer::types as keywords;
+
+pub trait Spannable {
+    fn span(&self) -> Span;
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Spanned<T>(pub T, pub Span);
@@ -21,9 +35,11 @@ impl<T> Spanned<T> {
     pub fn inner(&self) -> &T {
         &self.0
     }
+}
 
-    pub fn span(&self) -> &Span {
-        &self.1
+impl<T> Spannable for Spanned<T> {
+    fn span(&self) -> Span {
+        self.1.clone()
     }
 }
 
@@ -35,34 +51,7 @@ pub struct Span {
 
 impl Span {
     #[inline]
-    pub const fn new(start: usize, end: usize) -> Self {
+    pub fn new(start: usize, end: usize) -> Self {
         Self { start, end }
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Program {
-    pub items: Vec<Item>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Item {
-    Struct(Struct),
-    Function(Function),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ident {
-    pub name: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Path {
-    pub segs: Vec<Ident>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Visibility {
-    Public,
-    Private,
 }

@@ -1,13 +1,35 @@
-use crate::Ident;
+use crate::{Ident, Span, Spannable};
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Type {
-    Primitive(PrimitiveType),
-    Declared { name: Ident },
+pub struct Type {
+    pub kind: TypeKind,
+    pub span: Span,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum PrimitiveType {
+pub enum TypeKind {
+    Primitive(PrimitiveType),
+    Declared(DeclaredType),
+}
+
+impl Spannable for Type {
+    fn span(&self) -> Span {
+        self.span.clone()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PrimitiveType {
+    pub kind: PrimitiveTypeKind,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DeclaredType {
+    pub name: Ident,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PrimitiveTypeKind {
     Unit,
     Bool,
     Char,

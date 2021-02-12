@@ -1,8 +1,6 @@
-use crate::error::{ExpectedToken, ParseError};
-use crate::{Parse, ParseInput, ParseResult, Symbol};
+use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
-use ast::{Struct, StructField};
-use lexer::{types as ttypes, Reserved};
+use ast::{keywords::Comma, punctuated::Punctuated, Struct, StructField};
 
 impl<I> Parse<I> for Struct
 where
@@ -14,62 +12,31 @@ where
         let vis = input.parse()?;
 
         // Ensure next token is struct.
-        input.consume::<ttypes::Struct>()?;
+        let struct_t = input.consume()?;
 
         // Parse struct name.
         let name = input.parse()?;
 
         // Ensure next token is opening brace.
-        input.consume::<ttypes::LBrace>()?;
+        let lbrace_t = input.consume()?;
 
-        // Parse fields and methods.
-        let mut fields = Vec::new();
-        // let mut functions = Vec::new();
-        while !input.peek_is(&reserved!(RBrace)) {
-            // Parse member visibility and patch later.
-            let member_vis = input.parse()?;
+        // Parse fields.
+        let fields = input.parse::<Punctuated<StructField, Rsv<Comma>>>()?;
+        let seps = fields.seps.into_iter().map(|sep| sep.inner()).collect();
+        let fields = Punctuated {
+            items: fields.items,
+            seps,
+        };
 
-            // Ensure next token is not also a visibility one.
-            match input.peek() {
-                // If so, actually consume that token and return an error.
-                Some(peeked) if peeked.0 == reserved!(Pub) => {
-                    let next = input.next().unwrap();
-                    input.error(unexpectedtoken!(
-                        next.1,
-                        next.0,
-                        ereserved!(Function),
-                        ExpectedToken::Ident
-                    ));
-                    return Err(());
-                }
-                None => {
-                    input.error(unexpectedeof!(ereserved!(Function), ExpectedToken::Ident));
-                    return Err(());
-                }
-                _ => {}
-            };
-
-            // Check if member is a function or a field.
-            // if input.peek_is(&reserved!(Function)) {
-            // // If fn token next, parse as function.
-            // let mut function: StructFunction = input.parse()?;
-            // function.vis = member_vis;
-            // functions.push(function);
-            // } else {
-            // Otherwise, parse as struct field.
-            let mut field: StructField = input.parse()?;
-            field.vis = member_vis;
-            fields.push(field);
-            // }
-        }
-
-        input.consume::<ttypes::RBrace>()?;
+        let rbrace_t = input.consume()?;
 
         Ok(Self {
             vis,
             name,
             fields,
-            // functions,
+            struct_t,
+            lbrace_t,
+            rbrace_t,
         })
     }
 }
@@ -80,14 +47,12 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        let vis = input.parse()?;
-        let name = input.parse()?;
-
-        input.consume::<ttypes::Comma>()?;
-
-        let ty = input.parse()?;
-
-        Ok(Self { vis, name, ty })
+        Ok(Self {
+            vis: input.parse()?,
+            name: input.parse()?,
+            colon_t: input.consume()?,
+            ty: input.parse()?,
+        })
     }
 }
 

@@ -1,7 +1,7 @@
-use crate::error::{ExpectedToken, ParseError};
+use crate::error::ExpectedToken;
 use crate::{Parse, ParseInput, Symbol};
 
-use ast::Ident;
+use ast::{Ident, Spanned};
 use lexer::Token;
 
 impl<I> Parse<I> for Ident
@@ -19,6 +19,8 @@ where
             }
         };
 
-        Ok(Self { name })
+        Ok(Self {
+            name: Spanned::new(name, next.1),
+        })
     }
 }

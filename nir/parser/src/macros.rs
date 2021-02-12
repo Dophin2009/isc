@@ -12,7 +12,7 @@ macro_rules! unexpectedeof{
 
 macro_rules! unexpectedtoken {
     ($span:expr, $token:expr, $($expected:expr),*) => {
-        $crate::error::ParseError::UnexpectedToken($span, $token, vec![$($expected),*])
+        $crate::error::ParseError::UnexpectedToken(ast::Spanned::new($token, $span), vec![$($expected),*])
     };
 }
 

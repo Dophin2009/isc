@@ -9,7 +9,7 @@ pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("unexpected token {:?} at position {}, expected one of {:?}", .1, .0.start + 1, .2)]
-    UnexpectedToken(Span, Token, Vec<ExpectedToken>),
+    UnexpectedToken(Spannable, Vec<ExpectedToken>),
     #[error("unexpected end-of-file")]
     UnexpectedEof(Vec<ExpectedToken>),
     #[error("lexer error")]

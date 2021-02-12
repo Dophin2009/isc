@@ -1,8 +1,9 @@
-use crate::punctuated::Punctuated;
 use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
-use ast::{Function, FunctionParam, PrimitiveType, Type};
-use lexer::types as ttypes;
+use ast::{
+    keywords::Comma, punctuated::Punctuated, Function, FunctionParam, PrimitiveType,
+    PrimitiveTypeKind, Span, Type, TypeKind,
+};
 
 impl<I> Parse<I> for Function
 where
@@ -13,25 +14,41 @@ where
         let vis = input.parse()?;
 
         // Parse fn token.
-        input.consume::<ttypes::Function>()?;
+        let fn_t = input.consume()?;
 
+        // Parse name.
         let name = input.parse()?;
 
         // Parse left parenthesis.
-        input.consume::<ttypes::LParen>()?;
+        let lparen_t = input.consume()?;
 
         // Parse function parameters.
-        let params = input
-            .parse::<Punctuated<FunctionParam, Rsv<ttypes::Comma>>>()?
-            .items;
+        let params: Punctuated<_, Rsv<Comma>> = input.parse()?;
+        let seps = params.seps.into_iter().map(|sep| sep.inner()).collect();
+        let params = Punctuated {
+            items: params.items,
+            seps,
+        };
 
         // Parse right parenthesis.
-        input.consume::<ttypes::RParen>()?;
+        let rparen_t = input.consume()?;
+
+        // Parse arrow.
+        let arrow_t = input.consume_opt()?;
 
         // Parse the return type (if any).
-        let return_type = match input.consume_opt::<ttypes::Arrow>()? {
+        let return_type = match arrow_t {
             Some(_) => input.parse()?,
-            None => Type::Primitive(PrimitiveType::Unit),
+            None => {
+                let last_pos = input.last_pos();
+
+                Type {
+                    kind: TypeKind::Primitive(PrimitiveType {
+                        kind: PrimitiveTypeKind::Unit,
+                    }),
+                    span: Span::new(last_pos, last_pos),
+                }
+            }
         };
 
         // Parse block.
@@ -43,6 +60,10 @@ where
             params,
             return_type,
             body,
+            fn_t,
+            lparen_t,
+            rparen_t,
+            arrow_t,
         })
     }
 }
@@ -53,13 +74,10 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        let name = input.parse()?;
-
-        // Parse colon.
-        input.consume::<ttypes::Colon>()?;
-
-        let ty = input.parse()?;
-
-        Ok(Self { name, ty })
+        Ok(Self {
+            name: input.parse()?,
+            colon_t: input.consume()?,
+            ty: input.parse()?,
+        })
     }
 }

@@ -4,8 +4,6 @@ use ast::{
 };
 use lexer::{types as ttypes, Token};
 
-use itertools::Itertools;
-
 impl<I> Parse<I> for Block
 where
     I: Iterator<Item = Symbol>,
@@ -13,7 +11,7 @@ where
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         // Parse left brace.
-        input.consume::<ttypes::LBrace>()?;
+        let lbrace_t = input.consume::<ttypes::LBrace>()?;
 
         // Parse statements.
         let mut statements = Vec::new();
@@ -23,9 +21,13 @@ where
         }
 
         // Parse right brace.
-        input.consume::<ttypes::RBrace>()?;
+        let rbrace_t = input.consume::<ttypes::RBrace>()?;
 
-        Ok(Self { statements })
+        Ok(Self {
+            statements,
+            lbrace_t,
+            rbrace_t,
+        })
     }
 }
 
@@ -89,25 +91,15 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        // Parse let token.
-        input.consume::<ttypes::Let>()?;
-
-        let lhs = input.parse()?;
-
-        // Parse colon.
-        input.consume::<ttypes::Colon>()?;
-
-        let ty = input.parse()?;
-
-        // Parse equals token.
-        input.consume::<ttypes::Equ>()?;
-
-        let rhs = input.parse()?;
-
-        // Parse semicolon.
-        input.consume::<ttypes::Semicolon>()?;
-
-        Ok(Self { lhs, ty, rhs })
+        Ok(Self {
+            let_t: input.consume()?,
+            lhs: input.parse()?,
+            colon_t: input.consume()?,
+            ty: input.parse()?,
+            equ_t: input.consume()?,
+            rhs: input.parse()?,
+            semicolon_t: input.consume()?,
+        })
     }
 }
 
@@ -117,18 +109,13 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        // Parse for token.
-        input.consume::<ttypes::For>()?;
-
-        let ident = input.parse()?;
-
-        // Parse in token.
-        input.consume::<ttypes::In>()?;
-
-        let range = input.parse()?;
-        let body = input.parse()?;
-
-        Ok(Self { ident, range, body })
+        Ok(Self {
+            for_t: input.consume()?,
+            ident: input.parse()?,
+            in_t: input.consume()?,
+            range: input.parse()?,
+            body: input.parse()?,
+        })
     }
 }
 
@@ -138,13 +125,11 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        // Parse for token.
-        input.consume::<ttypes::While>()?;
-
-        let cond = input.parse()?;
-        let body = input.parse()?;
-
-        Ok(Self { cond, body })
+        Ok(Self {
+            while_t: input.consume()?,
+            cond: input.parse()?,
+            body: input.parse()?,
+        })
     }
 }
 
@@ -154,10 +139,10 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        input.consume::<ttypes::Break>()?;
-        input.consume::<ttypes::Semicolon>()?;
-
-        Ok(Self)
+        Ok(Self {
+            break_t: input.consume()?,
+            semicolon_t: input.consume()?,
+        })
     }
 }
 
@@ -167,10 +152,10 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        input.consume::<ttypes::Continue>()?;
-        input.consume::<ttypes::Semicolon>()?;
-
-        Ok(Self)
+        Ok(Self {
+            continue_t: input.consume()?,
+            semicolon_t: input.consume()?,
+        })
     }
 }
 
@@ -180,13 +165,11 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        // Parse if token.
-        input.consume::<ttypes::If>()?;
-
-        let cond = input.parse()?;
-        let body = input.parse()?;
-
-        Ok(Self { cond, body })
+        Ok(Self {
+            if_t: input.consume()?,
+            cond: input.parse()?,
+            body: input.parse()?,
+        })
     }
 }
 

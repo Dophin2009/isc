@@ -1,7 +1,7 @@
-use crate::error::{ExpectedToken, ParseError};
+use crate::error::ExpectedToken;
 use crate::{Parse, ParseInput, ParseResult, Symbol};
 
-use ast::{Ident, PrimitiveType, Type};
+use ast::{DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Spanned, Type, TypeKind};
 use lexer::{Reserved, Token};
 
 impl<I> Parse<I> for Type
@@ -18,12 +18,16 @@ where
             ]
         })?;
 
-        let ty = match next.0 {
-            Token::Type(ty) => Self::Primitive(from_lexer_type(ty)),
-            Token::Ident(name) => Self::Declared {
-                name: Ident { name },
-            },
-            Token::Reserved(Reserved::LParen) => Self::Primitive(PrimitiveType::Unit),
+        let kind = match next.0 {
+            Token::Type(ty) => TypeKind::Primitive(from_lexer_type(ty)),
+            Token::Ident(name) => TypeKind::Declared(DeclaredType {
+                name: Ident {
+                    name: Spanned::new(name, next.1),
+                },
+            }),
+            Token::Reserved(Reserved::LParen) => TypeKind::Primitive(PrimitiveType {
+                kind: PrimitiveTypeKind::Unit,
+            }),
             _ => {
                 input.error(unexpectedtoken!(
                     next.1,
@@ -35,25 +39,28 @@ where
                 return Err(());
             }
         };
+        let span = next.1;
 
-        Ok(ty)
+        Ok(Self { kind, span })
     }
 }
 
 fn from_lexer_type(ty: lexer::Type) -> PrimitiveType {
-    match ty {
-        lexer::Type::Bool => PrimitiveType::Bool,
-        lexer::Type::Char => PrimitiveType::Char,
-        lexer::Type::I8 => PrimitiveType::I8,
-        lexer::Type::I16 => PrimitiveType::I16,
-        lexer::Type::I32 => PrimitiveType::I32,
-        lexer::Type::I64 => PrimitiveType::I64,
-        lexer::Type::I128 => PrimitiveType::I128,
-        lexer::Type::U8 => PrimitiveType::U8,
-        lexer::Type::U16 => PrimitiveType::U16,
-        lexer::Type::U32 => PrimitiveType::U32,
-        lexer::Type::U64 => PrimitiveType::U64,
-        lexer::Type::F32 => PrimitiveType::F32,
-        lexer::Type::F64 => PrimitiveType::F64,
-    }
+    let kind = match ty {
+        lexer::Type::Bool => PrimitiveTypeKind::Bool,
+        lexer::Type::Char => PrimitiveTypeKind::Char,
+        lexer::Type::I8 => PrimitiveTypeKind::I8,
+        lexer::Type::I16 => PrimitiveTypeKind::I16,
+        lexer::Type::I32 => PrimitiveTypeKind::I32,
+        lexer::Type::I64 => PrimitiveTypeKind::I64,
+        lexer::Type::I128 => PrimitiveTypeKind::I128,
+        lexer::Type::U8 => PrimitiveTypeKind::U8,
+        lexer::Type::U16 => PrimitiveTypeKind::U16,
+        lexer::Type::U32 => PrimitiveTypeKind::U32,
+        lexer::Type::U64 => PrimitiveTypeKind::U64,
+        lexer::Type::F32 => PrimitiveTypeKind::F32,
+        lexer::Type::F64 => PrimitiveTypeKind::F64,
+    };
+
+    PrimitiveType { kind }
 }
