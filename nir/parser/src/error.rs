@@ -48,27 +48,3 @@ impl fmt::Display for ExpectedToken {
         }
     }
 }
-
-macro_rules! unexpectedeof{
-    ($($expected:expr),*) => {
-        ParseError::UnexpectedEof(vec![$($expected),*])
-    };
-}
-
-macro_rules! unexpectedtoken {
-    ($span:expr, $token:expr, $($expected:expr),*) => {
-        ParseError::UnexpectedToken($span, $token, vec![$($expected),*])
-    };
-}
-
-macro_rules! ereserved {
-    ($variant:ident) => {
-        ExpectedToken::Reserved(Reserved::$variant)
-    };
-}
-
-// macro_rules! eliteral {
-// ($variant:ident) => {
-// ExpectedToken::Literal(Reserved::$variant)
-// };
-// }

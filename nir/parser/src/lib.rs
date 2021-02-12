@@ -2,9 +2,7 @@
 #[macro_use]
 mod macros;
 
-#[macro_use]
 pub mod error;
-
 pub mod parser;
 pub mod punctuated;
 

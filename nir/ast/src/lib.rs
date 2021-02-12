@@ -1,7 +1,11 @@
+mod block;
+mod expr;
 mod function;
 mod structs;
 mod ty;
 
+pub use block::*;
+pub use expr::*;
 pub use function::*;
 pub use structs::*;
 pub use ty::*;
@@ -62,6 +66,3 @@ pub enum Visibility {
     Public,
     Private,
 }
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Block {}
