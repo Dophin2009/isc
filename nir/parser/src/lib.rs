@@ -22,11 +22,11 @@ mod visibility;
 pub use ast;
 pub use ast::{Span, Spanned};
 
+// Export error facilities directly.
 pub use self::error::{ExpectedToken, ParseError, Result};
+// Export parser directly.
 pub use self::parser::Parser;
 
-// Reexport for internal crate usage.
+// Internal crate usage convenience.
 pub(crate) use self::parser::{Parse, ParseInput, ParseResult, Rsv};
-
-use lexer::Token;
-pub(crate) type Symbol = Spanned<Token>;
+pub(crate) type Symbol = Spanned<lexer::Token>;
