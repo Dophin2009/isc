@@ -5,10 +5,12 @@ pub mod error;
 mod macros;
 
 // Parse implementations on AST nodes.
+mod block;
 mod ident;
 mod item;
 mod program;
 mod structs;
+mod ty;
 mod visibility;
 
 /// Re-export of ast crate.
@@ -20,7 +22,7 @@ pub use self::error::{ExpectedToken, ParseError};
 use std::iter::Peekable;
 
 use ast::Program;
-use lexer::{types::ReservedVariant, Token};
+use lexer::{types as ttypes, Token};
 
 pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 pub type ParseResult<T> = std::result::Result<T, ()>;
@@ -137,7 +139,7 @@ where
     }
 
     #[inline]
-    pub fn consume<R: ReservedVariant>(&mut self) -> ParseResult<()> {
+    pub fn consume<R: ttypes::ReservedVariant>(&mut self) -> ParseResult<()> {
         self.next_checked(&Token::Reserved(R::variant()), || {
             vec![ExpectedToken::Reserved(R::variant())]
         })?;
@@ -145,12 +147,39 @@ where
     }
 
     #[inline]
-    pub fn consume_opt<R: ReservedVariant>(&mut self) -> ParseResult<Option<()>> {
-        match self.next() {
-            Some(next) if next.0 == Token::Reserved(R::variant()) => Ok(Some(())),
+    pub fn consume_opt<R: ttypes::ReservedVariant>(&mut self) -> ParseResult<Option<()>> {
+        match self.peek() {
+            Some(next) if next.0 == Token::Reserved(R::variant()) => {
+                self.next();
+                Ok(Some(()))
+            }
             None => Ok(None),
             _ => Err(()),
         }
+    }
+}
+
+impl<I, R> Parse<I> for Rsv<R>
+where
+    I: Iterator<Item = Symbol>,
+    R: ttypes::ReservedVariant,
+{
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        input.consume::<R>();
+        Ok(Self::new())
+    }
+}
+
+pub(crate) struct Rsv<R>(R)
+where
+    R: ttypes::ReservedVariant;
+
+impl<R> Rsv<R>
+where
+    R: ttypes::ReservedVariant,
+{
+    fn new() -> Self {
+        Self(R::new())
     }
 }
 
@@ -163,19 +192,37 @@ pub struct Separated<T, S> {
 impl<I, T, S> Parse<I> for Separated<T, S>
 where
     I: Iterator<Item = Symbol>,
+    T: Parse<I>,
+    S: Parse<I>,
 {
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        let peeked = match input.peek() {
-            Some(peeked) => peeked,
+        // Try to parse first item. If EOF or other token encountered, return empty result.
+        let try_parsed = input.parse().ok();
+        let first_item = match try_parsed {
+            Some(t) => t,
             None => {
                 return Ok(Self {
                     items: vec![],
                     seps: vec![],
-                });
+                })
             }
         };
 
-        let try_parsed = input.parse().ok();
-        let first_item = match try_parsed {};
+        let mut items = Vec::new();
+        let mut seps = Vec::new();
+        items.push(first_item);
+
+        loop {
+            let sep = match input.parse().ok() {
+                Some(s) => s,
+                None => break,
+            };
+
+            let item = input.parse()?;
+            items.push(item);
+            seps.push(sep);
+        }
+
+        Ok(Self { items, seps })
     }
 }

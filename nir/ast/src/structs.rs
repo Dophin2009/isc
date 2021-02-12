@@ -1,4 +1,4 @@
-use crate::{Body, FunctionParam, Ident, Type, Visibility};
+use crate::{Block, FunctionParam, Ident, Type, Visibility};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Struct {
@@ -22,5 +22,5 @@ pub struct StructFunction {
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
     pub is_method: bool,
-    pub body: Body,
+    pub body: Block,
 }

@@ -17,6 +17,7 @@ macro_rules! define_reserved {
         }
 
         pub trait ReservedVariant {
+            fn new() -> Self;
             fn variant() -> Reserved;
         }
 
@@ -24,6 +25,11 @@ macro_rules! define_reserved {
             pub struct $variant;
 
             impl ReservedVariant for $variant {
+                #[inline]
+                fn new() -> Self {
+                    Self
+                }
+
                 #[inline]
                 fn variant() -> Reserved {
                     Reserved::$variant

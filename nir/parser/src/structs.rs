@@ -1,7 +1,7 @@
 use crate::error::{ExpectedToken, ParseError};
-use crate::{Parse, ParseInput, ParseResult, Symbol};
+use crate::{Parse, ParseInput, ParseResult, Rsv, Separated, Symbol};
 
-use ast::{PrimitiveType, Struct, StructField, StructFunction, Type};
+use ast::{FunctionParam, PrimitiveType, Struct, StructField, StructFunction, Type};
 use lexer::{types as ttypes, Reserved, Token};
 
 impl<I> Parse<I> for Struct
@@ -104,14 +104,9 @@ where
             false
         };
 
-        let params = Vec::new();
-        while !input.peek_is(&reserved!(RParen)) {
-            let param = input.parse()?;
-
-            // Consume separating comma.
-            input.consume::<ttypes::Comma>()?;
-            params.push(param);
-        }
+        let params = input
+            .parse::<Separated<FunctionParam, Rsv<ttypes::Comma>>>()?
+            .items;
 
         // Conusme right parenthesis.
         input.consume::<ttypes::RParen>()?;

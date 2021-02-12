@@ -60,4 +60,4 @@ pub enum Visibility {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Body {}
+pub struct Block {}
