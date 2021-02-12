@@ -22,6 +22,7 @@ pub enum ExpectedToken {
     Literal(LiteralKind),
     Type,
     Reserved(Reserved),
+    Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +46,7 @@ impl fmt::Display for ExpectedToken {
             },
             ExpectedToken::Type => write!(f, "<identifier>"),
             ExpectedToken::Reserved(reserved) => write!(f, "{}", reserved),
+            ExpectedToken::Expr => write!(f, "<expression>"),
         }
     }
 }
