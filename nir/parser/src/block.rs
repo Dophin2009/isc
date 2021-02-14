@@ -69,13 +69,25 @@ where
             // Parse if statement (without else).
             reserved!(If) => Self::IfOnly(input.parse()?),
             // Can be variable assignment or expression.
-            Token::Ident(ident) => {
+            Token::Ident(_) => {
+                let ident = input.peek_mult().unwrap();
+
                 // Peek to see next symbol is equals for assignment.
+                match input.peek_mult().map(|peeked| peeked.0) {
+                    Some(reserved!(Equ)) => {
+                        input.reset_peek();
+                        Self::VarAssign(input.parse()?)
+                    }
+                    _ => {
+                        input.reset_peek();
+                        Self::Expr(input.parse()?)
+                    }
+                }
             }
             // Otherwise, try to parse as expression.
             _ => {
                 let expr = input.parse()?;
-                input.consume::<ttypes::Comma>()?;
+                input.consume::<ttypes::Semicolon>()?;
 
                 Self::Expr(expr)
             }
@@ -96,6 +108,21 @@ where
             lhs: input.parse()?,
             colon_t: input.consume()?,
             ty: input.parse()?,
+            equ_t: input.consume()?,
+            rhs: input.parse()?,
+            semicolon_t: input.consume()?,
+        })
+    }
+}
+
+impl<I> Parse<I> for VarAssign
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        Ok(Self {
+            lhs: input.parse()?,
             equ_t: input.consume()?,
             rhs: input.parse()?,
             semicolon_t: input.consume()?,
@@ -171,17 +198,4 @@ where
             body: input.parse()?,
         })
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum AssignOrExpr {
-    Assign(VarAssign),
-    Expr(Expr),
-}
-
-fn parse_assign_or_expr<I>(input: &mut ParseInput<I>) -> ParseResult<AssignOrExpr>
-where
-    I: Iterator<Item = Symbol>,
-{
-    // Parse ident.
 }
