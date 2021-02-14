@@ -3,7 +3,8 @@ use crate::Result;
 
 use std::iter::Peekable;
 
-use ast::{punctuated::Punctuated, Program, Spannable, Spanned};
+use ast::{Program, Spanned};
+use itertools::{Itertools, MultiPeek};
 use lexer::{types as ttypes, Token};
 
 pub type ParseResult<T> = std::result::Result<T, ()>;
@@ -43,7 +44,7 @@ pub struct ParseInput<I>
 where
     I: Iterator<Item = Symbol>,
 {
-    inner: Peekable<I>,
+    inner: MultiPeek<I>,
     pub errors: Vec<ParseError>,
 
     last_pos: usize,
@@ -56,7 +57,7 @@ where
     #[inline]
     pub fn new(inner: I) -> Self {
         Self {
-            inner: inner.peekable(),
+            inner: inner.multipeek(),
             errors: Vec::new(),
             last_pos: 0,
         }
@@ -118,20 +119,36 @@ where
 
     #[inline]
     pub fn peek(&mut self) -> Option<&Symbol> {
+        let ret = self.inner.peek();
+        self.inner.reset_peek();
+        ret
+    }
+
+    #[inline]
+    pub fn peek_mult(&mut self) -> Option<&Symbol> {
         self.inner.peek()
     }
 
     #[inline]
+    pub fn reset_peek(&mut self) {
+        self.inner.reset_peek();
+    }
+
+    #[inline]
     pub fn peek_is(&mut self, expected: &Token) -> bool {
-        match self.peek() {
+        let ret = match self.peek() {
             Some(peeked) => peeked.0 == *expected,
             None => false,
-        }
+        };
+        self.inner.reset_peek();
+        ret
     }
 
     #[inline]
     pub fn is_empty(&mut self) -> bool {
-        self.inner.peek().is_none()
+        let ret = self.inner.peek().is_none();
+        self.inner.reset_peek();
+        ret
     }
 
     #[inline]
