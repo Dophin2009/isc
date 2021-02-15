@@ -5,10 +5,10 @@ mod macros;
 pub mod error;
 pub mod parser;
 pub mod punctuated;
-pub mod span;
 
 // Parse implementations on AST nodes.
 mod block;
+mod expr;
 mod function;
 mod ident;
 mod item;

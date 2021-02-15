@@ -43,7 +43,6 @@ expression = literal
            | ident
            | binop_expression
            | unop_expression
-           | ternary
            | function_call
            | if_else
            | block

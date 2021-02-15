@@ -1,6 +1,6 @@
 use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 use ast::{
-    Block, Break, Continue, Expr, ForLoop, IfOnly, Statement, VarAssign, VarDeclaration, WhileLoop,
+    Block, Break, Continue, ForLoop, IfOnly, Statement, VarAssign, VarDeclaration, WhileLoop,
 };
 use lexer::{types as ttypes, Token};
 
@@ -80,7 +80,9 @@ where
                     }
                     _ => {
                         input.reset_peek();
-                        Self::Expr(input.parse()?)
+                        let ret = Self::Expr(input.parse()?);
+                        input.consume::<ttypes::Semicolon>()?;
+                        ret
                     }
                 }
             }
