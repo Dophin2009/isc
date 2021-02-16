@@ -22,7 +22,11 @@ where
 
         // Parse fields.
         let fields = input.parse::<Punctuated<StructField, Rsv<Comma>>>()?;
-        let seps = fields.seps.into_iter().map(|sep| sep.inner()).collect();
+        let seps = fields
+            .seps
+            .into_iter()
+            .map(|sep| sep.into_inner())
+            .collect();
         let fields = Punctuated {
             items: fields.items,
             seps,

@@ -115,9 +115,10 @@ where
         }
     }
 
+    /// Peek next item; returns cloned symbol for simplicity.
     #[inline]
-    pub fn peek(&mut self) -> Option<&Symbol> {
-        let ret = self.inner.peek();
+    pub fn peek(&mut self) -> Option<Symbol> {
+        let ret = self.inner.peek().cloned();
         self.inner.reset_peek();
         ret
     }
@@ -174,16 +175,24 @@ pub(crate) struct Rsv<R>(R)
 where
     R: ttypes::ReservedVariant;
 
+#[allow(dead_code)]
 impl<R> Rsv<R>
 where
     R: ttypes::ReservedVariant,
 {
+    #[inline]
     pub fn new() -> Self {
         Self(R::new())
     }
 
-    pub fn inner(&self) -> R {
+    #[inline]
+    pub fn into_inner(self) -> R {
         self.0
+    }
+
+    #[inline]
+    pub fn inner(&self) -> &R {
+        &self.0
     }
 }
 

@@ -2,7 +2,7 @@ use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
 use ast::{
     keywords::Comma, punctuated::Punctuated, Function, FunctionParam, PrimitiveType,
-    PrimitiveTypeKind, Span, Type, TypeKind,
+    PrimitiveTypeKind, Span, Type,
 };
 
 impl<I> Parse<I> for Function
@@ -24,7 +24,11 @@ where
 
         // Parse function parameters.
         let params: Punctuated<_, Rsv<Comma>> = input.parse()?;
-        let seps = params.seps.into_iter().map(|sep| sep.inner()).collect();
+        let seps = params
+            .seps
+            .into_iter()
+            .map(|sep| sep.into_inner())
+            .collect();
         let params = Punctuated {
             items: params.items,
             seps,
@@ -42,12 +46,10 @@ where
             None => {
                 let last_pos = input.last_pos();
 
-                Type {
-                    kind: TypeKind::Primitive(PrimitiveType {
-                        kind: PrimitiveTypeKind::Unit,
-                    }),
+                Type::Primitive(PrimitiveType {
+                    kind: PrimitiveTypeKind::Unit,
                     span: Span::new(last_pos, last_pos),
-                }
+                })
             }
         };
 

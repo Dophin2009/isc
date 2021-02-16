@@ -1,8 +1,6 @@
-use crate::error::{ExpectedToken, ParseError};
 use crate::{Parse, ParseInput, Symbol};
 
 use ast::{Function, Item, Struct};
-use lexer::Reserved;
 
 impl<I> Parse<I> for Item
 where

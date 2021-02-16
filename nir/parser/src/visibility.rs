@@ -15,7 +15,8 @@ where
                     (VisibilityKind::Public, spanned.1)
                 }
                 _ => {
-                    input.error(unexpectedtoken!(peeked.1, peeked.0, ereserved!(Pub)));
+                    let next = input.next().unwrap();
+                    input.error(unexpectedtoken!(next.1, next.0, ereserved!(Pub)));
                     return Err(());
                 }
             },

@@ -21,6 +21,7 @@ pub enum ParseError {
 #[derive(Debug, Clone)]
 pub enum ExpectedToken {
     Ident,
+    LiteralOpaque,
     Literal(LiteralKind),
     Type,
     Reserved(Reserved),
@@ -40,6 +41,7 @@ impl fmt::Display for ExpectedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ExpectedToken::Ident => write!(f, "<identifier>"),
+            ExpectedToken::LiteralOpaque => write!(f, "<literal>"),
             ExpectedToken::Literal(kind) => match kind {
                 LiteralKind::Str => write!(f, "<string>"),
                 LiteralKind::Integer => write!(f, "<integer>"),

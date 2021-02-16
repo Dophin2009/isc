@@ -1,6 +1,8 @@
-use ast::Program;
 use lexer::Lexer;
-use parser::{ParseError, Parser, Span, Spanned};
+use parser::{
+    ast::{Program, Span, Spanned},
+    ParseError, Parser,
+};
 
 use std::fmt;
 

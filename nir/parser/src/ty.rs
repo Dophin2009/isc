@@ -1,7 +1,7 @@
 use crate::error::ExpectedToken;
 use crate::{Parse, ParseInput, ParseResult, Symbol};
 
-use ast::{DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Spanned, Type, TypeKind};
+use ast::{DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Span, Spanned, Type};
 use lexer::{Reserved, Token};
 
 impl<I> Parse<I> for Type
@@ -18,15 +18,16 @@ where
             ]
         })?;
 
-        let kind = match next.0 {
-            Token::Type(ty) => TypeKind::Primitive(from_lexer_type(ty)),
-            Token::Ident(name) => TypeKind::Declared(DeclaredType {
+        let ty = match next.0 {
+            Token::Type(ty) => Type::Primitive(from_lexer_type(ty, next.1)),
+            Token::Ident(name) => Type::Declared(DeclaredType {
                 name: Ident {
                     name: Spanned::new(name, next.1),
                 },
             }),
-            Token::Reserved(Reserved::LParen) => TypeKind::Primitive(PrimitiveType {
+            Token::Reserved(Reserved::LParen) => Type::Primitive(PrimitiveType {
                 kind: PrimitiveTypeKind::Unit,
+                span: next.1,
             }),
             _ => {
                 input.error(unexpectedtoken!(
@@ -39,13 +40,12 @@ where
                 return Err(());
             }
         };
-        let span = next.1;
 
-        Ok(Self { kind, span })
+        Ok(ty)
     }
 }
 
-fn from_lexer_type(ty: lexer::Type) -> PrimitiveType {
+fn from_lexer_type(ty: lexer::Type, span: Span) -> PrimitiveType {
     let kind = match ty {
         lexer::Type::Bool => PrimitiveTypeKind::Bool,
         lexer::Type::Char => PrimitiveTypeKind::Char,
@@ -62,5 +62,5 @@ fn from_lexer_type(ty: lexer::Type) -> PrimitiveType {
         lexer::Type::F64 => PrimitiveTypeKind::F64,
     };
 
-    PrimitiveType { kind }
+    PrimitiveType { kind, span }
 }

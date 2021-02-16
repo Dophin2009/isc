@@ -53,6 +53,8 @@ pub struct UnaryOpExpr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum UnaryOp {
     Negative,
+    /// Boolean negation
+    Not,
 }
 
 #[derive(Clone, Debug, PartialEq)]

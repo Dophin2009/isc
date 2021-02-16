@@ -52,9 +52,13 @@ where
             ]
         }
 
-        let peeked = input.peek().ok_or_else(|| {
-            input.error(ParseError::UnexpectedEof(expected()));
-        })?;
+        let peeked = match input.peek() {
+            Some(peeked) => peeked,
+            None => {
+                input.error(ParseError::UnexpectedEof(expected()));
+                return Err(());
+            }
+        };
 
         let statement = match peeked.0 {
             // Parse variable declaration.
@@ -71,10 +75,10 @@ where
             reserved!(If) => Self::IfElse(input.parse()?),
             // Can be variable assignment or expression.
             Token::Ident(_) => {
-                let ident = input.peek_mult().unwrap();
+                let _ = input.peek_mult().unwrap();
 
                 // Peek to see next symbol is equals for assignment.
-                match input.peek_mult().map(|peeked| peeked.0) {
+                match input.peek_mult().map(|peeked| &peeked.0) {
                     Some(reserved!(Equ)) => {
                         input.reset_peek();
                         Self::VarAssign(input.parse()?)
