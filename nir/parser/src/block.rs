@@ -1,6 +1,7 @@
 use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 use ast::{
-    Block, Break, Continue, ForLoop, IfOnly, Statement, VarAssign, VarDeclaration, WhileLoop,
+    Block, Break, Continue, ElseBranch, ExprStatement, ForLoop, IfBranch, IfElse, Statement,
+    VarAssign, VarDeclaration, WhileLoop,
 };
 use lexer::{types as ttypes, Token};
 
@@ -67,7 +68,7 @@ where
             // Parse continue statement.
             reserved!(Continue) => Self::Continue(input.parse()?),
             // Parse if statement (without else).
-            reserved!(If) => Self::IfOnly(input.parse()?),
+            reserved!(If) => Self::IfElse(input.parse()?),
             // Can be variable assignment or expression.
             Token::Ident(_) => {
                 let ident = input.peek_mult().unwrap();
@@ -188,16 +189,76 @@ where
     }
 }
 
-impl<I> Parse<I> for IfOnly
+impl<I> Parse<I> for IfElse
 where
     I: Iterator<Item = Symbol>,
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         Ok(Self {
-            if_t: input.consume()?,
-            cond: input.parse()?,
-            body: input.parse()?,
+            head: input.parse()?,
+        })
+    }
+}
+
+impl<I> Parse<I> for IfBranch
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        let if_t = input.consume()?;
+        let cond = input.parse()?;
+        let body = input.parse()?;
+
+        let else_body = if input.peek_is(&reserved!(Else)) {
+            Some(Box::new(input.parse()?))
+        } else {
+            None
+        };
+
+        Ok(Self {
+            if_t,
+            cond,
+            body,
+            else_body,
+        })
+    }
+}
+
+impl<I> Parse<I> for ElseBranch
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        let else_t = input.consume()?;
+
+        let branch = if input.peek_is(&reserved!(If)) {
+            Self::If {
+                else_t,
+                branch: input.parse()?,
+            }
+        } else {
+            Self::Block {
+                else_t,
+                inner: input.parse()?,
+            }
+        };
+
+        Ok(branch)
+    }
+}
+
+impl<I> Parse<I> for ExprStatement
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        Ok(Self {
+            expr: input.parse()?,
+            semicolon_t: input.consume()?,
         })
     }
 }

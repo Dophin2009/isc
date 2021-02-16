@@ -1,5 +1,7 @@
-use ast::Span;
-use lexer::{Reserved, Token};
+use crate::Symbol;
+
+use ast::Spannable;
+use lexer::Reserved;
 
 use std::fmt;
 
@@ -8,8 +10,8 @@ pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("unexpected token {:?} at position {}, expected one of {:?}", .1, .0.start + 1, .2)]
-    UnexpectedToken(Spannable, Vec<ExpectedToken>),
+    #[error("unexpected token {:?} at position {}, expected one of {:?}", .0.inner(), .0.span().start, .1)]
+    UnexpectedToken(Symbol, Vec<ExpectedToken>),
     #[error("unexpected end-of-file")]
     UnexpectedEof(Vec<ExpectedToken>),
     #[error("lexer error")]

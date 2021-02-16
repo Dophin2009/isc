@@ -1,8 +1,6 @@
 use crate::error::{ExpectedToken, ParseError};
 use crate::Result;
 
-use std::iter::Peekable;
-
 use ast::{Program, Spanned};
 use itertools::{Itertools, MultiPeek};
 use lexer::{types as ttypes, Token};

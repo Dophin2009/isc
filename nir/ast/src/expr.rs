@@ -1,6 +1,6 @@
 use crate::keywords::{Comma, LParen, RParen};
 use crate::punctuated::Punctuated;
-use crate::{Block, Ident, Span, Spannable, Spanned};
+use crate::{Ident, Span, Spannable, Spanned};
 
 pub use lexer::Literal;
 
@@ -11,8 +11,7 @@ pub enum Expr {
     FunctionCall(FunctionCall),
     BinOp(Box<BinOpExpr>),
     UnaryOp(Box<UnaryOpExpr>),
-    IfElse(IfElse),
-    Block(Block),
+    ArrayIndex(Box<ArrayIndex>),
 }
 
 impl Spannable for Expr {
@@ -52,4 +51,12 @@ pub struct UnaryOpExpr {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct UnaryOpExpr {
+pub enum UnaryOp {
+    Negative,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ArrayIndex {
+    pub array: Expr,
+    pub index: Expr,
+}

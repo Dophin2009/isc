@@ -1,9 +1,10 @@
-use crate::keywords::{self, Colon, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
+use crate::keywords::{self, Colon, Else, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
 use crate::{Expr, Ident, Span, Spannable, Spanned, Type};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Block {
     pub statements: Vec<Statement>,
+
     pub lbrace_t: Spanned<LBrace>,
     pub rbrace_t: Spanned<RBrace>,
 }
@@ -11,13 +12,7 @@ pub struct Block {
 impl Spannable for Block {
     #[inline]
     fn span(&self) -> Span {
-        let (start, end) = self
-            .statements
-            .first()
-            .map(|item| item.span().start)
-            .map(|start| (start, self.statements.last().unwrap().span().end))
-            .unwrap_or_else(|| (0, 0));
-        Span::new(start, end)
+        Span::new(self.lbrace_t.span().start, self.rbrace_t.span().start)
     }
 }
 
@@ -27,10 +22,10 @@ pub enum Statement {
     VarAssign(VarAssign),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
-    IfOnly(IfOnly),
+    IfElse(IfElse),
     Break(Break),
     Continue(Continue),
-    Expr(Expr),
+    Expr(ExprStatement),
 }
 
 impl Spannable for Statement {
@@ -41,7 +36,7 @@ impl Spannable for Statement {
             Self::VarAssign(v) => v.span(),
             Self::ForLoop(v) => v.span(),
             Self::WhileLoop(v) => v.span(),
-            Self::IfOnly(v) => v.span(),
+            Self::IfElse(v) => v.span(),
             Self::Break(v) => v.span(),
             Self::Continue(v) => v.span(),
             Self::Expr(v) => v.span(),
@@ -143,16 +138,69 @@ impl Spannable for Continue {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct IfOnly {
+pub struct IfElse {
+    pub head: IfBranch,
+}
+
+impl Spannable for IfElse {
+    #[inline]
+    fn span(&self) -> Span {
+        self.head.span()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct IfBranch {
     pub cond: Expr,
     pub body: Block,
+    pub else_body: Option<Box<ElseBranch>>,
 
     pub if_t: Spanned<If>,
 }
 
-impl Spannable for IfOnly {
+impl Spannable for IfBranch {
     #[inline]
     fn span(&self) -> Span {
-        Span::new(self.if_t.span().start, self.body.span().end)
+        let end = match &self.else_body {
+            Some(b) => b.span().end,
+            None => self.body.span().end,
+        };
+        Span::new(self.if_t.span().start, end)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ElseBranch {
+    If {
+        branch: IfBranch,
+        else_t: Spanned<Else>,
+    },
+    Block {
+        inner: Block,
+        else_t: Spanned<Else>,
+    },
+}
+
+impl Spannable for ElseBranch {
+    #[inline]
+    fn span(&self) -> Span {
+        match self {
+            Self::If { branch, else_t } => Span::new(else_t.span().start, branch.span().end),
+            Self::Block { inner, else_t } => Span::new(else_t.span().start, inner.span().end),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExprStatement {
+    pub expr: Expr,
+
+    pub semicolon_t: Spanned<Semicolon>,
+}
+
+impl Spannable for ExprStatement {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.expr.span().start, self.semicolon_t.span().end)
     }
 }
