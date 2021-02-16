@@ -7,7 +7,7 @@ pub use lexer::Literal;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     Var(Ident),
-    Literal(Literal),
+    Literal(Spanned<Literal>),
     FunctionCall(FunctionCall),
     BinOp(Box<BinOpExpr>),
     UnaryOp(Box<UnaryOpExpr>),
@@ -15,8 +15,16 @@ pub enum Expr {
 }
 
 impl Spannable for Expr {
+    #[inline]
     fn span(&self) -> Span {
-        Span::new(0, 0)
+        match self {
+            Self::Var(v) => v.span(),
+            Self::Literal(v) => v.span(),
+            Self::FunctionCall(v) => v.span(),
+            Self::BinOp(v) => v.span(),
+            Self::UnaryOp(v) => v.span(),
+            Self::ArrayIndex(v) => v.span(),
+        }
     }
 }
 
@@ -29,11 +37,32 @@ pub struct FunctionCall {
     pub rparen_t: Spanned<RParen>,
 }
 
+impl Spannable for FunctionCall {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.name.span().start, self.rparen_t.span().end)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct BinOpExpr {
-    pub op: BinOp,
+    pub op: Spanned<BinOp>,
     pub e1: Expr,
     pub e2: Expr,
+}
+
+impl BinOpExpr {
+    #[inline]
+    pub fn op(&self) -> &BinOp {
+        &self.op.0
+    }
+}
+
+impl Spannable for BinOpExpr {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.e1.span().start, self.e2.span().end)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -46,8 +75,22 @@ pub enum BinOp {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnaryOpExpr {
-    pub op: UnaryOp,
+    pub op: Spanned<UnaryOp>,
     pub operand: Expr,
+}
+
+impl UnaryOpExpr {
+    #[inline]
+    pub fn op(&self) -> &UnaryOp {
+        &self.op.0
+    }
+}
+
+impl Spannable for UnaryOpExpr {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.op.span().start, self.operand.span().end)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -64,4 +107,11 @@ pub struct ArrayIndex {
 
     pub lbracket_t: Spanned<LBracket>,
     pub rbracket_t: Spanned<RBracket>,
+}
+
+impl Spannable for ArrayIndex {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.array.span().start, self.rbracket_t.span().end)
+    }
 }

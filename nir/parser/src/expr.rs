@@ -2,7 +2,7 @@ use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 
 use ast::{
     keywords::{LParen, RParen},
-    ArrayIndex, BinOp, BinOpExpr, Expr, UnaryOp, UnaryOpExpr,
+    ArrayIndex, BinOp, BinOpExpr, Expr, Spanned, UnaryOp, UnaryOpExpr,
 };
 use lexer::Token;
 
@@ -108,7 +108,11 @@ where
                 }
 
                 let e2 = expr_bp(input, rbp)?;
-                Expr::BinOp(Box::new(BinOpExpr { op, e1: lhs, e2 }))
+                Expr::BinOp(Box::new(BinOpExpr {
+                    op: Spanned::new(op, next.1),
+                    e1: lhs,
+                    e2,
+                }))
             }
             _ => break,
         };
@@ -141,7 +145,7 @@ where
         }
     };
 
-    Ok(Expr::Literal(literal))
+    Ok(Expr::Literal(Spanned::new(literal, next.1)))
 }
 
 fn expr_unary<I>(input: &mut ParseInput<I>) -> ParseResult<UnaryOpExpr>
@@ -166,7 +170,10 @@ where
     let ((), rbp) = prefix_binding_power(&op);
     let operand = expr_bp(input, rbp)?;
 
-    Ok(UnaryOpExpr { op, operand })
+    Ok(UnaryOpExpr {
+        op: Spanned::new(op, next.1),
+        operand,
+    })
 }
 
 /// Return the binding powers (specifically the right) for prefix operators.
