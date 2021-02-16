@@ -1,4 +1,4 @@
-use crate::keywords::{Comma, LParen, RParen};
+use crate::keywords::{Comma, LBracket, LParen, RBracket, RParen};
 use crate::punctuated::Punctuated;
 use crate::{Ident, Span, Spannable, Spanned};
 
@@ -61,4 +61,7 @@ pub enum UnaryOp {
 pub struct ArrayIndex {
     pub array: Expr,
     pub index: Expr,
+
+    pub lbracket_t: Spanned<LBracket>,
+    pub rbracket_t: Spanned<RBracket>,
 }

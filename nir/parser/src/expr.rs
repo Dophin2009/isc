@@ -2,7 +2,7 @@ use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 
 use ast::{
     keywords::{LParen, RParen},
-    Expr, UnaryOp, UnaryOpExpr,
+    ArrayIndex, BinOp, BinOpExpr, Expr, UnaryOp, UnaryOpExpr,
 };
 use lexer::Token;
 
@@ -16,10 +16,16 @@ where
     }
 }
 
-fn expr_bp<I>(input: &mut ParseInput<I>, bp: u8) -> ParseResult<Expr>
+#[inline]
+fn expr_bp<I>(input: &mut ParseInput<I>, min_bp: u8) -> ParseResult<Expr>
 where
     I: Iterator<Item = Symbol>,
 {
+    #[inline]
+    fn expected() -> Vec<ExpectedToken> {
+        vec![]
+    }
+
     let peeked = match input.peek() {
         Some(peeked) => peeked,
         None => {
@@ -49,10 +55,62 @@ where
         }
     };
 
-    loop {
-        let peeked = match input.peek() {
-            Some(peeked) => peeked,
-            None => break,
+    // Peek the next token, and if EOF is reached, break from the loop. Otherwise, continue
+    // parsing as infix or postfix operator.
+    while let Some(peeked) = input.peek() {
+        lhs = match peeked.0 {
+            // Handle array indexing operation.
+            reserved!(LBracket) => {
+                let (lbp, ()) = postfix_binding_power(&PostfixOp::ArrayIndex);
+                if lbp < min_bp {
+                    break;
+                }
+
+                let lbracket_t = input.consume()?;
+                let index = input.parse()?;
+                let rbracket_t = input.consume()?;
+
+                // Parse the idx expression.
+                Expr::ArrayIndex(Box::new(ArrayIndex {
+                    array: lhs,
+                    index,
+                    lbracket_t,
+                    rbracket_t,
+                }))
+            }
+            // Handle infix operator
+            reserved!(Plus) | reserved!(Minus) | reserved!(Star) | reserved!(Slash) => {
+                #[inline]
+                fn infix_expected() -> Vec<ExpectedToken> {
+                    vec![
+                        ereserved!(Plus),
+                        ereserved!(Minus),
+                        ereserved!(Star),
+                        ereserved!(Slash),
+                    ]
+                }
+
+                let next = input.next_unwrap(infix_expected)?;
+                let op = match next.0 {
+                    reserved!(Plus) => BinOp::Add,
+                    reserved!(Minus) => BinOp::Subtract,
+                    reserved!(Star) => BinOp::Multiply,
+                    reserved!(Slash) => BinOp::Divide,
+                    _ => {
+                        input.error(ParseError::UnexpectedToken(next, infix_expected()));
+                        return Err(());
+                    }
+                };
+
+                let (lbp, rbp) = infix_binding_power(&op);
+                if lbp < min_bp {
+                    break;
+                }
+
+                let e2 = expr_bp(input, rbp)?;
+                Expr::BinOp(Box::new(BinOpExpr { op, e1: lhs, e2 }))
+            }
+            _ => break,
         };
     }
 
@@ -105,23 +163,37 @@ where
         }
     };
 
-    let ((), rbp) = prefix_binding_power(&op).unwrap();
+    let ((), rbp) = prefix_binding_power(&op);
     let operand = expr_bp(input, rbp)?;
 
     Ok(UnaryOpExpr { op, operand })
 }
 
 /// Return the binding powers (specifically the right) for prefix operators.
-/// [`None`] is returned if `op` is not a valid prefix operator.
-fn prefix_binding_power(op: &UnaryOp) -> Option<((), u8)> {
-    let bp = match op {
+fn prefix_binding_power(op: &UnaryOp) -> ((), u8) {
+    match op {
         // Same binding power is probably fine, since they act on different types of operands?
         UnaryOp::Negative => ((), 9),
         UnaryOp::Not => ((), 9),
-    };
-    Some(bp)
+    }
 }
 
-fn expected() -> Vec<ExpectedToken> {
-    vec![]
+/// Return the binding powers for infix operators.
+fn infix_binding_power(op: &BinOp) -> (u8, u8) {
+    match op {
+        BinOp::Add | BinOp::Subtract => (5, 6),
+        BinOp::Multiply | BinOp::Divide => (7, 8),
+    }
+}
+
+/// Return the binding powers (specifically the left) for postfix operators.
+fn postfix_binding_power(op: &PostfixOp) -> (u8, ()) {
+    match op {
+        PostfixOp::ArrayIndex => (11, ()),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum PostfixOp {
+    ArrayIndex,
 }
