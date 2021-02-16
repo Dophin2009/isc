@@ -73,16 +73,19 @@ define_reserved! {
     Semicolon => ";",
     Arrow => "->",
 
+    Nequ => "!=",
     Equ => "=",
+    GtEqu => ">=",
     Gt => ">",
+    LtEqu => ">=",
     Lt => "<",
 
     Plus => "+",
     Minus => "-",
     Star => "*",
     Slash => "/",
-    Exclamation => "!",
 
+    Exclamation => "!",
     Amp => "&",
     DoubleAmp => "&&",
     Bar => "|",

@@ -63,8 +63,11 @@ llex::lexer! {
     r";" => reserved!(Semicolon),
     r"->" => reserved!(Arrow),
 
+    r"!=" => reserved!(Nequ),
     r"=" => reserved!(Equ),
+    r">=" => reserved!(GtEqu),
     r">" => reserved!(Gt),
+    r"<=" => reserved!(GtEqu),
     r"<" => reserved!(Lt),
 
     r"\+" => reserved!(Plus),
@@ -72,11 +75,11 @@ llex::lexer! {
     r"\*" => reserved!(Star),
     r"/" => reserved!(Slash),
 
+    r"!" => reserved!(Exclamation),
     r"&&" => reserved!(DoubleAmp),
     r"&" => reserved!(Amp),
     r"\|" => reserved!(Bar),
     r"\|\|" => reserved!(DoubleBar),
-    r"!" => reserved!(Exclamation),
 
     "true" => literal!(Literal::Boolean(true)),
     "false" => literal!(Literal::Boolean(false)),
