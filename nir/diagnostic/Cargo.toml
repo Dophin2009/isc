@@ -1,0 +1,11 @@
+[package]
+name = "diagnostic"
+version = "0.1.0"
+authors = ["Eric Zhao <21zhaoe@protonmail.com>"]
+edition = "2018"
+
+[features]
+json-auto = ["serde"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"], optional = true }
