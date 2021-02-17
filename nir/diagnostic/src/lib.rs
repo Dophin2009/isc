@@ -1,6 +1,6 @@
 use std::io;
 
-#[cfg(feature = "serde-auto")]
+#[cfg(feature = "json-auto")]
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +38,7 @@ where
     fn as_diagnostic_text(&self, w: &mut W) -> Result<(), Self::Error>;
 }
 
-#[cfg(feature = "serde-auto")]
+#[cfg(feature = "json-auto")]
 impl<W, S> AsDiagnosticJson<W> for S
 where
     W: io::Write,
