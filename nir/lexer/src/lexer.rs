@@ -35,6 +35,7 @@ llex::lexer! {
     "in" => reserved!(In),
     "break" => reserved!(Break),
     "continue" => reserved!(Continue),
+    "bye" => reserved!(Return),
 
     "bool" => ty!(Bool),
     "char" => ty!(Char),

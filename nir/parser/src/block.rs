@@ -1,11 +1,11 @@
 use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 
 use ast::{
-    keywords::{Equ, Semicolon},
+    keywords::{Equ, LBrace, RBrace, Semicolon},
     ArrayIndex, Block, Break, Continue, ElseBranch, Expr, ExprStatement, ForLoop, IfBranch, IfElse,
-    LValue, Spanned, Statement, VarAssign, VarDeclaration, WhileLoop,
+    LValue, Return, Spanned, Statement, VarAssign, VarDeclaration, WhileLoop,
 };
-use lexer::{types as ttypes, Token};
+use lexer::Token;
 
 impl<I> Parse<I> for Block
 where
@@ -14,7 +14,7 @@ where
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         // Parse left brace.
-        let lbrace_t = input.consume::<ttypes::LBrace>()?;
+        let lbrace_t = input.consume::<LBrace>()?;
 
         // Parse statements.
         let mut statements = Vec::new();
@@ -24,7 +24,7 @@ where
         }
 
         // Parse right brace.
-        let rbrace_t = input.consume::<ttypes::RBrace>()?;
+        let rbrace_t = input.consume::<RBrace>()?;
 
         Ok(Self {
             statements,
@@ -48,6 +48,7 @@ where
                 ereserved!(While),
                 ereserved!(Break),
                 ereserved!(Continue),
+                ereserved!(Return),
                 ereserved!(If),
                 ExpectedToken::Ident,
                 ExpectedToken::Expr,
@@ -73,6 +74,8 @@ where
             reserved!(Break) => Self::Break(input.parse()?),
             // Parse continue statement.
             reserved!(Continue) => Self::Continue(input.parse()?),
+            // Parse return statement.
+            reserved!(Return) => Self::Return(input.parse()?),
             // Parse if statement (without else).
             reserved!(If) => Self::IfElse(input.parse()?),
             // Can be variable assignment or expression.
@@ -252,6 +255,20 @@ where
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         Ok(Self {
             continue_t: input.consume()?,
+            semicolon_t: input.consume()?,
+        })
+    }
+}
+
+impl<I> Parse<I> for Return
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        Ok(Self {
+            return_t: input.consume()?,
+            value: input.parse()?,
             semicolon_t: input.consume()?,
         })
     }

@@ -31,6 +31,7 @@ pub enum Statement {
     Break(Break),
     Continue(Continue),
     Expr(ExprStatement),
+    Return(Return),
 }
 
 impl Spannable for Statement {
@@ -44,6 +45,7 @@ impl Spannable for Statement {
             Self::IfElse(v) => v.span(),
             Self::Break(v) => v.span(),
             Self::Continue(v) => v.span(),
+            Self::Return(v) => v.span(),
             Self::Expr(v) => v.span(),
         }
     }
@@ -164,6 +166,21 @@ impl Spannable for Continue {
     #[inline]
     fn span(&self) -> Span {
         Span::new(self.continue_t.span().start, self.semicolon_t.span().end)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
+pub struct Return {
+    pub value: Expr,
+    pub return_t: Spanned<keywords::Return>,
+    pub semicolon_t: Spanned<Semicolon>,
+}
+
+impl Spannable for Return {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.return_t.span().start, self.semicolon_t.span().end)
     }
 }
 

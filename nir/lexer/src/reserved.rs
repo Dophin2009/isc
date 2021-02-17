@@ -100,6 +100,7 @@ define_reserved! {
     In => "in",
     Break => "break",
     Continue => "continue",
+    Return => "bye",
 
     If => "if",
     Else => "else",
