@@ -1,7 +1,9 @@
 use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
+
 use ast::{
-    Block, Break, Continue, ElseBranch, ExprStatement, ForLoop, IfBranch, IfElse, Statement,
-    VarAssign, VarDeclaration, WhileLoop,
+    keywords::{Equ, Semicolon},
+    ArrayIndex, Block, Break, Continue, ElseBranch, Expr, ExprStatement, ForLoop, IfBranch, IfElse,
+    LValue, Spanned, Statement, VarAssign, VarDeclaration, WhileLoop,
 };
 use lexer::{types as ttypes, Token};
 
@@ -77,31 +79,68 @@ where
             Token::Ident(_) => {
                 let _ = input.peek_mult().unwrap();
 
-                // Peek to see next symbol is equals for assignment.
+                // Peek to see next symbol is an lvalue.
                 match input.peek_mult().map(|peeked| &peeked.0) {
                     Some(reserved!(Equ)) => {
                         input.reset_peek();
                         Self::VarAssign(input.parse()?)
                     }
+                    // Can be either var assignment or just array indexing expr.
+                    Some(reserved!(LBracket)) => {
+                        input.reset_peek();
+                        array_assign_or_expr(input)?
+                    }
                     _ => {
                         input.reset_peek();
-                        let ret = Self::Expr(input.parse()?);
-                        input.consume::<ttypes::Semicolon>()?;
-                        ret
+                        Self::Expr(input.parse()?)
                     }
                 }
             }
             // Otherwise, try to parse as expression.
-            _ => {
-                let expr = input.parse()?;
-                input.consume::<ttypes::Semicolon>()?;
-
-                Self::Expr(expr)
-            }
+            _ => Self::Expr(input.parse()?),
         };
 
         Ok(statement)
     }
+}
+
+#[inline]
+fn array_assign_or_expr<I>(input: &mut ParseInput<I>) -> ParseResult<Statement>
+where
+    I: Iterator<Item = Symbol>,
+{
+    fn expected() -> Vec<ExpectedToken> {
+        vec![ereserved!(Equ), ereserved!(Semicolon)]
+    }
+
+    let arr_index = input.parse()?;
+
+    let next = input.next_unwrap(expected)?;
+    let statement = match next.0 {
+        reserved!(Equ) => {
+            // This should be fine (hopefully).
+            let lhs = match arr_index {
+                Expr::ArrayIndex(v) => *v,
+                _ => unreachable!(),
+            };
+            Statement::VarAssign(VarAssign {
+                lhs: LValue::ArrayIndex(lhs),
+                equ_t: Spanned::new(Equ, next.1),
+                rhs: input.parse()?,
+                semicolon_t: input.consume()?,
+            })
+        }
+        reserved!(Semicolon) => Statement::Expr(ExprStatement {
+            expr: arr_index,
+            semicolon_t: Spanned::new(Semicolon, next.1),
+        }),
+        _ => {
+            input.error(ParseError::UnexpectedToken(next, expected()));
+            return Err(());
+        }
+    };
+
+    Ok(statement)
 }
 
 impl<I> Parse<I> for VarDeclaration
@@ -134,6 +173,29 @@ where
             rhs: input.parse()?,
             semicolon_t: input.consume()?,
         })
+    }
+}
+
+impl<I> Parse<I> for LValue
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        let ident = input.parse()?;
+
+        let lvalue = if input.peek_is(&reserved!(LBracket)) {
+            LValue::ArrayIndex(ArrayIndex {
+                array: Expr::Var(ident),
+                lbracket_t: input.consume()?,
+                index: input.parse()?,
+                rbracket_t: input.consume()?,
+            })
+        } else {
+            LValue::Var(ident)
+        };
+
+        Ok(lvalue)
     }
 }
 

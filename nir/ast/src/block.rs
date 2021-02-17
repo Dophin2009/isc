@@ -1,5 +1,5 @@
 use crate::keywords::{self, Colon, Else, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
-use crate::{Expr, Ident, Span, Spannable, Spanned, Type};
+use crate::{ArrayIndex, Expr, Ident, Span, Spannable, Spanned, Type};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ impl Spannable for VarDeclaration {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct VarAssign {
-    pub lhs: Ident,
+    pub lhs: LValue,
     pub rhs: Expr,
 
     pub equ_t: Spanned<Equ>,
@@ -83,6 +83,23 @@ impl Spannable for VarAssign {
     #[inline]
     fn span(&self) -> Span {
         Span::new(self.lhs.span().start, self.semicolon_t.span().end)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
+pub enum LValue {
+    Var(Ident),
+    ArrayIndex(ArrayIndex),
+}
+
+impl Spannable for LValue {
+    #[inline]
+    fn span(&self) -> Span {
+        match self {
+            Self::Var(v) => v.span(),
+            Self::ArrayIndex(v) => v.span(),
+        }
     }
 }
 
