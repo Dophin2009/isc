@@ -10,4 +10,4 @@ lexer = { path = "../lexer" }
 serde = { version = "1.0", features = ["derive"], optional = true }
 
 [features]
-serde-impls = ["serde"]
+serde-impl = ["serde"]

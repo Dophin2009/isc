@@ -183,6 +183,7 @@ impl Spannable for IfBranch {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum ElseBranch {
     If {
         branch: IfBranch,
