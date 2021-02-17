@@ -107,10 +107,12 @@ impl Spannable for LValue {
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ForLoop {
     pub ident: Ident,
+    pub ty: Type,
     pub range: Expr,
     pub body: Block,
 
     pub for_t: Spanned<For>,
+    pub colon_t: Spanned<Colon>,
     pub in_t: Spanned<In>,
 }
 

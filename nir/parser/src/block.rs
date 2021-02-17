@@ -208,6 +208,8 @@ where
         Ok(Self {
             for_t: input.consume()?,
             ident: input.parse()?,
+            colon_t: input.consume()?,
+            ty: input.parse()?,
             in_t: input.consume()?,
             range: input.parse()?,
             body: input.parse()?,
