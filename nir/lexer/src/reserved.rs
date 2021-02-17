@@ -41,7 +41,48 @@ macro_rules! define_reserved {
                     Reserved::$variant
                 }
             }
+
+            impl fmt::Display for $variant {
+                #[inline]
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, $str)
+                }
+            }
         )*
+
+        #[cfg(feature = "diagnostic-impl")]
+        mod diagnostic_impl {
+            use super::*;
+
+            use diagnostic::{AsDiagnostic, AsDiagnosticFormat};
+            use std::io;
+
+            impl<W> AsDiagnostic<W> for Reserved
+            where
+                W: io::Write,
+            {
+                type Error = io::Error;
+
+                #[inline]
+                fn as_diagnostic(&self, w: &mut W, _format: &AsDiagnosticFormat) -> Result<(), Self::Error> {
+                    write!(w, "{}", self)
+                }
+            }
+
+            $(
+                impl<W> AsDiagnostic<W> for $variant
+                where
+                    W: io::Write,
+                {
+                    type Error = io::Error;
+
+                    #[inline]
+                    fn as_diagnostic(&self, w: &mut W, _format: &AsDiagnosticFormat) -> Result<(), Self::Error> {
+                        write!(w, "{}", self)
+                    }
+                }
+            )*
+        }
     };
 }
 

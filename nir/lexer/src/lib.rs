@@ -63,6 +63,7 @@ impl fmt::Display for Token {
             Token::Literal(literal) => write!(f, "{}", literal),
             Token::Type(ty) => write!(f, "{}", ty),
             Token::Reserved(reserved) => write!(f, "{}", reserved),
+            // TODO: figure out what to do here
             Token::Unknown => write!(f, ""),
         }
     }
@@ -97,6 +98,62 @@ impl fmt::Display for Type {
             Type::U64 => write!(f, "u64"),
             Type::F32 => write!(f, "f32"),
             Type::F64 => write!(f, "f64"),
+        }
+    }
+}
+
+#[cfg(feature = "diagnostic-impl")]
+mod diagnostic_impl {
+    use crate::{Literal, Token, Type};
+
+    use diagnostic::{AsDiagnostic, AsDiagnosticFormat};
+    use std::io;
+
+    impl<W> AsDiagnostic<W> for Token
+    where
+        W: io::Write,
+    {
+        type Error = io::Error;
+
+        #[inline]
+        fn as_diagnostic(
+            &self,
+            w: &mut W,
+            _format: &AsDiagnosticFormat,
+        ) -> Result<(), Self::Error> {
+            write!(w, "{}", self)
+        }
+    }
+
+    impl<W> AsDiagnostic<W> for Literal
+    where
+        W: io::Write,
+    {
+        type Error = io::Error;
+
+        #[inline]
+        fn as_diagnostic(
+            &self,
+            w: &mut W,
+            _format: &AsDiagnosticFormat,
+        ) -> Result<(), Self::Error> {
+            write!(w, "{}", self)
+        }
+    }
+
+    impl<W> AsDiagnostic<W> for Type
+    where
+        W: io::Write,
+    {
+        type Error = io::Error;
+
+        #[inline]
+        fn as_diagnostic(
+            &self,
+            w: &mut W,
+            _format: &AsDiagnosticFormat,
+        ) -> Result<(), Self::Error> {
+            write!(w, "{}", self)
         }
     }
 }
