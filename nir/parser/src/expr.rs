@@ -79,7 +79,18 @@ where
                 }))
             }
             // Handle infix operator
-            reserved!(Plus) | reserved!(Minus) | reserved!(Star) | reserved!(Slash) => {
+            reserved!(Plus)
+            | reserved!(Minus)
+            | reserved!(Star)
+            | reserved!(Slash)
+            | reserved!(Equ)
+            | reserved!(Nequ)
+            | reserved!(GtEqu)
+            | reserved!(Gt)
+            | reserved!(LtEqu)
+            | reserved!(Lt)
+            | reserved!(DoubleAmp)
+            | reserved!(DoubleBar) => {
                 #[inline]
                 fn infix_expected() -> Vec<ExpectedToken> {
                     vec![
@@ -87,6 +98,14 @@ where
                         ereserved!(Minus),
                         ereserved!(Star),
                         ereserved!(Slash),
+                        ereserved!(Equ),
+                        ereserved!(Nequ),
+                        ereserved!(GtEqu),
+                        ereserved!(Gt),
+                        ereserved!(LtEqu),
+                        ereserved!(Lt),
+                        ereserved!(DoubleAmp),
+                        ereserved!(DoubleBar),
                     ]
                 }
 
@@ -96,6 +115,14 @@ where
                     reserved!(Minus) => BinOp::Subtract,
                     reserved!(Star) => BinOp::Multiply,
                     reserved!(Slash) => BinOp::Divide,
+                    reserved!(Equ) => BinOp::Equ,
+                    reserved!(Nequ) => BinOp::Nequ,
+                    reserved!(GtEqu) => BinOp::GtEqu,
+                    reserved!(Gt) => BinOp::Gt,
+                    reserved!(LtEqu) => BinOp::LtEqu,
+                    reserved!(Lt) => BinOp::Lt,
+                    reserved!(DoubleAmp) => BinOp::And,
+                    reserved!(DoubleBar) => BinOp::Or,
                     _ => {
                         input.error(ParseError::UnexpectedToken(next, infix_expected()));
                         return Err(());
@@ -188,6 +215,8 @@ fn prefix_binding_power(op: &UnaryOp) -> ((), u8) {
 /// Return the binding powers for infix operators.
 fn infix_binding_power(op: &BinOp) -> (u8, u8) {
     match op {
+        BinOp::And | BinOp::Or => (3, 4),
+        BinOp::Equ | BinOp::Nequ | BinOp::GtEqu | BinOp::Gt | BinOp::LtEqu | BinOp::Lt => (1, 2),
         BinOp::Add | BinOp::Subtract => (5, 6),
         BinOp::Multiply | BinOp::Divide => (7, 8),
     }

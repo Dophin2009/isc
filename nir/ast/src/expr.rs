@@ -71,6 +71,16 @@ pub enum BinOp {
     Subtract,
     Multiply,
     Divide,
+
+    Equ,
+    Nequ,
+    GtEqu,
+    Gt,
+    LtEqu,
+    Lt,
+
+    And,
+    Or,
 }
 
 #[derive(Clone, Debug, PartialEq)]
