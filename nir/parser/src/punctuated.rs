@@ -13,7 +13,6 @@ where
         let mut seps = Vec::new();
 
         while !input.is_empty() {
-            println!("want item");
             let item = input.parse()?;
             items.push(item);
 
@@ -21,12 +20,9 @@ where
                 break;
             }
 
-            println!("want sep");
             let sep = input.parse()?;
             seps.push(sep);
         }
-
-        println!("done");
 
         Ok(Self { items, seps })
     }

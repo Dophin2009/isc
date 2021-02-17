@@ -1,8 +1,8 @@
 use crate::error::ExpectedToken;
 use crate::{Parse, ParseInput, ParseResult, Symbol};
 
-use ast::{DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Span, Spanned, Type};
-use lexer::{Reserved, Token};
+use ast::{ArrayType, DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Span, Spanned, Type};
+use lexer::Token;
 
 impl<I> Parse<I> for Type
 where
@@ -15,6 +15,7 @@ where
                 ExpectedToken::Type,
                 ExpectedToken::Ident,
                 ereserved!(LParen),
+                ereserved!(LBracket),
             ]
         })?;
 
@@ -25,17 +26,23 @@ where
                     name: Spanned::new(name, next.1),
                 },
             }),
-            Token::Reserved(Reserved::LParen) => Type::Primitive(PrimitiveType {
+            reserved!(LParen) => Type::Primitive(PrimitiveType {
                 kind: PrimitiveTypeKind::Unit,
                 span: next.1,
             }),
+            reserved!(LBracket) => Type::Array(Box::new(ArrayType {
+                lbracket_t: input.consume()?,
+                ty: input.parse()?,
+                rbracket_t: input.consume()?,
+            })),
             _ => {
                 input.error(unexpectedtoken!(
                     next.1,
                     next.0,
                     ExpectedToken::Type,
                     ExpectedToken::Ident,
-                    ereserved!(LParen)
+                    ereserved!(LParen),
+                    ereserved!(LBracket)
                 ));
                 return Err(());
             }

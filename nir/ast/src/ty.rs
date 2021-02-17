@@ -1,8 +1,10 @@
-use crate::{Ident, Span, Spannable};
+use crate::keywords::{LBracket, RBracket};
+use crate::{Ident, Span, Spannable, Spanned};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     Primitive(PrimitiveType),
+    Array(Box<ArrayType>),
     Declared(DeclaredType),
 }
 
@@ -10,6 +12,7 @@ impl Spannable for Type {
     fn span(&self) -> Span {
         match self {
             Self::Primitive(ty) => ty.span(),
+            Self::Array(ty) => ty.span(),
             Self::Declared(ty) => ty.span(),
         }
     }
@@ -54,4 +57,19 @@ pub enum PrimitiveTypeKind {
     U64,
     F32,
     F64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ArrayType {
+    pub ty: Type,
+
+    pub lbracket_t: Spanned<LBracket>,
+    pub rbracket_t: Spanned<RBracket>,
+}
+
+impl Spannable for ArrayType {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.lbracket_t.span().start, self.rbracket_t.span().end)
+    }
 }
