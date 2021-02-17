@@ -9,11 +9,14 @@ name = "nir"
 path = "src/lib.rs"
 
 [dependencies]
-parser = { path = "parser" }
-lexer = { path = "lexer" }
-ast = { path = "ast" }
+ast = { path = "ast", features = ["serde-impl"] }
+diagnostic = { path = "diagnostic", features = ["json-auto"] }
+parser = { path = "parser", features = ["serde-impl"] }
+lexer = { path = "lexer", features = ["serde-impl"] }
 
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 thiserror = "1.0"
 
 [workspace]
-members = ["ast", "lexer", "parser"]
+members = ["ast", "diagnostic", "lexer", "parser"]

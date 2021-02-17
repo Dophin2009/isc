@@ -1,10 +1,13 @@
+use crate::error::{CompileError, DiagnosticEmitError};
+
+use std::io;
+
+use diagnostic::{AsDiagnostic, AsDiagnosticFormat};
 use lexer::Lexer;
 use parser::{
     ast::{Program, Span, Spanned},
-    ParseError, Parser,
+    Parser,
 };
-
-use std::fmt;
 
 #[derive(Debug)]
 pub struct Compiler {
@@ -13,6 +16,7 @@ pub struct Compiler {
 }
 
 impl Compiler {
+    #[inline]
     pub fn new() -> Self {
         Self {
             lexer: Lexer::new(),
@@ -20,61 +24,52 @@ impl Compiler {
         }
     }
 
-    pub fn parse_emit(&self, input: impl IntoIterator<Item = char>) {
+    #[inline]
+    pub fn parse_emit<W>(
+        &self,
+        w: &mut W,
+        input: impl IntoIterator<Item = char>,
+    ) -> Result<(), DiagnosticEmitError>
+    where
+        W: io::Write,
+    {
         match self.parse(input) {
             Ok(ast) => {
                 println!("{:#?}", ast);
             }
             Err(err) => {
-                self.emit_errors(vec![err]);
+                self.emit_errors(w, err)?;
             }
         }
+
+        Ok(())
     }
 
+    #[inline]
     pub fn parse(&self, input: impl IntoIterator<Item = char>) -> Result<Program, CompileError> {
         let tokens = self
             .lexer
             .stream(input.into_iter())
             .map(|item| Spanned::new(item.token, Span::new(item.m.start, item.m.end - 1)));
 
-        Ok(self.parser.parse(tokens)?)
+        match self.parser.parse(tokens) {
+            Ok(program) => Ok(program),
+            Err(errors) => Err(CompileError { parse: errors }),
+        }
     }
 
-    pub fn emit_errors(&self, errors: Vec<CompileError>) {
-        for error in errors {
-            match error {
-                CompileError::ParseError(errs) => {
-                    for err in errs {
-                        println!("{}", err);
-                    }
-                }
-            }
-        }
+    #[inline]
+    pub fn emit_errors<W>(&self, w: &mut W, error: CompileError) -> Result<(), DiagnosticEmitError>
+    where
+        W: io::Write,
+    {
+        error.as_diagnostic(w, &AsDiagnosticFormat::Text)
     }
 }
 
 impl Default for Compiler {
+    #[inline]
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum CompileError {
-    ParseError(Vec<ParseError>),
-}
-
-impl From<Vec<ParseError>> for CompileError {
-    fn from(errors: Vec<ParseError>) -> Self {
-        Self::ParseError(errors)
-    }
-}
-
-impl fmt::Display for CompileError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            // TODO: actual error printing
-            CompileError::ParseError(errors) => write!(f, "{:#?}", errors),
-        }
     }
 }

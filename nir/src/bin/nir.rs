@@ -1,3 +1,5 @@
+use std::io;
+
 use nir::Compiler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -5,10 +7,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let input = r#"pub struct A {
         b: u8,
-        c: str,
+        c: str
     }"#;
 
-    compiler.parse_emit(input.chars());
+    let stderr = io::stderr();
+    compiler.parse_emit(&mut stderr.lock(), input.chars())?;
 
     Ok(())
 }
