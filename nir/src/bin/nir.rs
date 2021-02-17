@@ -5,13 +5,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let input = r#"pub struct A {
         b: u8,
-        c: str
+        c: str,
     }"#;
-    match compiler.parse(input.chars()) {
-        Ok(ast) => println!("{:#?}", ast),
-        Err(err) => println!("{}", err),
-    };
+
+    compiler.parse_emit(input.chars());
 
     Ok(())
 }
-

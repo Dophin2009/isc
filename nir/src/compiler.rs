@@ -20,6 +20,17 @@ impl Compiler {
         }
     }
 
+    pub fn parse_emit(&self, input: impl IntoIterator<Item = char>) {
+        match self.parse(input) {
+            Ok(ast) => {
+                println!("{:#?}", ast);
+            }
+            Err(err) => {
+                self.emit_errors(vec![err]);
+            }
+        }
+    }
+
     pub fn parse(&self, input: impl IntoIterator<Item = char>) -> Result<Program, CompileError> {
         let tokens = self
             .lexer
@@ -27,6 +38,18 @@ impl Compiler {
             .map(|item| Spanned::new(item.token, Span::new(item.m.start, item.m.end - 1)));
 
         Ok(self.parser.parse(tokens)?)
+    }
+
+    pub fn emit_errors(&self, errors: Vec<CompileError>) {
+        for error in errors {
+            match error {
+                CompileError::ParseError(errs) => {
+                    for err in errs {
+                        println!("{}", err);
+                    }
+                }
+            }
+        }
     }
 }
 
