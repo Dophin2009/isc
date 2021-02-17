@@ -9,28 +9,13 @@ where
     S: Parse<I>,
 {
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        // Try to parse first item. If EOF or other token encountered, return empty result.
-        let try_parsed = input.parse().ok();
-        let first_item = match try_parsed {
-            Some(t) => t,
-            None => {
-                return Ok(Self {
-                    items: vec![],
-                    seps: vec![],
-                })
-            }
-        };
-
         let mut items = Vec::new();
         let mut seps = Vec::new();
+
+        let first_item = input.parse()?;
         items.push(first_item);
 
-        loop {
-            let sep = match input.parse().ok() {
-                Some(s) => s,
-                None => break,
-            };
-
+        while let Some(sep) = input.parse().ok() {
             let item = input.parse()?;
             items.push(item);
             seps.push(sep);

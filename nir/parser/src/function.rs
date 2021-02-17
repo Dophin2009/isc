@@ -23,7 +23,11 @@ where
         let lparen_t = input.consume()?;
 
         // Parse function parameters.
-        let params: Punctuated<_, Rsv<Comma>> = input.parse()?;
+        let params = if input.peek_is(&reserved!(RParen)) {
+            Punctuated::default()
+        } else {
+            input.parse::<Punctuated<_, Rsv<Comma>>>()?
+        };
         let seps = params
             .seps
             .into_iter()

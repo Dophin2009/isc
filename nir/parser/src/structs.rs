@@ -21,7 +21,11 @@ where
         let lbrace_t = input.consume()?;
 
         // Parse fields.
-        let fields = input.parse::<Punctuated<StructField, Rsv<Comma>>>()?;
+        let fields = if input.peek_is(&reserved!(RBrace)) {
+            Punctuated::default()
+        } else {
+            input.parse::<Punctuated<StructField, Rsv<Comma>>>()?
+        };
         let seps = fields
             .seps
             .into_iter()

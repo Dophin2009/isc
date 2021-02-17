@@ -15,9 +15,8 @@ where
                     (VisibilityKind::Public, spanned.1)
                 }
                 _ => {
-                    let next = input.next().unwrap();
-                    input.error(unexpectedtoken!(next.1, next.0, ereserved!(Pub)));
-                    return Err(());
+                    let pos = input.last_pos();
+                    (VisibilityKind::Private, Span::new(pos, pos))
                 }
             },
             None => {
