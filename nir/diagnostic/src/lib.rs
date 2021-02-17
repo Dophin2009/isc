@@ -38,6 +38,14 @@ where
     fn as_diagnostic_text(&self, w: &mut W) -> Result<(), Self::Error>;
 }
 
+pub trait AsDiagnosticRich<W>
+where
+    W: io::Write,
+{
+    type Error;
+    fn as_diagnostic_rich(&self, w: &mut W) -> Result<(), Self::Error>;
+}
+
 #[cfg(feature = "json-auto")]
 impl<W, S> AsDiagnosticJson<W> for S
 where

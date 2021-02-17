@@ -63,7 +63,7 @@ impl Compiler {
     where
         W: io::Write,
     {
-        error.as_diagnostic(w, &AsDiagnosticFormat::Text)
+        error.as_diagnostic(w, &AsDiagnosticFormat::Rich)
     }
 }
 

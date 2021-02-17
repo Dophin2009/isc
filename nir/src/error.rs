@@ -1,7 +1,9 @@
 use std::fmt;
 use std::io;
 
-use diagnostic::{AsDiagnostic, AsDiagnosticFormat, AsDiagnosticJson, AsDiagnosticText};
+use diagnostic::{
+    AsDiagnostic, AsDiagnosticFormat, AsDiagnosticJson, AsDiagnosticRich, AsDiagnosticText,
+};
 use parser::{ExpectedToken, ParseError};
 use serde::Serialize;
 
@@ -29,7 +31,7 @@ where
         match format {
             AsDiagnosticFormat::Json => self.as_diagnostic_json(w)?,
             AsDiagnosticFormat::Text => self.as_diagnostic_text(w)?,
-            AsDiagnosticFormat::Rich => {}
+            AsDiagnosticFormat::Rich => self.as_diagnostic_rich(w)?,
         };
 
         Ok(())
@@ -62,6 +64,44 @@ where
                     )?;
                 }
             }
+        }
+
+        Ok(())
+    }
+}
+
+impl<W> AsDiagnosticRich<W> for CompileError
+where
+    W: io::Write,
+{
+    type Error = DiagnosticEmitError;
+
+    #[inline]
+    fn as_diagnostic_rich(&self, w: &mut W) -> Result<(), Self::Error> {
+        writeln!(w, "fatal: failed to compile!\n")?;
+
+        for parse_err in &self.parse {
+            write!(w, "error: ")?;
+            match parse_err {
+                ParseError::LexerError => {
+                    writeln!(w, "unexpected input")?;
+                    // TODO: actual positioning
+                    writeln!(w, "at position {}:{}", 0, 0)?;
+                }
+                ParseError::UnexpectedEof(expected) => {
+                    let expected = join_expected_token(expected);
+                    writeln!(w, "unexpected EOF, expected one of {}", expected)?;
+                    // TODO: actual positioning
+                    writeln!(w, "at position {}:{}", 0, 0)?;
+                }
+                ParseError::UnexpectedToken(found, expected) => {
+                    let expected = join_expected_token(expected);
+                    let span = &found.1;
+                    writeln!(w, "unexpected '{}', expected one of {}", found.0, expected)?;
+                    writeln!(w, "at position {}:{}", span.start, span.end)?;
+                }
+            }
+            writeln!(w, "")?;
         }
 
         Ok(())
