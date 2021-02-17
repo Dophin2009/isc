@@ -6,12 +6,16 @@ pub use reserved::Reserved;
 
 use std::fmt;
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 pub mod types {
     pub use crate::reserved::*;
 }
 
 /// Atoms parsed by the lexer and passed to the parser.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Token {
     Ident(String),
     Literal(Literal),
@@ -22,6 +26,7 @@ pub enum Token {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Literal {
     /// Token for a quoted string literal.
     Str(String),
@@ -33,6 +38,7 @@ pub enum Literal {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Type {
     Bool,
     Char,

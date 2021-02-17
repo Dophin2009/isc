@@ -8,5 +8,10 @@ edition = "2018"
 name = "lexer"
 path = "src/lib.rs"
 
+[features]
+serde-impl = ["serde"]
+
 [dependencies]
 llex = { path = "../../llex" }
+
+serde = { version = "1.0", features = ["derive"], optional = true }
