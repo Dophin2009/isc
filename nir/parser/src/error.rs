@@ -22,7 +22,7 @@ pub enum ParseError {
     LexerError,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum ExpectedToken {
     Ident,
@@ -33,7 +33,7 @@ pub enum ExpectedToken {
     Expr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum LiteralKind {
     Str,
