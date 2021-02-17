@@ -5,10 +5,14 @@ use lexer::Reserved;
 
 use std::fmt;
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 /// Result wrapper returned by parser.
 pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 
 #[derive(Clone, Debug, thiserror::Error)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum ParseError {
     #[error("unexpected token {:?} at position {}, expected one of {:?}", .0.inner(), .0.span().start, .1)]
     UnexpectedToken(Symbol, Vec<ExpectedToken>),
@@ -19,6 +23,7 @@ pub enum ParseError {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum ExpectedToken {
     Ident,
     LiteralOpaque,
@@ -29,6 +34,7 @@ pub enum ExpectedToken {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum LiteralKind {
     Str,
     Integer,

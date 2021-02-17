@@ -4,7 +4,6 @@ mod macros;
 
 pub mod error;
 pub mod parser;
-pub mod punctuated;
 
 // Parse implementations on AST nodes.
 mod block;
@@ -13,6 +12,7 @@ mod function;
 mod ident;
 mod item;
 mod program;
+mod punctuated;
 mod structs;
 mod ty;
 mod visibility;
