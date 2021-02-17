@@ -4,7 +4,11 @@ use crate::{Ident, Span, Spannable, Spanned};
 
 pub use lexer::Literal;
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Expr {
     Var(Ident),
     Literal(Spanned<Literal>),
@@ -29,6 +33,7 @@ impl Spannable for Expr {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct FunctionCall {
     pub name: Ident,
     pub args: Punctuated<Expr, Comma>,
@@ -45,6 +50,7 @@ impl Spannable for FunctionCall {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct BinOpExpr {
     pub op: Spanned<BinOp>,
     pub e1: Expr,
@@ -66,6 +72,7 @@ impl Spannable for BinOpExpr {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum BinOp {
     Add,
     Subtract,
@@ -84,6 +91,7 @@ pub enum BinOp {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct UnaryOpExpr {
     pub op: Spanned<UnaryOp>,
     pub operand: Expr,
@@ -104,6 +112,7 @@ impl Spannable for UnaryOpExpr {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum UnaryOp {
     Negative,
     /// Boolean negation
@@ -111,6 +120,7 @@ pub enum UnaryOp {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ArrayIndex {
     pub array: Expr,
     pub index: Expr,

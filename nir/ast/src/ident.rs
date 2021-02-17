@@ -1,6 +1,10 @@
 use crate::{Span, Spannable, Spanned};
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Ident {
     pub name: Spanned<String>,
 }
@@ -12,6 +16,7 @@ impl Spannable for Ident {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Path {
     pub segments: Vec<Ident>,
 }

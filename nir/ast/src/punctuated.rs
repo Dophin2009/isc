@@ -1,6 +1,10 @@
 use crate::{Span, Spannable};
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(serde::Serialize, serde::Deserialize))]
 pub struct Punctuated<T, S> {
     pub items: Vec<T>,
     pub seps: Vec<S>,

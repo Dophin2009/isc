@@ -20,11 +20,15 @@ pub use visibility::*;
 
 pub use lexer::types as keywords;
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 pub trait Spannable {
     fn span(&self) -> Span;
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T> Spanned<T> {
@@ -44,6 +48,7 @@ impl<T> Spannable for Spanned<T> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Span {
     pub start: usize,
     pub end: usize,

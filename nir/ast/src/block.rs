@@ -1,7 +1,11 @@
 use crate::keywords::{self, Colon, Else, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
 use crate::{Expr, Ident, Span, Spannable, Spanned, Type};
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Block {
     pub statements: Vec<Statement>,
 
@@ -17,6 +21,7 @@ impl Spannable for Block {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Statement {
     VarDeclaration(VarDeclaration),
     VarAssign(VarAssign),
@@ -45,6 +50,7 @@ impl Spannable for Statement {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct VarDeclaration {
     pub lhs: Ident,
     pub ty: Type,
@@ -64,6 +70,7 @@ impl Spannable for VarDeclaration {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct VarAssign {
     pub lhs: Ident,
     pub rhs: Expr,
@@ -80,6 +87,7 @@ impl Spannable for VarAssign {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ForLoop {
     pub ident: Ident,
     pub range: Expr,
@@ -97,6 +105,7 @@ impl Spannable for ForLoop {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct WhileLoop {
     pub cond: Expr,
     pub body: Block,
@@ -112,6 +121,7 @@ impl Spannable for WhileLoop {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Break {
     pub break_t: Spanned<keywords::Break>,
     pub semicolon_t: Spanned<Semicolon>,
@@ -125,6 +135,7 @@ impl Spannable for Break {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Continue {
     pub continue_t: Spanned<keywords::Continue>,
     pub semicolon_t: Spanned<Semicolon>,
@@ -138,6 +149,7 @@ impl Spannable for Continue {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct IfElse {
     pub head: IfBranch,
 }
@@ -150,6 +162,7 @@ impl Spannable for IfElse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct IfBranch {
     pub cond: Expr,
     pub body: Block,
@@ -192,6 +205,7 @@ impl Spannable for ElseBranch {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ExprStatement {
     pub expr: Expr,
 

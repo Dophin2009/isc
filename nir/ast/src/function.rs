@@ -2,7 +2,11 @@ use crate::keywords::{self, Arrow, Colon, Comma, LParen, RParen};
 use crate::punctuated::Punctuated;
 use crate::{Block, Ident, Span, Spannable, Spanned, Type, Visibility};
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Function {
     pub vis: Visibility,
     pub name: Ident,
@@ -30,6 +34,7 @@ impl Spannable for Function {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct FunctionParam {
     pub name: Ident,
     pub ty: Type,

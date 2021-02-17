@@ -1,7 +1,11 @@
 use crate::keywords::{LBracket, RBracket};
 use crate::{Ident, Span, Spannable, Spanned};
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Type {
     Primitive(PrimitiveType),
     Array(Box<ArrayType>),
@@ -19,6 +23,7 @@ impl Spannable for Type {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct PrimitiveType {
     pub kind: PrimitiveTypeKind,
     pub span: Span,
@@ -31,6 +36,7 @@ impl Spannable for PrimitiveType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct DeclaredType {
     pub name: Ident,
 }
@@ -42,6 +48,7 @@ impl Spannable for DeclaredType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum PrimitiveTypeKind {
     Unit,
     Bool,
@@ -60,6 +67,7 @@ pub enum PrimitiveTypeKind {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ArrayType {
     pub ty: Type,
 

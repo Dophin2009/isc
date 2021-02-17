@@ -1,6 +1,10 @@
 use crate::{Function, Span, Spannable, Struct};
 
+#[cfg(feature = "serde-impl")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Program {
     pub items: Vec<Item>,
 }
@@ -18,6 +22,7 @@ impl Spannable for Program {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Item {
     Struct(Struct),
     Function(Function),
