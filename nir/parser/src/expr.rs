@@ -1,9 +1,10 @@
 use crate::{parser::Rsv, ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 
 use ast::{
-    keywords::{Comma, LParen, RParen},
+    keywords::{Comma, DoubleColon, LParen, RParen},
     punctuated::Punctuated,
-    ArrayIndex, ArrayLiteral, BinOp, BinOpExpr, Expr, Spanned, UnaryOp, UnaryOpExpr,
+    ArrayIndex, ArrayLiteral, BinOp, BinOpExpr, Expr, FunctionCall, Path, Spanned, UnaryOp,
+    UnaryOpExpr,
 };
 use lexer::Token;
 
@@ -14,6 +15,37 @@ where
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         expr_bp(input, 0)
+    }
+}
+
+impl<I> Parse<I> for FunctionCall
+where
+    I: Iterator<Item = Symbol>,
+{
+    #[inline]
+    fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        let function = input.parse::<Punctuated<_, Rsv<DoubleColon>>>()?;
+        let function = Punctuated::new(
+            function.items,
+            function.seps.into_iter().map(Rsv::into_inner).collect(),
+        );
+
+        let lparen_t = input.consume()?;
+
+        let args = input.parse::<Punctuated<_, Rsv<Comma>>>()?;
+        let args = Punctuated::new(
+            args.items,
+            args.seps.into_iter().map(Rsv::into_inner).collect(),
+        );
+
+        let rparen_t = input.consume()?;
+
+        Ok(Self {
+            function: Path { segments: function },
+            args,
+            lparen_t,
+            rparen_t,
+        })
     }
 }
 
@@ -36,8 +68,22 @@ where
     };
 
     let mut lhs = match &peeked.0 {
-        // Identifier
-        Token::Ident(_) => Expr::Var(input.parse()?),
+        // Identifier or function call
+        Token::Ident(_) => {
+            let _ = input.peek_mult();
+
+            match input.peek_mult() {
+                Some(peeked) if peeked.0 == reserved!(DoubleColon) => {
+                    input.reset_peek();
+                    Expr::FunctionCall(input.parse()?)
+                }
+                // Nothing else; this is just an ident.
+                _ => {
+                    input.reset_peek();
+                    Expr::Var(input.parse()?)
+                }
+            }
+        }
         // Literal value
         Token::Literal(_) => expr_literal(input)?,
         // Array value

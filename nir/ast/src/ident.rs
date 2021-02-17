@@ -1,3 +1,5 @@
+use crate::keywords::DoubleColon;
+use crate::punctuated::Punctuated;
 use crate::{Span, Spannable, Spanned};
 
 #[cfg(feature = "serde-impl")]
@@ -18,16 +20,17 @@ impl Spannable for Ident {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Path {
-    pub segments: Vec<Ident>,
+    pub segments: Punctuated<Ident, DoubleColon>,
 }
 
 impl Spannable for Path {
     fn span(&self) -> Span {
         let (start, end) = self
             .segments
+            .items
             .first()
             .map(|item| item.span().start)
-            .map(|start| (start, self.segments.last().unwrap().span().end))
+            .map(|start| (start, self.segments.items.last().unwrap().span().end))
             .unwrap_or_else(|| (0, 0));
         Span::new(start, end)
     }

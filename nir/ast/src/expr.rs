@@ -1,6 +1,6 @@
 use crate::keywords::{Comma, LBracket, LParen, RBracket, RParen};
 use crate::punctuated::Punctuated;
-use crate::{Ident, Span, Spannable, Spanned};
+use crate::{Ident, Path, Span, Spannable, Spanned};
 
 pub use lexer::Literal;
 
@@ -53,7 +53,7 @@ impl Spannable for ArrayLiteral {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct FunctionCall {
-    pub name: Ident,
+    pub function: Path,
     pub args: Punctuated<Expr, Comma>,
 
     pub lparen_t: Spanned<LParen>,
@@ -63,7 +63,7 @@ pub struct FunctionCall {
 impl Spannable for FunctionCall {
     #[inline]
     fn span(&self) -> Span {
-        Span::new(self.name.span().start, self.rparen_t.span().end)
+        Span::new(self.function.span().start, self.rparen_t.span().end)
     }
 }
 
