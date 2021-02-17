@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub enum Expr {
     Var(Ident),
     Literal(Spanned<Literal>),
+    ArrayLiteral(Box<ArrayLiteral>),
     FunctionCall(FunctionCall),
     BinOp(Box<BinOpExpr>),
     UnaryOp(Box<UnaryOpExpr>),
@@ -24,11 +25,28 @@ impl Spannable for Expr {
         match self {
             Self::Var(v) => v.span(),
             Self::Literal(v) => v.span(),
+            Self::ArrayLiteral(v) => v.span(),
             Self::FunctionCall(v) => v.span(),
             Self::BinOp(v) => v.span(),
             Self::UnaryOp(v) => v.span(),
             Self::ArrayIndex(v) => v.span(),
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
+pub struct ArrayLiteral {
+    pub elements: Punctuated<Expr, Comma>,
+
+    pub lbracket_t: Spanned<LBracket>,
+    pub rbracket_t: Spanned<RBracket>,
+}
+
+impl Spannable for ArrayLiteral {
+    #[inline]
+    fn span(&self) -> Span {
+        Span::new(self.lbracket_t.span().start, self.rbracket_t.span().end)
     }
 }
 
