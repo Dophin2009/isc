@@ -17,6 +17,14 @@ where
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self>;
 }
 
+pub trait Peek<I>
+where
+    I: Iterator<Item = Symbol>,
+    Self: Sized,
+{
+    fn peek(input: &mut ParseInput<I>) -> bool;
+}
+
 #[derive(Debug)]
 pub struct Parser {}
 
@@ -204,5 +212,15 @@ where
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         input.consume::<R>()?;
         Ok(Self::new())
+    }
+}
+
+impl<I, R> Peek<I> for Rsv<R>
+where
+    I: Iterator<Item = Symbol>,
+    R: ttypes::ReservedVariant,
+{
+    fn peek(input: &mut ParseInput<I>) -> bool {
+        input.peek_is(&Token::Reserved(R::variant()))
     }
 }

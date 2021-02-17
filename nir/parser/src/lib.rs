@@ -26,4 +26,4 @@ pub use self::error::{ExpectedToken, ParseError, Result};
 pub use self::parser::Parser;
 
 // Internal crate usage convenience.
-pub(crate) use self::parser::{Parse, ParseInput, ParseResult, Rsv, Symbol};
+pub(crate) use self::parser::{Parse, ParseInput, ParseResult, Peek, Rsv, Symbol};
