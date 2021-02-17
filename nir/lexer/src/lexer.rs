@@ -85,7 +85,11 @@ llex::lexer! {
     "false" => literal!(Literal::Boolean(false)),
 
     r"[A-Za-z_][A-Za-z0-9_]*" => Some(Token::Ident(text.to_string())),
-    r#""[^"]*""# => literal!(Literal::Str(text.to_string())),
+    r#""[^"]*""# => {
+        let text = text.strip_prefix("\"").unwrap();
+        let text = text.strip_suffix("\"").unwrap();
+        literal!(Literal::Str(text.to_string()))
+    },
 
     r"[0-9]+" => {
         let n = text.parse().unwrap();
