@@ -1,7 +1,10 @@
 use crate::error::ExpectedToken;
 use crate::{Parse, ParseInput, ParseResult, Symbol};
 
-use ast::{ArrayType, DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Span, Spanned, Type};
+use ast::{
+    keywords::{LBracket, RParen},
+    ArrayType, DeclaredType, Ident, PrimitiveType, PrimitiveTypeKind, Span, Spanned, Type,
+};
 use lexer::Token;
 
 impl<I> Parse<I> for Type
@@ -26,12 +29,15 @@ where
                     name: Spanned::new(name, next.1),
                 },
             }),
-            reserved!(LParen) => Type::Primitive(PrimitiveType {
-                kind: PrimitiveTypeKind::Unit,
-                span: next.1,
-            }),
+            reserved!(LParen) => {
+                input.consume::<RParen>()?;
+                Type::Primitive(PrimitiveType {
+                    kind: PrimitiveTypeKind::Unit,
+                    span: next.1,
+                })
+            }
             reserved!(LBracket) => Type::Array(Box::new(ArrayType {
-                lbracket_t: input.consume()?,
+                lbracket_t: Spanned::new(LBracket, next.1),
                 ty: input.parse()?,
                 rbracket_t: input.consume()?,
             })),
