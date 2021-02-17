@@ -1,8 +1,9 @@
-use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
+use crate::{parser::Rsv, ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 
 use ast::{
-    keywords::{LParen, RParen},
-    ArrayIndex, BinOp, BinOpExpr, Expr, Spanned, UnaryOp, UnaryOpExpr,
+    keywords::{Comma, LParen, RParen},
+    punctuated::Punctuated,
+    ArrayIndex, ArrayLiteral, BinOp, BinOpExpr, Expr, Spanned, UnaryOp, UnaryOpExpr,
 };
 use lexer::Token;
 
@@ -39,12 +40,17 @@ where
         Token::Ident(_) => Expr::Var(input.parse()?),
         // Literal value
         Token::Literal(_) => expr_literal(input)?,
+        // Array value
+        reserved!(LBracket) => Expr::ArrayLiteral(Box::new(expr_array(input)?)),
         // Unary operation
         reserved!(Minus) | reserved!(Exclamation) => Expr::UnaryOp(Box::new(expr_unary(input)?)),
         // Parenthesized expression
         reserved!(LParen) => expr_parenthesized(input)?,
         _ => {
-            input.error(unexpectedeof!(
+            let next = input.next().unwrap();
+            input.error(unexpectedtoken!(
+                next.1,
+                next.0,
                 ExpectedToken::Ident,
                 ExpectedToken::LiteralOpaque,
                 ereserved!(Minus),
@@ -167,12 +173,35 @@ where
     let literal = match next.0 {
         Token::Literal(inner) => inner,
         _ => {
-            input.error(unexpectedeof!(ExpectedToken::LiteralOpaque));
+            input.error(unexpectedtoken!(
+                next.1,
+                next.0,
+                ExpectedToken::LiteralOpaque
+            ));
             return Err(());
         }
     };
 
     Ok(Expr::Literal(Spanned::new(literal, next.1)))
+}
+
+fn expr_array<I>(input: &mut ParseInput<I>) -> ParseResult<ArrayLiteral>
+where
+    I: Iterator<Item = Symbol>,
+{
+    let lbracket_t = input.consume()?;
+
+    let elements = input.parse::<Punctuated<_, Rsv<Comma>>>()?;
+    let seps = elements.seps.into_iter().map(Rsv::into_inner).collect();
+    let elements = Punctuated::new(elements.items, seps);
+
+    let rbracket_t = input.consume()?;
+
+    Ok(ArrayLiteral {
+        lbracket_t,
+        elements,
+        rbracket_t,
+    })
 }
 
 fn expr_unary<I>(input: &mut ParseInput<I>) -> ParseResult<UnaryOpExpr>

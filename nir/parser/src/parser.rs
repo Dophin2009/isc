@@ -116,7 +116,11 @@ where
     {
         match self.next() {
             Some(sym) if sym.0 == *check => Ok(sym),
-            _ => {
+            Some(next) => {
+                self.error(ParseError::UnexpectedToken(next, expected()));
+                Err(())
+            }
+            None => {
                 self.error(ParseError::UnexpectedEof(expected()));
                 Err(())
             }
@@ -173,8 +177,7 @@ where
                 let next = self.next().unwrap();
                 Ok(Some(Spanned::new(R::new(), next.1)))
             }
-            None => Ok(None),
-            _ => Err(()),
+            _ => Ok(None),
         }
     }
 }
