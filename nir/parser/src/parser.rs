@@ -75,6 +75,16 @@ where
     }
 
     #[inline]
+    pub fn unexpected_eof(&mut self, expected: Vec<ExpectedToken>) {
+        self.errors.push(ParseError::UnexpectedEof(expected))
+    }
+
+    #[inline]
+    pub fn unexpected_token(&mut self, sy: Symbol, expected: Vec<ExpectedToken>) {
+        self.errors.push(ParseError::UnexpectedToken(sy, expected))
+    }
+
+    #[inline]
     pub fn last_pos(&self) -> usize {
         self.last_pos
     }
