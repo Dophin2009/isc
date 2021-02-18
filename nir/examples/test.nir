@@ -1,12 +1,6 @@
-using std::io;
-
 struct A {
-    pub n: u32;
-    pub name: [char];
-
-    pub fn get_name(self) -> [char] {
-        self.name
-    }
+    pub n: u32,
+    pub name: [char]
 }
 
 fn main() {
@@ -14,7 +8,8 @@ fn main() {
     let b: [u32] = [1, 2, 5];
     b[0] = 5;
 
-    let c = "aaaaa";
+    let c: str = "aaaaa";
+    let d: u32 = b[1];
 
     for n: u32 in b {
         io::println(n);
@@ -22,6 +17,6 @@ fn main() {
 }
 
 pub fn add(a: u32, b: u32) -> u32 {
-    a + b
+    bye a + b;
 }
 
