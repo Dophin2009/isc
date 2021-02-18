@@ -92,7 +92,7 @@ impl Spannable for VarAssign {
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum LValue {
     Var(Ident),
-    ArrayIndex(ArrayIndex),
+    ArrayIndex(Box<ArrayIndex>),
 }
 
 impl Spannable for LValue {

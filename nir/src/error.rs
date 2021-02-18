@@ -86,13 +86,13 @@ where
                 ParseError::LexerError => {
                     writeln!(w, "unexpected input")?;
                     // TODO: actual positioning
-                    writeln!(w, "at position {}:{}", 0, 0)?;
+                    writeln!(w, "at position 0:0")?;
                 }
                 ParseError::UnexpectedEof(expected) => {
                     let expected = join_expected_token(expected);
                     writeln!(w, "unexpected EOF, expected one of {}", expected)?;
                     // TODO: actual positioning
-                    writeln!(w, "at position {}:{}", 0, 0)?;
+                    writeln!(w, "at position 0:0")?;
                 }
                 ParseError::UnexpectedToken(found, expected) => {
                     let expected = join_expected_token(expected);
@@ -101,7 +101,7 @@ where
                     writeln!(w, "at position {}:{}", span.start, span.end)?;
                 }
             }
-            writeln!(w, "")?;
+            writeln!(w)?;
         }
 
         Ok(())

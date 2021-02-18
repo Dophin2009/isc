@@ -4,7 +4,7 @@ use super::{Span, Spannable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde-impl", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Punctuated<T, S> {
     pub items: Vec<T>,
     pub seps: Vec<S>,

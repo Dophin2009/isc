@@ -89,6 +89,7 @@ where
         // Array value
         reserved!(LBracket) => Expr::ArrayLiteral(Box::new(expr_array(input)?)),
         // Unary operation
+        #[allow(unreachable_patterns)]
         reserved!(Minus) | reserved!(Exclamation) => Expr::UnaryOp(Box::new(expr_unary(input)?)),
         // Parenthesized expression
         reserved!(LParen) => expr_parenthesized(input)?,
@@ -131,6 +132,8 @@ where
                 }))
             }
             // Handle infix operator
+            // TODO: https://github.com/rust-lang/rust/issues/82012
+            #[allow(unreachable_patterns)]
             reserved!(Plus)
             | reserved!(Minus)
             | reserved!(Star)

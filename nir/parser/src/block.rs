@@ -127,7 +127,7 @@ where
                 _ => unreachable!(),
             };
             Statement::VarAssign(VarAssign {
-                lhs: LValue::ArrayIndex(lhs),
+                lhs: LValue::ArrayIndex(Box::new(lhs)),
                 equ_t: Spanned::new(Equ, next.1),
                 rhs: input.parse()?,
                 semicolon_t: input.consume()?,
@@ -188,12 +188,12 @@ where
         let ident = input.parse()?;
 
         let lvalue = if input.peek_is(&reserved!(LBracket)) {
-            LValue::ArrayIndex(ArrayIndex {
+            LValue::ArrayIndex(Box::new(ArrayIndex {
                 array: Expr::Var(ident),
                 lbracket_t: input.consume()?,
                 index: input.parse()?,
                 rbracket_t: input.consume()?,
-            })
+            }))
         } else {
             LValue::Var(ident)
         };
