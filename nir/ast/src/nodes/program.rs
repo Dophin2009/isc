@@ -1,4 +1,5 @@
 use super::{Function, Span, Spannable, Struct};
+use crate::Scope;
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
@@ -7,6 +8,22 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Program {
     pub items: Vec<Item>,
+    pub scope: Scope,
+}
+
+impl Program {
+    pub fn new() -> Self {
+        Self {
+            items: vec![],
+            scope: Scope::new(),
+        }
+    }
+}
+
+impl Default for Program {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Spannable for Program {

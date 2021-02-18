@@ -2,6 +2,8 @@ use super::keywords::{self, Arrow, Colon, Comma, LParen, RParen};
 use super::punctuated::Punctuated;
 use super::{Block, Ident, Span, Spannable, Spanned, Type, Visibility};
 
+use crate::Scope;
+
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
 
@@ -18,17 +20,21 @@ pub struct Function {
     pub lparen_t: Spanned<LParen>,
     pub rparen_t: Spanned<RParen>,
     pub arrow_t: Option<Spanned<Arrow>>,
+
+    #[cfg_attr(feature = "serde-impl", serde(skip))]
+    pub scope: Scope,
 }
 
 impl Function {
-    pub fn params(&self) -> &Vec<FunctionParam> {
+    #[inline]
+    pub fn params_vec(&self) -> &Vec<FunctionParam> {
         &self.params.items
     }
 }
 
 impl Spannable for Function {
     #[inline]
-    fn span(&self) -> super::Span {
+    fn span(&self) -> Span {
         Span::new(self.vis.span().start, self.body.span().end)
     }
 }

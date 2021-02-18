@@ -5,7 +5,7 @@ pub trait Spannable {
     fn span(&self) -> Span;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Spanned<T>(pub T, pub Span);
 
@@ -25,7 +25,7 @@ impl<T> Spannable for Spanned<T> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Span {
     pub start: usize,
