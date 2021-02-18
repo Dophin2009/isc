@@ -59,7 +59,7 @@ where
                     let span = &found.1;
                     writeln!(
                         w,
-                        "{}:{}: unexpected token {}, expected one of {}",
+                        "{}:{}: unexpected token '{}', expected one of {}",
                         span.start, span.end, found.0, expected
                     )?;
                 }
@@ -81,7 +81,7 @@ where
         writeln!(w, "fatal: failed to compile!\n")?;
 
         for parse_err in &self.parse {
-            write!(w, "error: ")?;
+            write!(w, "parsing error: ")?;
             match parse_err {
                 ParseError::LexerError => {
                     writeln!(w, "unexpected input")?;
@@ -111,7 +111,7 @@ where
 fn join_expected_token(expected: &[ExpectedToken]) -> String {
     expected
         .iter()
-        .map(|et| format!("{}", et))
+        .map(|et| format!("'{}'", et))
         .collect::<Vec<_>>()
         .join(", ")
 }
