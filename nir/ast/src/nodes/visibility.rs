@@ -1,4 +1,4 @@
-use crate::{Span, Spannable};
+use super::{Span, Spannable};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};

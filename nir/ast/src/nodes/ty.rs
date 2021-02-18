@@ -1,5 +1,5 @@
-use crate::keywords::{LBracket, RBracket};
-use crate::{Ident, Span, Spannable, Spanned};
+use super::keywords::{LBracket, RBracket};
+use super::{Ident, Span, Spannable, Spanned};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};

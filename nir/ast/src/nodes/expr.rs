@@ -1,6 +1,6 @@
-use crate::keywords::{Comma, LBracket, LParen, RBracket, RParen};
-use crate::punctuated::Punctuated;
-use crate::{Ident, Path, Span, Spannable, Spanned};
+use super::keywords::{Comma, LBracket, LParen, RBracket, RParen};
+use super::punctuated::Punctuated;
+use super::{Ident, Path, Span, Spannable, Spanned};
 
 pub use lexer::Literal;
 

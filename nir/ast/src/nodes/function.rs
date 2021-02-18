@@ -1,6 +1,6 @@
-use crate::keywords::{self, Arrow, Colon, Comma, LParen, RParen};
-use crate::punctuated::Punctuated;
-use crate::{Block, Ident, Span, Spannable, Spanned, Type, Visibility};
+use super::keywords::{self, Arrow, Colon, Comma, LParen, RParen};
+use super::punctuated::Punctuated;
+use super::{Block, Ident, Span, Spannable, Spanned, Type, Visibility};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ impl Function {
 
 impl Spannable for Function {
     #[inline]
-    fn span(&self) -> crate::Span {
+    fn span(&self) -> super::Span {
         Span::new(self.vis.span().start, self.body.span().end)
     }
 }

@@ -1,6 +1,6 @@
-use crate::keywords::{self, Colon, Comma, LBrace, RBrace};
-use crate::punctuated::Punctuated;
-use crate::{Block, FunctionParam, Ident, Span, Spannable, Spanned, Type, Visibility};
+use super::keywords::{self, Colon, Comma, LBrace, RBrace};
+use super::punctuated::Punctuated;
+use super::{Block, FunctionParam, Ident, Span, Spannable, Spanned, Type, Visibility};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};

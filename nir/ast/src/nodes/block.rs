@@ -1,5 +1,5 @@
-use crate::keywords::{self, Colon, Else, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
-use crate::{ArrayIndex, Expr, Ident, Span, Spannable, Spanned, Type};
+use super::keywords::{self, Colon, Else, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
+use super::{ArrayIndex, Expr, Ident, Span, Spannable, Spanned, Type};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};

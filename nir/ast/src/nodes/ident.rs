@@ -1,6 +1,6 @@
-use crate::keywords::DoubleColon;
-use crate::punctuated::Punctuated;
-use crate::{Span, Spannable, Spanned};
+use super::keywords::DoubleColon;
+use super::punctuated::Punctuated;
+use super::{Span, Spannable, Spanned};
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
