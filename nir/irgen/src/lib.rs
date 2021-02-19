@@ -11,4 +11,4 @@ pub trait EmitIR {
     fn emit_ir(val: &Self, emitter: &mut Emitter) -> Result<Self::Output, Self::Error>;
 }
 
-mod expr;
+mod program;

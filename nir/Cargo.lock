@@ -60,6 +60,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -83,18 +84,6 @@ name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
-
-[[package]]
-name = "irgen"
-version = "0.1.0"
-dependencies = [
- "ast",
- "irr",
-]
-
-[[package]]
-name = "irr"
-version = "0.1.0"
 
 [[package]]
 name = "itertools"
@@ -190,7 +179,6 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "diagnostic",
- "irgen",
  "lexer",
  "parser",
  "serde",
