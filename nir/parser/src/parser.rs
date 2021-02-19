@@ -41,7 +41,13 @@ impl Parser {
         I: Iterator<Item = Symbol>,
     {
         let mut input = ParseInput::new(input);
-        input.parse().map_err(|_| input.errors)
+        let parsed = input.parse();
+
+        if !input.errors.is_empty() {
+            Err(input.errors)
+        } else {
+            parsed.map_err(|_| input.errors)
+        }
     }
 }
 

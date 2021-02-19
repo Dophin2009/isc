@@ -39,6 +39,7 @@ llex::lexer! {
 
     "bool" => ty!(Bool),
     "char" => ty!(Char),
+    "str" => ty!(Str),
     "i8" => ty!(I8),
     "i16" => ty!(I16),
     "i32" => ty!(I32),

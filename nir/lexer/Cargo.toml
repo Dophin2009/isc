@@ -9,11 +9,9 @@ name = "lexer"
 path = "src/lib.rs"
 
 [features]
-diagnostic-impl = ["diagnostic"]
 serde-impl = ["serde"]
 
 [dependencies]
 llex = { path = "../../llex" }
 
-diagnostic = { path = "../diagnostic", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }

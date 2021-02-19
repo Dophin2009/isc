@@ -42,6 +42,7 @@ pub enum Literal {
 pub enum Type {
     Bool,
     Char,
+    Str,
     I8,
     I16,
     I32,
@@ -87,6 +88,7 @@ impl fmt::Display for Type {
         match self {
             Type::Bool => write!(f, "bool"),
             Type::Char => write!(f, "char"),
+            Type::Str => write!(f, "str"),
             Type::I8 => write!(f, "i8"),
             Type::I16 => write!(f, "i16"),
             Type::I32 => write!(f, "i32"),
@@ -98,62 +100,6 @@ impl fmt::Display for Type {
             Type::U64 => write!(f, "u64"),
             Type::F32 => write!(f, "f32"),
             Type::F64 => write!(f, "f64"),
-        }
-    }
-}
-
-#[cfg(feature = "diagnostic-impl")]
-mod diagnostic_impl {
-    use crate::{Literal, Token, Type};
-
-    use diagnostic::{AsDiagnostic, AsDiagnosticFormat};
-    use std::io;
-
-    impl<W> AsDiagnostic<W> for Token
-    where
-        W: io::Write,
-    {
-        type Error = io::Error;
-
-        #[inline]
-        fn as_diagnostic(
-            &self,
-            w: &mut W,
-            _format: &AsDiagnosticFormat,
-        ) -> Result<(), Self::Error> {
-            write!(w, "{}", self)
-        }
-    }
-
-    impl<W> AsDiagnostic<W> for Literal
-    where
-        W: io::Write,
-    {
-        type Error = io::Error;
-
-        #[inline]
-        fn as_diagnostic(
-            &self,
-            w: &mut W,
-            _format: &AsDiagnosticFormat,
-        ) -> Result<(), Self::Error> {
-            write!(w, "{}", self)
-        }
-    }
-
-    impl<W> AsDiagnostic<W> for Type
-    where
-        W: io::Write,
-    {
-        type Error = io::Error;
-
-        #[inline]
-        fn as_diagnostic(
-            &self,
-            w: &mut W,
-            _format: &AsDiagnosticFormat,
-        ) -> Result<(), Self::Error> {
-            write!(w, "{}", self)
         }
     }
 }
