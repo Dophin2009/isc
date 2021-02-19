@@ -1,8 +1,8 @@
 use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
 use ast::{
-    keywords::Comma, punctuated::Punctuated, Function, FunctionParam, PrimitiveType,
-    PrimitiveTypeKind, Span, Type,
+    keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Function, FunctionParam,
+    PrimitiveType, PrimitiveTypeKind, Span, Type,
 };
 
 impl<I> Parse<I> for Function
@@ -11,31 +11,37 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        // Parse visibility.
         let vis = input.parse()?;
-
         // Parse fn token.
         let fn_t = input.consume()?;
-
         // Parse name.
         let name = input.parse()?;
-
         // Parse left parenthesis.
         let lparen_t = input.consume()?;
 
+        // Push a new scope for the function.
+        input.sm.push_new();
+
         // Parse function parameters.
         let params = if input.peek_is(&reserved!(RParen)) {
+            // If next is right parenthesis, there are no parameters.
             Punctuated::default()
         } else {
-            input.parse::<Punctuated<_, Rsv<Comma>>>()?
-        };
-        let seps = params
-            .seps
-            .into_iter()
-            .map(|sep| sep.into_inner())
-            .collect();
-        let params = Punctuated {
-            items: params.items,
-            seps,
+            let params = input.parse::<Punctuated<_, Rsv<Comma>>>()?;
+            let seps = params
+                .seps
+                .into_iter()
+                .map(|sep| sep.into_inner())
+                .collect();
+
+            // Insert parameters into symbol table.
+            let scope = input.sm.top_mut().unwrap();
+            params.items.iter().for_each(|param: &FunctionParam| {
+                scope.insert_ident(param.name.clone(), SymbolEntry {});
+            });
+
+            Punctuated::new(params.items, seps)
         };
 
         // Parse right parenthesis.
@@ -60,6 +66,9 @@ where
         // Parse block.
         let body = input.parse()?;
 
+        // Pop function scope.
+        let scope = input.sm.pop().unwrap();
+
         Ok(Self {
             vis,
             name,
@@ -70,6 +79,8 @@ where
             lparen_t,
             rparen_t,
             arrow_t,
+
+            scope,
         })
     }
 }

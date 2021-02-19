@@ -1,6 +1,6 @@
 use crate::{Parse, ParseInput, Symbol};
 
-use ast::{Function, Item, Struct};
+use ast::{scope::SymbolEntry, Function, Item, Struct};
 
 impl<I> Parse<I> for Item
 where
@@ -16,41 +16,47 @@ where
             Some(peeked) if peeked.0 == reserved!(Pub) => {
                 // If so, actually consume that token and return an error.
                 let next = input.next().unwrap();
-                input.error(unexpectedtoken!(
-                    next.1,
-                    next.0,
-                    ereserved!(Struct),
-                    ereserved!(Function)
-                ));
+                input.unexpected_token(next, vec![ereserved!(Struct), ereserved!(Function)]);
                 return Err(());
             }
             Some(peeked) => peeked,
             None => {
-                input.error(unexpectedeof!(ereserved!(Struct), ereserved!(Function)));
+                input.unexpected_eof(vec![ereserved!(Struct), ereserved!(Function)]);
                 return Err(());
             }
         };
 
         let item = match &peeked.0 {
+            // Parse a struct.
             reserved!(Struct) => {
                 let mut s: Struct = input.parse()?;
+                // Patch visibility.
                 s.vis = vis;
+
+                // Insert struct name into symbol table.
+                let scope = input.sm.top_mut().unwrap();
+                scope.insert_ident(s.name.clone(), SymbolEntry {});
+
                 Item::Struct(s)
             }
+            // Parse a function.
             reserved!(Function) => {
                 let mut f: Function = input.parse()?;
+                // Patch visibility.
                 f.vis = vis;
+
+                // Insert struct name into symbol table.
+                let scope = input.sm.top_mut().unwrap();
+                scope.insert_ident(f.name.clone(), SymbolEntry {});
+
                 Item::Function(f)
             }
             _ => {
                 let next = input.next().unwrap();
-                input.error(unexpectedtoken!(
-                    next.1,
-                    next.0,
-                    ereserved!(Pub),
-                    ereserved!(Struct),
-                    ereserved!(Function)
-                ));
+                input.unexpected_token(
+                    next,
+                    vec![ereserved!(Pub), ereserved!(Struct), ereserved!(Function)],
+                );
                 return Err(());
             }
         };

@@ -1,9 +1,9 @@
 use crate::Symbol;
 
+use std::fmt;
+
 use ast::Spannable;
 use lexer::Reserved;
-
-use std::fmt;
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
@@ -14,6 +14,9 @@ pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 #[derive(Clone, Debug, thiserror::Error)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum ParseError {
+    #[error("no main() function defined")]
+    NoMainFunction,
+
     #[error("unexpected token {:?} at position {}, expected one of {:?}", .0.inner(), .0.span().start, .1)]
     UnexpectedToken(Symbol, Vec<ExpectedToken>),
     #[error("unexpected end-of-file")]

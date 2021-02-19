@@ -1,7 +1,7 @@
 use crate::error::{ExpectedToken, ParseError};
 use crate::Result;
 
-use ast::{Program, Spanned};
+use ast::{scope::ScopeManager, Program, Spanned};
 use itertools::{Itertools, MultiPeek};
 use lexer::{types as ttypes, Token};
 
@@ -50,9 +50,10 @@ pub struct ParseInput<I>
 where
     I: Iterator<Item = Symbol>,
 {
-    inner: MultiPeek<I>,
     pub errors: Vec<ParseError>,
+    pub(crate) sm: ScopeManager,
 
+    inner: MultiPeek<I>,
     last_pos: usize,
 }
 
@@ -66,6 +67,7 @@ where
             inner: inner.multipeek(),
             errors: Vec::new(),
             last_pos: 0,
+            sm: ScopeManager::new(),
         }
     }
 
