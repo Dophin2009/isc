@@ -1,8 +1,8 @@
-use crate::error::{CompileError, DiagnosticEmitError};
+use crate::error::CompileError;
 
 use std::io;
 
-use diagnostic::{AsDiagnostic, AsDiagnosticFormat};
+use diagnostic::{AsDiagnostic, DiagnosticEmitError, DiagnosticFormat};
 use lexer::Lexer;
 use parser::{
     ast::{Program, Span, Spanned},
@@ -63,7 +63,7 @@ impl Compiler {
     where
         W: io::Write,
     {
-        error.as_diagnostic(w, &AsDiagnosticFormat::Rich)
+        CompileError::emit_diagnostic(&error, w, &DiagnosticFormat::Rich)
     }
 }
 

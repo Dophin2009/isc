@@ -1,10 +1,7 @@
 use std::fmt;
-use std::io;
 
 use ast::Spannable;
-use diagnostic::{
-    AsDiagnostic, AsDiagnosticFormat, AsDiagnosticJson, AsDiagnosticRich, AsDiagnosticText,
-};
+use diagnostic::{AsDiagnostic, Diagnostic};
 use parser::{ExpectedToken, ParseError};
 use serde::Serialize;
 
@@ -21,110 +18,71 @@ impl fmt::Display for CompileError {
     }
 }
 
-impl<W> AsDiagnostic<W> for CompileError
-where
-    W: io::Write,
-{
-    type Error = DiagnosticEmitError;
-
+impl AsDiagnostic for CompileError {
     #[inline]
-    fn as_diagnostic(&self, w: &mut W, format: &AsDiagnosticFormat) -> Result<(), Self::Error> {
-        match format {
-            AsDiagnosticFormat::Json => self.as_diagnostic_json(w)?,
-            AsDiagnosticFormat::Text => self.as_diagnostic_text(w)?,
-            AsDiagnosticFormat::Rich => self.as_diagnostic_rich(w)?,
+    fn as_diagnostic(val: &Self) -> Vec<Diagnostic> {
+        const CATEGORY: &str = "parsing";
+        macro_rules! diagnostic {
+            ($start:expr, $end:expr, $fmtstr:expr, $($fmtarg:expr),*) => {
+                Diagnostic::new(CATEGORY.to_string(), format!($fmtstr, $($fmtarg),*), $start, $end)
+            };
         };
 
-        Ok(())
-    }
-}
-
-impl<W> AsDiagnosticText<W> for CompileError
-where
-    W: io::Write,
-{
-    type Error = DiagnosticEmitError;
-
-    #[inline]
-    fn as_diagnostic_text(&self, w: &mut W) -> Result<(), Self::Error> {
-        for parse_err in &self.parse {
-            match parse_err {
-                ParseError::NoMainFunction => writeln!(w, "required main() function not defined")?,
-                ParseError::DuplicateIdent(ident) => {
+        val.parse
+            .iter()
+            .map(|err| match err {
+                ParseError::NoMainFunction => {
+                    diagnostic!(0, 0, "required main() function not defined",)
+                }
+                ParseError::UndeclaredIdent(ident) => {
                     let span = ident.span();
-                    writeln!(
-                        w,
-                        "{}:{}: duplicate ident '{}'",
+                    diagnostic!(
                         span.start,
                         span.end,
+                        "used an undeclared identifier '{}'",
                         ident.name_str()
-                    )?;
+                    )
                 }
-                // TODO: actual locations for these two errors
-                ParseError::LexerError => writeln!(w, "0:0: unexpected input")?,
-                ParseError::UnexpectedEof(expected) => {
-                    let expected = join_expected_token(expected);
-                    writeln!(w, "0:0: unexpected EOF, expected one of {}", expected)?;
-                }
-                ParseError::UnexpectedToken(found, expected) => {
-                    let expected = join_expected_token(&expected);
-                    let span = &found.1;
-                    writeln!(
-                        w,
-                        "{}:{}: unexpected token '{}', expected one of {}",
-                        span.start, span.end, found.0, expected
-                    )?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl<W> AsDiagnosticRich<W> for CompileError
-where
-    W: io::Write,
-{
-    type Error = DiagnosticEmitError;
-
-    #[inline]
-    fn as_diagnostic_rich(&self, w: &mut W) -> Result<(), Self::Error> {
-        writeln!(w, "fatal: failed to compile!\n")?;
-
-        for parse_err in &self.parse {
-            write!(w, "parsing error: ")?;
-            match parse_err {
-                ParseError::NoMainFunction => {
-                    writeln!(w, "required main() function not defined")?;
+                ParseError::UndeclaredType(ty) => {
+                    let span = ty.span();
+                    diagnostic!(
+                        span.start,
+                        span.end,
+                        "used an undeclared type '{}'",
+                        ty.name_str()
+                    )
                 }
                 ParseError::DuplicateIdent(ident) => {
                     let span = ident.span();
-                    writeln!(w, "duplicate ident '{}'", ident.name_str())?;
-                    writeln!(w, "at position {}:{}", span.start, span.end)?;
+                    diagnostic!(
+                        span.start,
+                        span.end,
+                        "duplicate identifier '{}' found",
+                        ident.name_str()
+                    )
                 }
                 ParseError::LexerError => {
-                    writeln!(w, "unexpected input")?;
                     // TODO: actual positioning
-                    writeln!(w, "at position 0:0")?;
+                    diagnostic!(0, 0, "unexpected input",)
                 }
                 ParseError::UnexpectedEof(expected) => {
-                    let expected = join_expected_token(expected);
-                    writeln!(w, "unexpected EOF, expected one of {}", expected)?;
                     // TODO: actual positioning
-                    writeln!(w, "at position 0:0")?;
+                    let expected = join_expected_token(expected);
+                    diagnostic!(0, 0, "unexpected EOF, expected one of {}", expected)
                 }
                 ParseError::UnexpectedToken(found, expected) => {
                     let expected = join_expected_token(expected);
                     let span = &found.1;
-                    writeln!(w, "unexpected '{}', expected one of {}", found.0, expected)?;
-                    writeln!(w, "at position {}:{}", span.start, span.end)?;
+                    diagnostic!(
+                        span.start,
+                        span.end,
+                        "unexpected '{}', expected one of {}",
+                        found.0,
+                        expected
+                    )
                 }
-            }
-            writeln!(w)?;
-        }
-
-        Ok(())
+            })
+            .collect()
     }
 }
 
@@ -134,13 +92,4 @@ fn join_expected_token(expected: &[ExpectedToken]) -> String {
         .map(|et| format!("'{}'", et))
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-/// Error returned when diagnostics fail to be printed.
-#[derive(Debug, thiserror::Error)]
-pub enum DiagnosticEmitError {
-    #[error("I/O error: {}", .0)]
-    Io(#[from] io::Error),
-    #[error("serialization error: {}", .0)]
-    Serialize(#[from] serde_json::Error),
 }
