@@ -33,13 +33,6 @@ where
                 // Patch visibility.
                 s.vis = vis;
 
-                // Insert struct name into symbol table, emit error if already present.
-                let scope = input.sm.top_mut().unwrap();
-                let struct_name = s.name.clone();
-                if !scope.insert_ident_nodup(struct_name.clone(), SymbolEntry {}) {
-                    input.error(ParseError::DuplicateIdent(struct_name));
-                };
-
                 Item::Struct(s)
             }
             // Parse a function.

@@ -1,5 +1,4 @@
-use crate::error::ExpectedToken;
-use crate::{Parse, ParseInput, ParseResult, Symbol};
+use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
 
 use ast::{
     keywords::{LBracket, RParen},
@@ -24,11 +23,19 @@ where
 
         let ty = match next.0 {
             Token::Type(ty) => Type::Primitive(from_lexer_type(ty, next.1)),
-            Token::Ident(name) => Type::Declared(DeclaredType {
-                name: Ident {
-                    name: Spanned::new(name, next.1),
-                },
-            }),
+            // Non-primitive type; check symbol table stack for its existence.
+            Token::Ident(name) => {
+                if input.sm.lookup(&name).is_none() {
+                    input.error(ParseError::UndeclaredType(Ident {
+                        name: Spanned::new(name.clone(), next.1.clone()),
+                    }));
+                }
+                Type::Declared(DeclaredType {
+                    name: Ident {
+                        name: Spanned::new(name, next.1),
+                    },
+                })
+            }
             reserved!(LParen) => {
                 input.consume::<RParen>()?;
                 Type::Primitive(PrimitiveType {

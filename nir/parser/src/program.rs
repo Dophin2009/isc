@@ -22,6 +22,7 @@ where
         let scope = input.sm.pop().unwrap();
 
         // Ensure a main function is specified.
+        // TODO: ensure it's actually a function
         if scope.contains("main") {
             Ok(Self { items, scope })
         } else {
