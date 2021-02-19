@@ -73,6 +73,22 @@ impl Scope {
         self.insert(ident.name_str().to_string(), entry)
     }
 
+    /// Inserts into the symbol table and returns true if the given ident is not already present.
+    #[inline]
+    pub fn insert_nodup(&mut self, ident: String, entry: SymbolEntry) -> bool {
+        if self.inner.contains_key(&ident) {
+            false
+        } else {
+            self.inner.insert(ident, entry);
+            true
+        }
+    }
+
+    #[inline]
+    pub fn insert_ident_nodup(&mut self, ident: Ident, entry: SymbolEntry) -> bool {
+        self.insert_nodup(ident.name_str().to_string(), entry)
+    }
+
     #[inline]
     pub fn get(&self, ident: &str) -> Option<&SymbolEntry> {
         self.inner.get(ident)

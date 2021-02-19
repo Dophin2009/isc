@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io;
 
+use ast::Spannable;
 use diagnostic::{
     AsDiagnostic, AsDiagnosticFormat, AsDiagnosticJson, AsDiagnosticRich, AsDiagnosticText,
 };
@@ -48,13 +49,24 @@ where
     fn as_diagnostic_text(&self, w: &mut W) -> Result<(), Self::Error> {
         for parse_err in &self.parse {
             match parse_err {
+                ParseError::NoMainFunction => writeln!(w, "required main() function not defined")?,
+                ParseError::DuplicateIdent(ident) => {
+                    let span = ident.span();
+                    writeln!(
+                        w,
+                        "{}:{}: duplicate ident '{}'",
+                        span.start,
+                        span.end,
+                        ident.name_str()
+                    )?;
+                }
                 // TODO: actual locations for these two errors
                 ParseError::LexerError => writeln!(w, "0:0: unexpected input")?,
-                ParseError::UnexpectedEof(ref expected) => {
+                ParseError::UnexpectedEof(expected) => {
                     let expected = join_expected_token(expected);
                     writeln!(w, "0:0: unexpected EOF, expected one of {}", expected)?;
                 }
-                ParseError::UnexpectedToken(ref found, ref expected) => {
+                ParseError::UnexpectedToken(found, expected) => {
                     let expected = join_expected_token(&expected);
                     let span = &found.1;
                     writeln!(
@@ -83,6 +95,14 @@ where
         for parse_err in &self.parse {
             write!(w, "parsing error: ")?;
             match parse_err {
+                ParseError::NoMainFunction => {
+                    writeln!(w, "required main() function not defined")?;
+                }
+                ParseError::DuplicateIdent(ident) => {
+                    let span = ident.span();
+                    writeln!(w, "duplicate ident '{}'", ident.name_str())?;
+                    writeln!(w, "at position {}:{}", span.start, span.end)?;
+                }
                 ParseError::LexerError => {
                     writeln!(w, "unexpected input")?;
                     // TODO: actual positioning

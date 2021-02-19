@@ -1,4 +1,4 @@
-use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
+use crate::{Parse, ParseError, ParseInput, ParseResult, Rsv, Symbol};
 
 use ast::{
     keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Function, FunctionParam,
@@ -28,7 +28,7 @@ where
             // If next is right parenthesis, there are no parameters.
             Punctuated::default()
         } else {
-            let params = input.parse::<Punctuated<_, Rsv<Comma>>>()?;
+            let params = input.parse::<Punctuated<FunctionParam, Rsv<Comma>>>()?;
             let seps = params
                 .seps
                 .into_iter()
@@ -36,10 +36,14 @@ where
                 .collect();
 
             // Insert parameters into symbol table.
-            let scope = input.sm.top_mut().unwrap();
-            params.items.iter().for_each(|param: &FunctionParam| {
-                scope.insert_ident(param.name.clone(), SymbolEntry {});
-            });
+            for param in &params.items {
+                let param_name = &param.name;
+                // If duplicate parameters, emit errors.
+                let scope = input.sm.top_mut().unwrap();
+                if !scope.insert_nodup(param_name.name_str().to_string(), SymbolEntry {}) {
+                    input.error(ParseError::DuplicateIdent(param_name.clone()))
+                }
+            }
 
             Punctuated::new(params.items, seps)
         };
@@ -49,7 +53,6 @@ where
 
         // Parse arrow.
         let arrow_t = input.consume_opt()?;
-
         // Parse the return type (if any).
         let return_type = match arrow_t {
             Some(_) => input.parse()?,

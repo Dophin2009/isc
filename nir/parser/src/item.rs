@@ -1,4 +1,4 @@
-use crate::{Parse, ParseInput, Symbol};
+use crate::{Parse, ParseError, ParseInput, Symbol};
 
 use ast::{scope::SymbolEntry, Function, Item, Struct};
 
@@ -33,9 +33,12 @@ where
                 // Patch visibility.
                 s.vis = vis;
 
-                // Insert struct name into symbol table.
+                // Insert struct name into symbol table, emit error if already present.
                 let scope = input.sm.top_mut().unwrap();
-                scope.insert_ident(s.name.clone(), SymbolEntry {});
+                let struct_name = s.name.clone();
+                if !scope.insert_ident_nodup(struct_name.clone(), SymbolEntry {}) {
+                    input.error(ParseError::DuplicateIdent(struct_name));
+                };
 
                 Item::Struct(s)
             }
@@ -45,9 +48,12 @@ where
                 // Patch visibility.
                 f.vis = vis;
 
-                // Insert struct name into symbol table.
+                // Insert function name into symbol table, emit error if already present.
                 let scope = input.sm.top_mut().unwrap();
-                scope.insert_ident(f.name.clone(), SymbolEntry {});
+                let fn_name = f.name.clone();
+                if !scope.insert_ident_nodup(fn_name.clone(), SymbolEntry {}) {
+                    input.error(ParseError::DuplicateIdent(fn_name));
+                }
 
                 Item::Function(f)
             }

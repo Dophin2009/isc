@@ -2,7 +2,7 @@ use crate::Symbol;
 
 use std::fmt;
 
-use ast::Spannable;
+use ast::{Ident, Spannable};
 use lexer::Reserved;
 
 #[cfg(feature = "serde-impl")]
@@ -16,6 +16,8 @@ pub type Result<T> = std::result::Result<T, Vec<ParseError>>;
 pub enum ParseError {
     #[error("no main() function defined")]
     NoMainFunction,
+    #[error("duplicate identifier {}", .0.name.0)]
+    DuplicateIdent(Ident),
 
     #[error("unexpected token {:?} at position {}, expected one of {:?}", .0.inner(), .0.span().start, .1)]
     UnexpectedToken(Symbol, Vec<ExpectedToken>),
