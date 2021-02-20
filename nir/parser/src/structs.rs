@@ -1,4 +1,4 @@
-use crate::{Parse, ParseError, ParseInput, ParseResult, Rsv, Symbol};
+use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
 use ast::{
     keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Ident, Struct, StructField,
@@ -8,6 +8,7 @@ impl<I> Parse<I> for Struct
 where
     I: Iterator<Item = Symbol>,
 {
+    /// Parse a struct declaration.
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         // Parse visibility.
@@ -17,23 +18,21 @@ where
 
         // Parse struct name.
         let name: Ident = input.parse()?;
-
         // Insert struct name into symbol table, emit error if already present.
-        let scope = input.sm.top_mut().unwrap();
-        let struct_name = name.clone();
-        if !scope.insert_ident_nodup(struct_name.clone(), SymbolEntry {}) {
-            input.error(ParseError::DuplicateIdent(struct_name));
-        };
+        input.insert_ident_nodup(name.clone(), SymbolEntry {});
 
         // Ensure next token is opening brace.
         let lbrace_t = input.consume()?;
 
         // Parse fields.
-        // TODO: ensure no duplicate fields.
         let fields = if input.peek_is(&reserved!(RBrace)) {
             Punctuated::default()
         } else {
             let fields = input.parse::<Punctuated<StructField, Rsv<Comma>>>()?;
+
+            // TODO: ensure no duplicate fields.
+            // if has_duplicates(&fields.items) {}
+
             let seps = fields
                 .seps
                 .into_iter()
@@ -69,4 +68,10 @@ where
             ty: input.parse()?,
         })
     }
+}
+
+#[inline]
+#[allow(dead_code)]
+fn has_duplicates(fields: &[StructField]) -> bool {
+    (1..fields.len()).any(|i| fields[i..].contains(&fields[i - 1]))
 }

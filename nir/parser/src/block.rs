@@ -16,9 +16,6 @@ where
         // Parse left brace.
         let lbrace_t = input.consume::<LBrace>()?;
 
-        // Push new scope.
-        input.sm.push_new();
-
         // Parse statements.
         let mut statements = Vec::new();
         while !input.peek_is(&reserved!(RBrace)) {

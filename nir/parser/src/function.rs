@@ -1,7 +1,7 @@
-use crate::{Parse, ParseError, ParseInput, ParseResult, Rsv, Symbol};
+use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
 use ast::{
-    keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Function, FunctionParam,
+    keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Function, FunctionParam, Ident,
     PrimitiveType, PrimitiveTypeKind, Span, Type,
 };
 
@@ -15,8 +15,12 @@ where
         let vis = input.parse()?;
         // Parse fn token.
         let fn_t = input.consume()?;
+
         // Parse name.
-        let name = input.parse()?;
+        let name: Ident = input.parse()?;
+        // Insert function name into symbol table, emit error if already present.
+        input.insert_ident_nodup(name.clone(), SymbolEntry {});
+
         // Parse left parenthesis.
         let lparen_t = input.consume()?;
 
@@ -36,13 +40,9 @@ where
                 .collect();
 
             // Insert parameters into symbol table.
+            // If duplicate parameters, emit errors.
             for param in &params.items {
-                let param_name = &param.name;
-                // If duplicate parameters, emit errors.
-                let scope = input.sm.top_mut().unwrap();
-                if !scope.insert_nodup(param_name.name_str().to_string(), SymbolEntry {}) {
-                    input.error(ParseError::DuplicateIdent(param_name.clone()))
-                }
+                input.insert_ident_nodup(param.name.clone(), SymbolEntry {});
             }
 
             Punctuated::new(params.items, seps)

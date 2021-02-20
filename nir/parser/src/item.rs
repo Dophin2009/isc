@@ -1,11 +1,12 @@
-use crate::{Parse, ParseError, ParseInput, Symbol};
+use crate::{Parse, ParseInput, Symbol};
 
-use ast::{scope::SymbolEntry, Function, Item, Struct};
+use ast::{Function, Item, Struct};
 
 impl<I> Parse<I> for Item
 where
     I: Iterator<Item = Symbol>,
 {
+    /// Parse a top-level item, either a struct or function declaration.
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> Result<Self, ()> {
         // Parse visibility and replace later.
@@ -41,15 +42,9 @@ where
                 // Patch visibility.
                 f.vis = vis;
 
-                // Insert function name into symbol table, emit error if already present.
-                let scope = input.sm.top_mut().unwrap();
-                let fn_name = f.name.clone();
-                if !scope.insert_ident_nodup(fn_name.clone(), SymbolEntry {}) {
-                    input.error(ParseError::DuplicateIdent(fn_name));
-                }
-
                 Item::Function(f)
             }
+            // If neither, throw an error.
             _ => {
                 let next = input.next().unwrap();
                 input.unexpected_token(
