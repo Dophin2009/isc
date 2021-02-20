@@ -20,9 +20,7 @@ pub enum ParseError {
     DuplicateIdent(Ident),
 
     #[error("undeclared identifier {}", .0.name.0)]
-    UndeclaredIdent(Ident),
-    #[error("undeclared type {:?}", .0)]
-    UndeclaredType(Ident),
+    UndeclaredVariable(Ident),
 
     #[error("unexpected token {:?} at position {}, expected one of {:?}", .0.inner(), .0.span().start, .1)]
     UnexpectedToken(Symbol, Vec<ExpectedToken>),

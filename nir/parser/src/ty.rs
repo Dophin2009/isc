@@ -1,4 +1,4 @@
-use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
+use crate::{ExpectedToken, Parse, ParseInput, ParseResult, Symbol};
 
 use ast::{
     keywords::{LBracket, RBracket, RParen},
@@ -10,6 +10,7 @@ impl<I> Parse<I> for Type
 where
     I: Iterator<Item = Symbol>,
 {
+    // Parse a type use (not declaration).
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         let next = input.next_unwrap(|| {
@@ -24,18 +25,11 @@ where
         let ty = match next.0 {
             Token::Type(ty) => from_lexer_type(ty, next.1),
             // Non-primitive type; check symbol table stack for its existence.
-            Token::Ident(name) => {
-                if input.sm.lookup(&name).is_none() {
-                    input.error(ParseError::UndeclaredType(Ident {
-                        name: Spanned::new(name.clone(), next.1.clone()),
-                    }));
-                }
-                Type::Declared(DeclaredType {
-                    name: Ident {
-                        name: Spanned::new(name, next.1),
-                    },
-                })
-            }
+            Token::Ident(name) => Type::Declared(DeclaredType {
+                name: Ident {
+                    name: Spanned::new(name, next.1),
+                },
+            }),
             reserved!(LParen) => {
                 input.consume::<RParen>()?;
                 Type::Primitive(PrimitiveType {

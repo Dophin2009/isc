@@ -34,22 +34,13 @@ impl AsDiagnostic for CompileError {
                 ParseError::NoMainFunction => {
                     diagnostic!(0, 0, "required main() function not defined",)
                 }
-                ParseError::UndeclaredIdent(ident) => {
+                ParseError::UndeclaredVariable(ident) => {
                     let span = ident.span();
                     diagnostic!(
                         span.start,
                         span.end,
-                        "used an undeclared identifier '{}'",
+                        "used an undeclared variable '{}'",
                         ident.name_str()
-                    )
-                }
-                ParseError::UndeclaredType(ty) => {
-                    let span = ty.span();
-                    diagnostic!(
-                        span.start,
-                        span.end,
-                        "used an undeclared type '{}'",
-                        ty.name_str()
                     )
                 }
                 ParseError::DuplicateIdent(ident) => {
