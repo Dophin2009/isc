@@ -5,57 +5,6 @@ use std::collections::BTreeMap;
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
-pub struct ScopeManager {
-    pub stack: Vec<Scope>,
-}
-
-impl ScopeManager {
-    #[inline]
-    pub fn new() -> Self {
-        Self { stack: vec![] }
-    }
-
-    #[inline]
-    pub fn top(&self) -> Option<&Scope> {
-        self.stack.last()
-    }
-
-    #[inline]
-    pub fn top_mut(&mut self) -> Option<&mut Scope> {
-        self.stack.last_mut()
-    }
-
-    #[inline]
-    pub fn lookup(&self, ident: &str) -> Option<(&SymbolEntry, &Scope)> {
-        self.stack
-            .iter()
-            .rev()
-            .find_map(|st| st.get(ident).map(|entry| (entry, st)))
-    }
-
-    #[inline]
-    pub fn push_new(&mut self) {
-        let new_scope = match self.top() {
-            Some(s) => s.clone(),
-            None => Scope::new(),
-        };
-
-        self.stack.push(new_scope);
-    }
-
-    #[inline]
-    pub fn pop(&mut self) -> Option<Scope> {
-        self.stack.pop()
-    }
-}
-
-impl Default for ScopeManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct SymbolEntry {}
