@@ -13,6 +13,7 @@ pub enum Type {
 }
 
 impl Spannable for Type {
+    #[inline]
     fn span(&self) -> Span {
         match self {
             Self::Primitive(ty) => ty.span(),
