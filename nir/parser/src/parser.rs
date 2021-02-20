@@ -5,11 +5,14 @@ use ast::{Program, Spanned};
 use itertools::{Itertools, MultiPeek};
 use lexer::{types as ttypes, Token};
 
-pub type ParseResult<T> = std::result::Result<T, ()>;
+/// Result alias for return values of parse implementations.
+pub(crate) type ParseResult<T> = std::result::Result<T, ()>;
 
+/// Alias for a lexer token with span information.
 pub(crate) type Symbol = Spanned<lexer::Token>;
 
-pub trait Parse<I>
+/// Trait implemented to parse AST nodes from lexer output.
+pub(crate) trait Parse<I>
 where
     I: Iterator<Item = Symbol>,
     Self: Sized,
@@ -17,7 +20,7 @@ where
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self>;
 }
 
-pub trait Peek<I>
+pub(crate) trait Peek<I>
 where
     I: Iterator<Item = Symbol>,
     Self: Sized,
@@ -29,6 +32,7 @@ where
 pub struct Parser {}
 
 impl Parser {
+    /// Create a new [`Self`].
     #[inline]
     pub const fn new() -> Self {
         Self {}
@@ -52,7 +56,7 @@ impl Parser {
 }
 
 #[derive(Debug)]
-pub struct ParseInput<I>
+pub(crate) struct ParseInput<I>
 where
     I: Iterator<Item = Symbol>,
 {
