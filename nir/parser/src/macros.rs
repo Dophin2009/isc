@@ -22,8 +22,8 @@ macro_rules! ereserved {
     };
 }
 
-// macro_rules! eliteral {
-// ($variant:ident) => {
-// $crate::error::ExpectedToken::Literal(lexer::Reserved::$variant)
-// };
-// }
+macro_rules! eliteral {
+    ($variant:ident) => {
+        $crate::error::ExpectedToken::Literal(lexer::Reserved::$variant)
+    };
+}
