@@ -1,4 +1,4 @@
-use crate::{Parse, ParseError, ParseInput, ParseResult, Symbol};
+use crate::{Parse, ParseInput, ParseResult, Symbol};
 
 use ast::Program;
 
@@ -8,9 +8,6 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
-        // Push root scope object.
-        input.sm.push_new();
-
         // Parse items.
         let mut items = Vec::new();
         while input.peek().is_some() {
@@ -18,16 +15,6 @@ where
             items.push(item);
         }
 
-        // Pop root scope.
-        let scope = input.sm.pop().unwrap();
-
-        // Ensure a main function is specified.
-        // TODO: ensure it's actually a function
-        if scope.contains("main") {
-            Ok(Self { items, scope })
-        } else {
-            input.error(ParseError::NoMainFunction);
-            Err(())
-        }
+        Ok(Self { items })
     }
 }

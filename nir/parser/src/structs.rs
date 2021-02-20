@@ -1,8 +1,6 @@
 use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
-use ast::{
-    keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Ident, Struct, StructField,
-};
+use ast::{keywords::Comma, punctuated::Punctuated, Struct, StructField};
 
 impl<I> Parse<I> for Struct
 where
@@ -15,12 +13,8 @@ where
         let vis = input.parse()?;
         // Ensure next token is struct.
         let struct_t = input.consume()?;
-
         // Parse struct name.
-        let name: Ident = input.parse()?;
-        // Insert struct name into symbol table, emit error if already present.
-        input.insert_ident_nodup(name.clone(), SymbolEntry {});
-
+        let name = input.parse()?;
         // Ensure next token is opening brace.
         let lbrace_t = input.consume()?;
 

@@ -1,8 +1,8 @@
 use crate::{Parse, ParseInput, ParseResult, Rsv, Symbol};
 
 use ast::{
-    keywords::Comma, punctuated::Punctuated, scope::SymbolEntry, Function, FunctionParam, Ident,
-    PrimitiveType, PrimitiveTypeKind, Span, Type,
+    keywords::Comma, punctuated::Punctuated, Function, FunctionParam, PrimitiveType,
+    PrimitiveTypeKind, Span, Type,
 };
 
 impl<I> Parse<I> for Function
@@ -15,17 +15,10 @@ where
         let vis = input.parse()?;
         // Parse fn token.
         let fn_t = input.consume()?;
-
         // Parse name.
-        let name: Ident = input.parse()?;
-        // Insert function name into symbol table, emit error if already present.
-        input.insert_ident_nodup(name.clone(), SymbolEntry {});
-
+        let name = input.parse()?;
         // Parse left parenthesis.
         let lparen_t = input.consume()?;
-
-        // Push a new scope for the function.
-        input.sm.push_new();
 
         // Parse function parameters.
         let params = if input.peek_is(&reserved!(RParen)) {
@@ -38,13 +31,6 @@ where
                 .into_iter()
                 .map(|sep| sep.into_inner())
                 .collect();
-
-            // Insert parameters into symbol table.
-            // If duplicate parameters, emit errors.
-            for param in &params.items {
-                input.insert_ident_nodup(param.name.clone(), SymbolEntry {});
-            }
-
             Punctuated::new(params.items, seps)
         };
 
@@ -69,9 +55,6 @@ where
         // Parse block.
         let body = input.parse()?;
 
-        // Pop function scope.
-        let scope = input.sm.pop().unwrap();
-
         Ok(Self {
             vis,
             name,
@@ -82,8 +65,6 @@ where
             lparen_t,
             rparen_t,
             arrow_t,
-
-            scope,
         })
     }
 }

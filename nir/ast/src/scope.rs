@@ -27,7 +27,7 @@ impl ScopeManager {
     }
 
     #[inline]
-    pub fn lookup(&self, ident: &String) -> Option<(&SymbolEntry, &Scope)> {
+    pub fn lookup(&self, ident: &str) -> Option<(&SymbolEntry, &Scope)> {
         self.stack
             .iter()
             .rev()
@@ -36,12 +36,23 @@ impl ScopeManager {
 
     #[inline]
     pub fn push_new(&mut self) {
-        self.stack.push(Scope::new())
+        let new_scope = match self.top() {
+            Some(s) => s.clone(),
+            None => Scope::new(),
+        };
+
+        self.stack.push(new_scope);
     }
 
     #[inline]
     pub fn pop(&mut self) -> Option<Scope> {
         self.stack.pop()
+    }
+}
+
+impl Default for ScopeManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -64,29 +75,20 @@ impl Scope {
     }
 
     #[inline]
-    pub fn insert(&mut self, ident: String, entry: SymbolEntry) -> Option<SymbolEntry> {
-        self.inner.insert(ident, entry)
+    pub fn insert<F: AsSymbolKey>(&mut self, ident: F, entry: SymbolEntry) -> Option<SymbolEntry> {
+        self.inner.insert(ident.as_string(), entry)
     }
 
     #[inline]
-    pub fn insert_ident(&mut self, ident: Ident, entry: SymbolEntry) -> Option<SymbolEntry> {
-        self.insert(ident.name_str().to_string(), entry)
-    }
-
-    /// Inserts into the symbol table and returns true if the given ident is not already present.
-    #[inline]
-    pub fn insert_nodup(&mut self, ident: String, entry: SymbolEntry) -> bool {
-        if self.inner.contains_key(&ident) {
-            false
-        } else {
-            self.inner.insert(ident, entry);
-            true
+    pub fn insert_nodup<F: AsSymbolKey>(&mut self, ident: F, entry: SymbolEntry) -> bool {
+        let s = ident.as_string();
+        match self.inner.get_mut(&s) {
+            Some(_) => false,
+            None => {
+                self.inner.insert(s, entry);
+                true
+            }
         }
-    }
-
-    #[inline]
-    pub fn insert_ident_nodup(&mut self, ident: Ident, entry: SymbolEntry) -> bool {
-        self.insert_nodup(ident.name_str().to_string(), entry)
     }
 
     #[inline]
@@ -114,5 +116,27 @@ impl Default for Scope {
     #[inline]
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub trait AsSymbolKey {
+    fn as_string(self) -> String;
+}
+
+impl AsSymbolKey for &str {
+    fn as_string(self) -> String {
+        self.to_string()
+    }
+}
+
+impl AsSymbolKey for String {
+    fn as_string(self) -> String {
+        self
+    }
+}
+
+impl AsSymbolKey for Ident {
+    fn as_string(self) -> String {
+        self.name_str().to_string()
     }
 }

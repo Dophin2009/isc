@@ -1,10 +1,7 @@
 use crate::error::{ExpectedToken, ParseError};
 use crate::Result;
 
-use ast::{
-    scope::{ScopeManager, SymbolEntry},
-    Ident, Program, Spanned,
-};
+use ast::{Program, Spanned};
 use itertools::{Itertools, MultiPeek};
 use lexer::{types as ttypes, Token};
 
@@ -60,7 +57,6 @@ where
     I: Iterator<Item = Symbol>,
 {
     pub errors: Vec<ParseError>,
-    pub(crate) sm: ScopeManager,
 
     inner: MultiPeek<I>,
     last_pos: usize,
@@ -76,18 +72,6 @@ where
             inner: inner.multipeek(),
             errors: Vec::new(),
             last_pos: 0,
-            sm: ScopeManager::new(),
-        }
-    }
-
-    #[inline]
-    pub fn insert_ident_nodup(&mut self, ident: Ident, entry: SymbolEntry) -> bool {
-        let top = self.sm.top_mut().unwrap();
-        if top.insert_ident_nodup(ident.clone(), entry) {
-            true
-        } else {
-            self.error(ParseError::DuplicateIdent(ident));
-            false
         }
     }
 
