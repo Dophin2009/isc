@@ -25,7 +25,7 @@ impl Spannable for Ident {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Path {
     pub segments: Punctuated<Ident, DoubleColon>,

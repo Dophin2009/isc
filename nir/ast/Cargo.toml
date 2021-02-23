@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 lexer = { path = "../lexer" }
 
-serde = { version = "1.0", features = ["derive"], optional = true }
+serde = { version = "1.0", features = ["derive", "rc"], optional = true }
 
 [features]
 serde-impl = ["serde"]

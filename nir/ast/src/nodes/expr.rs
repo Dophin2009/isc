@@ -2,15 +2,17 @@ use super::keywords::{Comma, LBracket, LParen, RBracket, RParen};
 use super::punctuated::Punctuated;
 use super::{Ident, Path, Span, Spannable, Spanned};
 
+use std::rc::Rc;
+
 pub use lexer::Literal;
 
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Expr {
-    Var(Ident),
+    Var(Rc<Ident>),
     Literal(Spanned<Literal>),
     ArrayLiteral(Box<ArrayLiteral>),
     FunctionCall(FunctionCall),
@@ -34,10 +36,10 @@ impl Spannable for Expr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ArrayLiteral {
-    pub elements: Punctuated<Expr, Comma>,
+    pub elements: Punctuated<Rc<Expr>, Comma>,
 
     pub lbracket_t: Spanned<LBracket>,
     pub rbracket_t: Spanned<RBracket>,
@@ -50,11 +52,11 @@ impl Spannable for ArrayLiteral {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct FunctionCall {
     pub function: Path,
-    pub args: Punctuated<Expr, Comma>,
+    pub args: Punctuated<Rc<Expr>, Comma>,
 
     pub lparen_t: Spanned<LParen>,
     pub rparen_t: Spanned<RParen>,
@@ -67,12 +69,12 @@ impl Spannable for FunctionCall {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct BinOpExpr {
     pub op: Spanned<BinOp>,
-    pub e1: Expr,
-    pub e2: Expr,
+    pub e1: Rc<Expr>,
+    pub e2: Rc<Expr>,
 }
 
 impl BinOpExpr {
@@ -89,7 +91,7 @@ impl Spannable for BinOpExpr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum BinOp {
     Add,
@@ -108,11 +110,11 @@ pub enum BinOp {
     Or,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct UnaryOpExpr {
     pub op: Spanned<UnaryOp>,
-    pub operand: Expr,
+    pub operand: Rc<Expr>,
 }
 
 impl UnaryOpExpr {
@@ -129,7 +131,7 @@ impl Spannable for UnaryOpExpr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum UnaryOp {
     Negative,
@@ -137,11 +139,11 @@ pub enum UnaryOp {
     Not,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ArrayIndex {
-    pub array: Expr,
-    pub index: Expr,
+    pub array: Rc<Expr>,
+    pub index: Rc<Expr>,
 
     pub lbracket_t: Spanned<LBracket>,
     pub rbracket_t: Spanned<RBracket>,

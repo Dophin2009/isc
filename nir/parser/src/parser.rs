@@ -1,7 +1,10 @@
 use crate::error::{ExpectedToken, ParseError};
 use crate::Result;
 
-use ast::{Program, Spanned};
+use std::collections::BTreeSet;
+use std::rc::Rc;
+
+use ast::{Expr, Program, Spanned};
 use itertools::{Itertools, MultiPeek};
 use lexer::{types as ttypes, Token};
 
@@ -60,10 +63,16 @@ pub(crate) struct ParseInput<I>
 where
     I: Iterator<Item = Symbol>,
 {
+    /// Accumulated parsing errors.
     pub errors: Vec<ParseError>,
 
+    /// Actual lexer token stream.
     inner: MultiPeek<I>,
+    /// Last span position of parsed input.
     last_pos: usize,
+
+    /// Stored expression values.
+    pub(crate) expr_cache: ExprCache,
 }
 
 impl<I> ParseInput<I>
@@ -76,6 +85,7 @@ where
             inner: inner.multipeek(),
             errors: Vec::new(),
             last_pos: 0,
+            expr_cache: ExprCache::new(),
         }
     }
 
@@ -245,5 +255,31 @@ where
 {
     fn peek(input: &mut ParseInput<I>) -> bool {
         input.peek_is(&Token::Reserved(R::variant()))
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ExprCache {
+    stored: BTreeSet<Rc<Expr>>,
+}
+
+impl ExprCache {
+    #[inline]
+    pub const fn new() -> Self {
+        Self {
+            stored: BTreeSet::new(),
+        }
+    }
+
+    /// Gets a reference to an existing Expr value, or clones and inserts it into storage.
+    #[inline]
+    pub fn get_or_insert(&mut self, expr: &Expr) -> Rc<Expr> {
+        match self.stored.get(expr) {
+            Some(v) => v.clone(),
+            None => {
+                self.stored.insert(Rc::new(expr.clone()));
+                self.stored.get(expr).unwrap().clone()
+            }
+        }
     }
 }

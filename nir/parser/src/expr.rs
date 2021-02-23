@@ -1,4 +1,7 @@
-use crate::{parser::Rsv, ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
+use crate::parser::Rsv;
+use crate::{ExpectedToken, Parse, ParseError, ParseInput, ParseResult, Symbol};
+
+use std::rc::Rc;
 
 use ast::{
     keywords::{Comma, DoubleColon, LParen, RParen},
@@ -24,20 +27,29 @@ where
 {
     #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
+        // Parse function path.
         let function = input.parse::<Punctuated<_, Rsv<DoubleColon>>>()?;
         let function = Punctuated::new(
             function.items,
             function.seps.into_iter().map(Rsv::into_inner).collect(),
         );
 
+        // Parse left parenthesis.
         let lparen_t = input.consume()?;
 
-        let args = input.parse::<Punctuated<_, Rsv<Comma>>>()?;
-        let args = Punctuated::new(
-            args.items,
-            args.seps.into_iter().map(Rsv::into_inner).collect(),
-        );
+        // Parse function arguments.
+        let args = {
+            let parsed_args = input.parse::<Punctuated<_, Rsv<Comma>>>()?;
+            let items = parsed_args
+                .items
+                .into_iter()
+                .map(|arg| input.expr_cache.get_or_insert(&arg))
+                .collect();
+            let seps = parsed_args.seps.into_iter().map(Rsv::into_inner).collect();
+            Punctuated::new(items, seps)
+        };
 
+        // Parse right parenthesis.
         let rparen_t = input.consume()?;
 
         Ok(Self {
@@ -54,11 +66,13 @@ fn expr_bp<I>(input: &mut ParseInput<I>, min_bp: u8) -> ParseResult<Expr>
 where
     I: Iterator<Item = Symbol>,
 {
+    // TODO: Actually fill in values
     #[inline]
     fn expected() -> Vec<ExpectedToken> {
         vec![]
     }
 
+    // Peek next input.
     let peeked = match input.peek() {
         Some(peeked) => peeked,
         None => {
@@ -67,6 +81,7 @@ where
         }
     };
 
+    // Parse first left hand side.
     let mut lhs = match &peeked.0 {
         // Identifier or function call
         Token::Ident(_) => {
@@ -80,7 +95,8 @@ where
                 // Nothing else; this is just an ident.
                 _ => {
                     input.reset_peek();
-                    Expr::Var(input.parse()?)
+                    let e = Expr::Var(Rc::new(input.parse()?));
+                    input.expr_cache.get_or_insert(&e)
                 }
             }
         }

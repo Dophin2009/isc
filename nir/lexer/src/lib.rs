@@ -4,6 +4,8 @@ mod reserved;
 pub use lexer::Lexer;
 pub use reserved::Reserved;
 
+pub use ordered_float::OrderedFloat;
+
 use std::fmt;
 
 #[cfg(feature = "serde-impl")]
@@ -14,7 +16,7 @@ pub mod types {
 }
 
 /// Atoms parsed by the lexer and passed to the parser.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Token {
     Ident(String),
@@ -25,19 +27,19 @@ pub enum Token {
     Unknown,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Literal {
     /// Token for a quoted string literal.
     Str(String),
 
     Integer(i64),
-    Float(f64),
+    Float(OrderedFloat<f64>),
 
     Boolean(bool),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub enum Type {
     Bool,

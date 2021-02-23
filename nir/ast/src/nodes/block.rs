@@ -1,6 +1,8 @@
 use super::keywords::{self, Colon, Else, Equ, For, If, In, LBrace, Let, RBrace, Semicolon, While};
 use super::{ArrayIndex, Expr, Ident, Span, Spannable, Spanned, Type};
 
+use std::rc::Rc;
+
 #[cfg(feature = "serde-impl")]
 use serde::{Deserialize, Serialize};
 
@@ -54,9 +56,9 @@ impl Spannable for Statement {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct VarDeclaration {
-    pub lhs: Ident,
+    pub lhs: Rc<Ident>,
     pub ty: Type,
-    pub rhs: Expr,
+    pub rhs: Rc<Expr>,
 
     pub let_t: Spanned<Let>,
     pub colon_t: Spanned<Colon>,
@@ -74,8 +76,8 @@ impl Spannable for VarDeclaration {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct VarAssign {
-    pub lhs: LValue,
-    pub rhs: Expr,
+    pub lhs: Rc<LValue>,
+    pub rhs: Rc<Expr>,
 
     pub equ_t: Spanned<Equ>,
     pub semicolon_t: Spanned<Semicolon>,
@@ -108,9 +110,9 @@ impl Spannable for LValue {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ForLoop {
-    pub ident: Ident,
+    pub ident: Rc<Ident>,
     pub ty: Type,
-    pub range: Expr,
+    pub range: Rc<Expr>,
     pub body: Block,
 
     pub for_t: Spanned<For>,
@@ -128,7 +130,7 @@ impl Spannable for ForLoop {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct WhileLoop {
-    pub cond: Expr,
+    pub cond: Rc<Expr>,
     pub body: Block,
 
     pub while_t: Spanned<While>,
@@ -172,7 +174,7 @@ impl Spannable for Continue {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Return {
-    pub value: Expr,
+    pub value: Rc<Expr>,
     pub return_t: Spanned<keywords::Return>,
     pub semicolon_t: Spanned<Semicolon>,
 }
@@ -200,7 +202,7 @@ impl Spannable for IfElse {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct IfBranch {
-    pub cond: Expr,
+    pub cond: Rc<Expr>,
     pub body: Block,
     pub else_body: Option<Box<ElseBranch>>,
 
@@ -244,7 +246,7 @@ impl Spannable for ElseBranch {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct ExprStatement {
-    pub expr: Expr,
+    pub expr: Rc<Expr>,
 
     pub semicolon_t: Spanned<Semicolon>,
 }
