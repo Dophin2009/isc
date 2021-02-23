@@ -8,6 +8,7 @@ where
     T: Parse<I>,
     S: Parse<I> + Peek<I>,
 {
+    #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         let mut items = Vec::new();
         let mut seps = Vec::new();

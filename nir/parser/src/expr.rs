@@ -203,6 +203,7 @@ where
     Ok(lhs)
 }
 
+#[inline]
 fn expr_parenthesized<I>(input: &mut ParseInput<I>) -> ParseResult<Expr>
 where
     I: Iterator<Item = Symbol>,
@@ -214,6 +215,7 @@ where
     Ok(inner)
 }
 
+#[inline]
 fn expr_literal<I>(input: &mut ParseInput<I>) -> ParseResult<Expr>
 where
     I: Iterator<Item = Symbol>,
@@ -234,6 +236,7 @@ where
     Ok(Expr::Literal(Spanned::new(literal, next.1)))
 }
 
+#[inline]
 fn expr_array<I>(input: &mut ParseInput<I>) -> ParseResult<ArrayLiteral>
 where
     I: Iterator<Item = Symbol>,
@@ -253,6 +256,7 @@ where
     })
 }
 
+#[inline]
 fn expr_unary<I>(input: &mut ParseInput<I>) -> ParseResult<UnaryOpExpr>
 where
     I: Iterator<Item = Symbol>,
@@ -282,6 +286,7 @@ where
 }
 
 /// Return the binding powers (specifically the right) for prefix operators.
+#[inline]
 fn prefix_binding_power(op: &UnaryOp) -> ((), u8) {
     match op {
         // Same binding power is probably fine, since they act on different types of operands?
@@ -291,6 +296,7 @@ fn prefix_binding_power(op: &UnaryOp) -> ((), u8) {
 }
 
 /// Return the binding powers for infix operators.
+#[inline]
 fn infix_binding_power(op: &BinOp) -> (u8, u8) {
     match op {
         BinOp::And | BinOp::Or => (3, 4),
@@ -301,6 +307,7 @@ fn infix_binding_power(op: &BinOp) -> (u8, u8) {
 }
 
 /// Return the binding powers (specifically the left) for postfix operators.
+#[inline]
 fn postfix_binding_power(op: &PostfixOp) -> (u8, ()) {
     match op {
         PostfixOp::ArrayIndex => (11, ()),

@@ -59,6 +59,7 @@ where
     }
 }
 
+#[inline]
 fn from_lexer_type(ty: lexer::Type, span: Span) -> Type {
     macro_rules! primitive {
         ($variant:ident) => {

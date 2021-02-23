@@ -232,6 +232,7 @@ where
     I: Iterator<Item = Symbol>,
     R: ttypes::ReservedVariant,
 {
+    #[inline]
     fn parse(input: &mut ParseInput<I>) -> ParseResult<Self> {
         input.consume::<R>()?;
         Ok(Self::new())
@@ -243,6 +244,7 @@ where
     I: Iterator<Item = Symbol>,
     R: ttypes::ReservedVariant,
 {
+    #[inline]
     fn peek(input: &mut ParseInput<I>) -> bool {
         input.peek_is(&Token::Reserved(R::variant()))
     }

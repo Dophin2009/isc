@@ -112,6 +112,7 @@ fn array_assign_or_expr<I>(input: &mut ParseInput<I>) -> ParseResult<Statement>
 where
     I: Iterator<Item = Symbol>,
 {
+    #[inline]
     fn expected() -> Vec<ExpectedToken> {
         vec![ereserved!(Equ), ereserved!(Semicolon)]
     }
