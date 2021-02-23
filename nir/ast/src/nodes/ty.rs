@@ -31,6 +31,7 @@ pub struct PrimitiveType {
 }
 
 impl Spannable for PrimitiveType {
+    #[inline]
     fn span(&self) -> Span {
         self.span.clone()
     }
@@ -43,6 +44,7 @@ pub struct DeclaredType {
 }
 
 impl Spannable for DeclaredType {
+    #[inline]
     fn span(&self) -> Span {
         self.name.span()
     }

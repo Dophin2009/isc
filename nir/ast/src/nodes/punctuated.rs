@@ -32,6 +32,7 @@ where
     T: Spannable,
     S: Spannable,
 {
+    #[inline]
     fn span(&self) -> Span {
         let (start, end) = self
             .items

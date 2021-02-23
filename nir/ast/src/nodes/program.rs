@@ -10,18 +10,21 @@ pub struct Program {
 }
 
 impl Program {
+    #[inline]
     pub fn new() -> Self {
         Self { items: vec![] }
     }
 }
 
 impl Default for Program {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl Spannable for Program {
+    #[inline]
     fn span(&self) -> Span {
         let (start, end) = self
             .items
@@ -41,6 +44,7 @@ pub enum Item {
 }
 
 impl Spannable for Item {
+    #[inline]
     fn span(&self) -> Span {
         match self {
             Self::Struct(s) => s.span(),

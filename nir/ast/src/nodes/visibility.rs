@@ -11,6 +11,7 @@ pub struct Visibility {
 }
 
 impl Spannable for Visibility {
+    #[inline]
     fn span(&self) -> Span {
         self.span.clone()
     }

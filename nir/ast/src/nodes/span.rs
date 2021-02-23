@@ -10,16 +10,19 @@ pub trait Spannable {
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T> Spanned<T> {
+    #[inline]
     pub fn new(inner: T, span: Span) -> Self {
         Self(inner, span)
     }
 
+    #[inline]
     pub fn inner(&self) -> &T {
         &self.0
     }
 }
 
 impl<T> Spannable for Spanned<T> {
+    #[inline]
     fn span(&self) -> Span {
         self.1.clone()
     }
