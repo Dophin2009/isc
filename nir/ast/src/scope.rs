@@ -86,6 +86,6 @@ impl AsSymbolKey for String {
 
 impl AsSymbolKey for Ident {
     fn as_string(self) -> String {
-        self.name_str().to_string()
+        self.as_str().to_string()
     }
 }

@@ -1,24 +1,30 @@
-#[derive(Clone, Debug)]
-pub struct Emitter {
-    instructions: Vec<Instruction>,
+use crate::instructions::{Label, Temp};
 
-    temp_allocator: TempAllocator,
+use std::marker::PhantomData;
+
+#[derive(Debug, Clone)]
+pub struct Emitter {
+    temp_allocator: Allocator<Temp>,
+    label_allocator: Allocator<Label>,
 }
 
 impl Emitter {
-    pub const fn new() -> Self {
+    #[inline]
+    pub fn new() -> Self {
         Self {
-            instructions: vec![],
-            temp_allocator: TempAllocator::new(),
+            temp_allocator: Allocator::new(),
+            label_allocator: Allocator::new(),
         }
     }
 
-    pub fn emit_instruction(&mut self, instruction: Instruction) {
-        self.instructions.push(instruction);
-    }
-
+    #[inline]
     pub fn alloc_temp(&mut self) -> Temp {
         self.temp_allocator.alloc()
+    }
+
+    #[inline]
+    pub fn alloc_label(&mut self) -> Label {
+        self.label_allocator.alloc()
     }
 }
 
@@ -29,54 +35,60 @@ impl Default for Emitter {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct LabelAllocator {
-    count: usize,
+pub trait Alloc {
+    fn alloc(idx: usize) -> Self;
 }
 
-impl LabelAllocator {
+#[derive(Debug, Clone)]
+pub struct Allocator<T>
+where
+    T: Alloc + Sized,
+{
+    count: usize,
+
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Allocator<T>
+where
+    T: Alloc + Sized,
+{
     #[inline]
-    pub const fn new() -> Self {
-        Self { count: 0 }
+    pub fn new() -> Self {
+        Self {
+            count: 0,
+            _phantom: PhantomData,
+        }
     }
 
     #[inline]
-    pub fn alloc(&mut self) -> Label {
-        let t = Label::new(self.count);
+    pub fn alloc(&mut self) -> T {
+        let t = T::alloc(self.count);
         self.count += 1;
         t
     }
 }
 
-impl Default for LabelAllocator {
+impl<T> Default for Allocator<T>
+where
+    T: Alloc,
+{
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct TempAllocator {
-    count: usize,
-}
-
-impl TempAllocator {
+impl Alloc for Temp {
     #[inline]
-    pub const fn new() -> Self {
-        Self { count: 0 }
-    }
-
-    #[inline]
-    pub fn alloc(&mut self) -> Temp {
-        let t = Temp::new(self.count);
-        self.count += 1;
-        t
+    fn alloc(idx: usize) -> Self {
+        Self { idx }
     }
 }
 
-impl Default for TempAllocator {
+impl Alloc for Label {
     #[inline]
-    fn default() -> Self {
-        Self::new()
+    fn alloc(idx: usize) -> Self {
+        Self { idx }
     }
 }

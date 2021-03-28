@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 macro_rules! define_reserved {
     ($($variant:ident => $str:literal),*) => {
-        #[derive(Clone, Debug, PartialEq)]
+        #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
         #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
         pub enum Reserved {
             $($variant),*
@@ -26,7 +26,7 @@ macro_rules! define_reserved {
         }
 
         $(
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
             #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
             pub struct $variant;
 

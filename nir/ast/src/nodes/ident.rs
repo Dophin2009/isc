@@ -13,7 +13,7 @@ pub struct Ident {
 
 impl Ident {
     #[inline]
-    pub fn name_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         self.name.0.as_ref()
     }
 }
@@ -25,7 +25,7 @@ impl Spannable for Ident {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde-impl", derive(Serialize, Deserialize))]
 pub struct Path {
     pub segments: Punctuated<Ident, DoubleColon>,

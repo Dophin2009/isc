@@ -11,6 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 ast = { path = "ast", features = ["serde-impl"] }
 diagnostic = { path = "diagnostic" }
+irgen = { path = "irgen" }
 parser = { path = "parser", features = ["serde-impl"] }
 lexer = { path = "lexer", features = ["serde-impl"] }
 
@@ -20,4 +21,4 @@ thiserror = "1.0"
 utf8-chars = "1.0"
 
 [workspace]
-members = ["ast", "diagnostic", "lexer", "parser"]
+members = ["ast", "diagnostic", "irgen", "lexer", "parser"]
