@@ -1,7 +1,2 @@
-build/
-target/
-
-**/*.rs.bk
-
-compile_commands.json
-.cache/
+build
+target
