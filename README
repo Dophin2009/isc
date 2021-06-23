@@ -32,5 +32,5 @@ See subdirectories for more information and examples.
 Building
 ========
 
-Rust is required to build the above components.  See `Makefile` for other
+Rust is required to build the above components.  See nested Makefiles for other
 targets and requirements.
